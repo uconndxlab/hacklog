@@ -69,16 +69,28 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        @if($epic->tasks->isEmpty())
+                        @php
+                            // Filter tasks to only show those with effective due dates
+                            $tasksWithDates = $epic->tasks->filter(function($task) {
+                                return $task->getEffectiveDueDate() !== null;
+                            });
+                        @endphp
+                        
+                        @if($tasksWithDates->isEmpty())
                             <p class="text-muted small mb-0">No tasks with due dates in this epic.</p>
                         @else
                             <div class="list-group list-group-flush">
-                                @foreach($epic->tasks as $task)
-                                    <div class="list-group-item px-0 @if($task->isOverdue()) border-start border-danger border-3 ps-2 @endif">
+                                @foreach($tasksWithDates as $task)
+                                    @php
+                                        $effectiveDueDate = $task->getEffectiveDueDate();
+                                        $isInheritedDate = !$task->due_date && $effectiveDueDate;
+                                        $isEffectivelyOverdue = $effectiveDueDate && $effectiveDueDate->isBefore($today) && $task->status !== 'completed';
+                                    @endphp
+                                    <div class="list-group-item px-0 @if($isEffectivelyOverdue) border-start border-danger border-3 ps-2 @endif">
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
-                                                <h6 class="mb-1 @if($task->isOverdue()) text-danger fw-semibold @endif">
-                                                    <a href="{{ route('projects.epics.tasks.show', [$project, $epic, $task]) }}" class="@if($task->isOverdue()) text-danger @endif">
+                                                <h6 class="mb-1 @if($isEffectivelyOverdue) text-danger fw-semibold @endif">
+                                                    <a href="{{ route('projects.epics.tasks.show', [$project, $epic, $task]) }}" class="@if($isEffectivelyOverdue) text-danger @endif">
                                                         {{ $task->title }}
                                                     </a>
                                                 </h6>
@@ -90,28 +102,31 @@
                                                         <span class="text-muted">{{ $task->users->pluck('name')->join(', ') }}</span>
                                                     @endif
                                                     
-                                                    @if($task->start_date || $task->due_date)
-                                                        <span class="mx-2 text-muted">•</span>
-                                                        @if($task->start_date && $task->due_date)
-                                                            <span class="@if($task->isOverdue()) text-danger @else text-muted @endif">
-                                                                {{ $task->start_date->format('M j') }} → {{ $task->due_date->format('M j, Y') }}
-                                                            </span>
-                                                        @elseif($task->start_date)
-                                                            <span class="text-muted">
-                                                                Starts: {{ $task->start_date->format('M j, Y') }}
-                                                            </span>
-                                                        @elseif($task->due_date)
-                                                            <span class="@if($task->isOverdue()) text-danger @else text-muted @endif">
-                                                                Due: {{ $task->due_date->format('M j, Y') }}
-                                                            </span>
-                                                        @endif
-                                                        
-                                                        @if($task->isOverdue())
-                                                            <span class="badge bg-danger ms-2">Overdue</span>
-                                                        @endif
-                                                    @else
-                                                        <span class="mx-2 text-muted">•</span>
-                                                        <span class="text-muted">No dates set</span>
+                                                    <span class="mx-2 text-muted">•</span>
+                                                    @if($task->start_date && $task->due_date)
+                                                        <span class="@if($isEffectivelyOverdue) text-danger @else text-muted @endif">
+                                                            {{ $task->start_date->format('M j') }} → {{ $task->due_date->format('M j, Y') }}
+                                                        </span>
+                                                    @elseif($task->start_date && !$task->due_date && $effectiveDueDate)
+                                                        <span class="@if($isEffectivelyOverdue) text-danger @else text-muted @endif">
+                                                            {{ $task->start_date->format('M j') }} → {{ $effectiveDueDate->format('M j, Y') }} (from epic)
+                                                        </span>
+                                                    @elseif($task->start_date && !$effectiveDueDate)
+                                                        <span class="text-muted">
+                                                            Starts: {{ $task->start_date->format('M j, Y') }}
+                                                        </span>
+                                                    @elseif($task->due_date)
+                                                        <span class="@if($isEffectivelyOverdue) text-danger @else text-muted @endif">
+                                                            Due: {{ $task->due_date->format('M j, Y') }}
+                                                        </span>
+                                                    @elseif($isInheritedDate)
+                                                        <span class="@if($isEffectivelyOverdue) text-danger @else text-muted @endif">
+                                                            Due: {{ $effectiveDueDate->format('M j, Y') }} (from epic)
+                                                        </span>
+                                                    @endif
+                                                    
+                                                    @if($isEffectivelyOverdue)
+                                                        <span class="badge bg-danger ms-2">Overdue</span>
                                                     @endif
                                                 </div>
                                             </div>

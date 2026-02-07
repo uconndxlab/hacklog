@@ -550,17 +550,18 @@ class ProjectController extends Controller
         $showCompleted = $request->query('show_completed', '0') === '1';
 
         // Load epics with their tasks, eager loading columns for task display
-        // Tasks are sorted by due_date (nulls last) within each epic
+        // Tasks are sorted by effective due date (explicit due_date or inherited from epic)
         $project->load(['epics' => function ($query) use ($showCompleted, $request) {
             if (!$showCompleted) {
                 $query->where('status', '!=', 'completed');
             }
             $query->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
                   ->orderBy('start_date', 'asc')
-                  ->with(['tasks' => function ($taskQuery) use ($request) {
-                      $taskQuery->with('column')
-                                ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
-                                ->orderBy('due_date', 'asc');
+                  ->with(['tasks' => function ($taskQuery) use ($request, $showCompleted) {
+                      $taskQuery->with('column', 'users');
+                      
+                      // Only show tasks with effective due dates (explicit or inherited)
+                      // This will be handled by eager loading, we'll filter in the view
                       
                       // Filter by assigned user
                       if ($request->input('assigned') === 'me') {
@@ -568,6 +569,14 @@ class ProjectController extends Controller
                               $query->where('users.id', $request->user()->id);
                           });
                       }
+                      
+                      if (!$showCompleted) {
+                          $taskQuery->where('status', '!=', 'completed');
+                      }
+                      
+                      // Sort by explicit due_date first, then position
+                      $taskQuery->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+                                ->orderBy('due_date', 'asc');
                   }]);
         }]);
 
@@ -690,6 +699,7 @@ class ProjectController extends Controller
 
         // Aggregate due dates per week
         // Count epic end_date and task due_date occurrences per week
+        // Tasks use "effective due date" - explicit due_date or epic end_date fallback
         foreach ($weeks as $index => $week) {
             $dueDateCount = 0;
             
@@ -702,18 +712,25 @@ class ProjectController extends Controller
                 }
             }
             
-            // Count task due dates in this week
-            $tasksDueInWeek = \App\Models\Task::whereHas('epic', function ($q) use ($epics) {
-                $q->whereIn('id', $epics->pluck('id'));
-            })
-            ->whereNotNull('due_date')
-            ->whereBetween('due_date', [$week['start'], $week['end']])
-            ->when(!$showCompleted, function ($q) {
-                $q->where('status', '!=', 'completed');
-            })
-            ->count();
+            // Count task effective due dates in this week
+            // Includes tasks with explicit due_date OR tasks inheriting from epic end_date
+            $tasks = \App\Models\Task::with('epic')
+                ->whereHas('epic', function ($q) use ($epics) {
+                    $q->whereIn('id', $epics->pluck('id'));
+                })
+                ->when(!$showCompleted, function ($q) {
+                    $q->where('status', '!=', 'completed');
+                })
+                ->get();
             
-            $dueDateCount += $tasksDueInWeek;
+            foreach ($tasks as $task) {
+                $effectiveDueDate = $task->getEffectiveDueDate();
+                if ($effectiveDueDate && 
+                    $effectiveDueDate->gte($week['start']) && 
+                    $effectiveDueDate->lte($week['end'])) {
+                    $dueDateCount++;
+                }
+            }
             
             $weeks[$index]['due_count'] = $dueDateCount;
         }

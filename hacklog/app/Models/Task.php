@@ -48,6 +48,27 @@ class Task extends Model
     }
 
     /**
+     * Get the effective due date for this task.
+     * 
+     * Returns the task's explicit due_date if set, otherwise falls back
+     * to the parent epic's due_date. This allows tasks without explicit
+     * dates to inherit timing from their epic for visualization and
+     * aggregation purposes.
+     * 
+     * @return \Carbon\Carbon|null
+     */
+    public function getEffectiveDueDate()
+    {
+        // Explicit task due date takes precedence
+        if ($this->due_date) {
+            return $this->due_date;
+        }
+
+        // Fall back to epic's end_date
+        return $this->epic?->end_date;
+    }
+
+    /**
      * Boot the model to set default ordering scope
      */
     protected static function booted()

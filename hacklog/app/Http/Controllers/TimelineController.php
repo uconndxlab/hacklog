@@ -157,6 +157,7 @@ class TimelineController extends Controller
 
         // Aggregate due dates per week
         // Count epic end_date and task due_date occurrences per week
+        // Tasks use "effective due date" - explicit due_date or epic end_date fallback
         foreach ($weeks as $index => $week) {
             $dueDateCount = 0;
             
@@ -169,19 +170,25 @@ class TimelineController extends Controller
                 }
             }
             
-            // Count task due dates in this week
-            // Get all tasks from these epics
-            $tasksDueInWeek = \App\Models\Task::whereHas('epic', function ($q) use ($epics) {
-                $q->whereIn('id', $epics->pluck('id'));
-            })
-            ->whereNotNull('due_date')
-            ->whereBetween('due_date', [$week['start'], $week['end']])
-            ->when(!$showCompleted, function ($q) {
-                $q->where('status', '!=', 'completed');
-            })
-            ->count();
+            // Count task effective due dates in this week
+            // Includes tasks with explicit due_date OR tasks inheriting from epic end_date
+            $tasks = \App\Models\Task::with('epic')
+                ->whereHas('epic', function ($q) use ($epics) {
+                    $q->whereIn('id', $epics->pluck('id'));
+                })
+                ->when(!$showCompleted, function ($q) {
+                    $q->where('status', '!=', 'completed');
+                })
+                ->get();
             
-            $dueDateCount += $tasksDueInWeek;
+            foreach ($tasks as $task) {
+                $effectiveDueDate = $task->getEffectiveDueDate();
+                if ($effectiveDueDate && 
+                    $effectiveDueDate->gte($week['start']) && 
+                    $effectiveDueDate->lte($week['end'])) {
+                    $dueDateCount++;
+                }
+            }
             
             $weeks[$index]['due_count'] = $dueDateCount;
         }

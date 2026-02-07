@@ -29,9 +29,17 @@ class ScheduleController extends Controller
         $showCompleted = $request->has('show_completed') && $request->input('show_completed') === '1';
 
         // Build task query with eager loading to avoid N+1
+        // Include tasks with explicit due_date OR tasks that can inherit from epic end_date
         $tasksQuery = Task::query()
             ->with(['epic.project', 'column', 'users'])
-            ->whereNotNull('due_date');
+            ->where(function ($query) {
+                // Tasks with explicit due_date
+                $query->whereNotNull('due_date')
+                      // OR tasks without due_date but epic has end_date (will inherit)
+                      ->orWhereHas('epic', function ($q) {
+                          $q->whereNotNull('end_date');
+                      });
+            });
         
         // Filter by status
         if (!$showCompleted) {
@@ -48,28 +56,38 @@ class ScheduleController extends Controller
         // Get all tasks (we'll separate overdue vs. in-range in PHP)
         $allTasks = $tasksQuery->orderBy('due_date', 'asc')->get();
 
-        // Separate overdue from in-range tasks
+        // Separate overdue from in-range tasks using effective due date
+        // Effective due date = task.due_date ?? epic.end_date
         $today = Carbon::today();
         $overdueTasks = collect();
         $rangeTasks = collect();
 
         foreach ($allTasks as $task) {
-            if ($task->isOverdue()) {
-                // Overdue: due_date < today AND status != completed
+            $effectiveDueDate = $task->getEffectiveDueDate();
+            
+            // Skip tasks with no effective due date
+            if (!$effectiveDueDate) {
+                continue;
+            }
+            
+            // Check if overdue based on effective date
+            $isOverdue = $effectiveDueDate->isBefore($today) && $task->status !== 'completed';
+            
+            if ($isOverdue) {
                 $overdueTasks->push($task);
-            } elseif ($task->due_date >= $filterStart && $task->due_date <= $filterEnd) {
+            } elseif ($effectiveDueDate >= $filterStart && $effectiveDueDate <= $filterEnd) {
                 // Within date range
                 $rangeTasks->push($task);
             }
         }
 
-        // Group tasks by due date for display
+        // Group tasks by effective due date for display
         $overdueGrouped = $overdueTasks->groupBy(function ($task) {
-            return $task->due_date->format('Y-m-d');
+            return $task->getEffectiveDueDate()->format('Y-m-d');
         })->sortKeys();
 
         $rangeGrouped = $rangeTasks->groupBy(function ($task) {
-            return $task->due_date->format('Y-m-d');
+            return $task->getEffectiveDueDate()->format('Y-m-d');
         })->sortKeys();
 
         return view('schedule.index', compact(
