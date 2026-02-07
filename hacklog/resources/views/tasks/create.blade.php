@@ -1,14 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Create Task - ' . $epic->name)
+@section('title', 'Create Task')
 
 @section('content')
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ route('projects.index') }}">Projects</a></li>
         <li class="breadcrumb-item"><a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.epics.index', $project) }}">Epics</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}">{{ $epic->name }}</a></li>
         <li class="breadcrumb-item active" aria-current="page">Create Task</li>
     </ol>
 </nav>
@@ -16,8 +14,7 @@
 <div class="row">
     <div class="col-lg-8">
         <div class="mb-4">
-            <h1 class="mb-1">Create Task</h1>
-            <p class="text-muted mb-0">{{ $epic->name }}</p>
+            <h1>Create Task</h1>
         </div>
 
         @if($columns->isEmpty())
@@ -37,7 +34,7 @@
                         id="epic_id"
                         name="epic_id"
                         required>
-                        <option value="">Select an epic...</option>
+                        <option value="">Choose an epic...</option>
                         @php
                             $defaultEpicId = old('epic_id', $epic->id);
                         @endphp
@@ -89,13 +86,13 @@
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="column_id" class="form-label">Column</label>
+                        <label for="column_id" class="form-label">Status Column</label>
                         <select 
                             class="form-select @error('column_id') is-invalid @enderror" 
                             id="column_id" 
                             name="column_id" 
                             required>
-                            <option value="">Select column...</option>
+                            <option value="">Choose a status...</option>
                             @foreach($columns as $column)
                                 <option value="{{ $column->id }}" 
                                     {{ old('column_id', $column->is_default ? $column->id : '') == $column->id ? 'selected' : '' }}>

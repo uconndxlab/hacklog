@@ -1,47 +1,58 @@
 {{-- Task card for project board view --}}
 <div class="card mb-2" id="board-task-{{ $task->id }}">
     <div class="card-body p-2">
-        <h6 class="card-title mb-1">
-            <a href="{{ route('projects.epics.tasks.show', [$project, $task->epic, $task]) }}" 
-               class="text-decoration-none"
-               data-bs-toggle="modal" 
-               data-bs-target="#taskDetailsModal"
-               hx-get="{{ route('projects.board.tasks.show', [$project, $task]) }}"
-               hx-target="#taskDetailsModalContent">
-                {{ $task->title }}
-            </a>
-        </h6>
+        <div class="d-flex justify-content-between align-items-start mb-1">
+            <h6 class="card-title mb-0">
+                <a href="{{ route('projects.epics.tasks.show', [$project, $task->epic, $task]) }}" 
+                   class="text-decoration-none"
+                   data-bs-toggle="modal" 
+                   data-bs-target="#taskDetailsModal"
+                   hx-get="{{ route('projects.board.tasks.show', [$project, $task]) }}"
+                   hx-target="#taskDetailsModalContent">
+                    {{ $task->title }}
+                </a>
+            </h6>
+            
+            {{-- Move up/down buttons --}}
+            @if($task->canMoveUp() || $task->canMoveDown())
+                <div class="btn-group btn-group-sm" role="group">
+                    @if($task->canMoveUp())
+                        <form 
+                            action="{{ route('projects.epics.tasks.move-up', [$project, $task->epic, $task]) }}" 
+                            method="POST" 
+                            class="d-inline"
+                            hx-post="{{ route('projects.epics.tasks.move-up', [$project, $task->epic, $task]) }}"
+                            hx-target="#board-column-{{ $task->column_id }}-tasks"
+                            hx-swap="outerHTML">
+                            @csrf
+                            <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
+                            <button type="submit" class="btn btn-outline-secondary">↑</button>
+                        </form>
+                    @else
+                        <button type="button" class="btn btn-outline-secondary" disabled>↑</button>
+                    @endif
+                    
+                    @if($task->canMoveDown())
+                        <form 
+                            action="{{ route('projects.epics.tasks.move-down', [$project, $task->epic, $task]) }}" 
+                            method="POST" 
+                            class="d-inline"
+                            hx-post="{{ route('projects.epics.tasks.move-down', [$project, $task->epic, $task]) }}"
+                            hx-target="#board-column-{{ $task->column_id }}-tasks"
+                            hx-swap="outerHTML">
+                            @csrf
+                            <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
+                            <button type="submit" class="btn btn-outline-secondary">↓</button>
+                        </form>
+                    @else
+                        <button type="button" class="btn btn-outline-secondary" disabled>↓</button>
+                    @endif
+                </div>
+            @endif
+        </div>
+        
         <p class="card-text mb-2">
             <small class="text-muted">Epic: {{ $task->epic->name }}</small>
-        </p>
-        @if($task->start_date || $task->due_date)
-            <p class="card-text mb-2">
-                <small class="text-muted">
-                    @if($task->start_date && $task->due_date)
-                        {{ $task->start_date->format('M j') }} → {{ $task->due_date->format('M j, Y') }}
-                    @elseif($task->start_date)
-                        Starts: {{ $task->start_date->format('M j, Y') }}
-                    @else
-                        Due: {{ $task->due_date->format('M j, Y') }}
-                    @endif
-                </small>
-            </p>
-        @endif
-        @if($task->users->isNotEmpty())
-            <p class="card-text mb-2">
-                <small class="text-muted">
-                    Assigned: {{ $task->users->pluck('name')->join(', ') }}
-                </small>
-            </p>
-        @endif
-        <p class="card-text mb-2">
-            <span class="badge 
-                @if($task->status === 'planned') bg-secondary
-                @elseif($task->status === 'active') bg-success
-                @else bg-primary
-                @endif">
-                {{ ucfirst($task->status) }}
-            </span>
         </p>
         
         {{-- Edit button --}}
@@ -55,37 +66,6 @@
                 hx-target="#taskModalContent">
                 Edit Task
             </button>
-        </div>
-        
-        {{-- Move up/down buttons --}}
-        <div class="d-flex gap-1 mb-2">
-            @if($task->canMoveUp())
-                <form 
-                    action="{{ route('projects.epics.tasks.move-up', [$project, $task->epic, $task]) }}" 
-                    method="POST" 
-                    class="d-inline"
-                    hx-post="{{ route('projects.epics.tasks.move-up', [$project, $task->epic, $task]) }}"
-                    hx-target="#board-column-{{ $task->column_id }}-tasks"
-                    hx-swap="outerHTML">
-                    @csrf
-                    <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
-                    <button type="submit" class="btn btn-sm btn-outline-primary">Move Up</button>
-                </form>
-            @endif
-
-            @if($task->canMoveDown())
-                <form 
-                    action="{{ route('projects.epics.tasks.move-down', [$project, $task->epic, $task]) }}" 
-                    method="POST" 
-                    class="d-inline"
-                    hx-post="{{ route('projects.epics.tasks.move-down', [$project, $task->epic, $task]) }}"
-                    hx-target="#board-column-{{ $task->column_id }}-tasks"
-                    hx-swap="outerHTML">
-                    @csrf
-                    <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
-                    <button type="submit" class="btn btn-sm btn-outline-primary">Move Down</button>
-                </form>
-            @endif
         </div>
         
         {{-- Column selector with HTMX enhancement --}}

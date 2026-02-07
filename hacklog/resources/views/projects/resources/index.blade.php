@@ -61,19 +61,19 @@
                                             @if($resource->canMoveUp())
                                                 <form action="{{ route('projects.resources.move-up', [$project, $resource]) }}" method="POST" class="d-inline">
                                                     @csrf
-                                                    <button type="submit" class="btn btn-outline-secondary">↑ Up</button>
+                                                    <button type="submit" class="btn btn-outline-secondary">↑</button>
                                                 </form>
                                             @else
-                                                <button type="button" class="btn btn-outline-secondary" disabled>↑ Up</button>
+                                                <button type="button" class="btn btn-outline-secondary" disabled>↑</button>
                                             @endif
                                             
                                             @if($resource->canMoveDown())
                                                 <form action="{{ route('projects.resources.move-down', [$project, $resource]) }}" method="POST" class="d-inline">
                                                     @csrf
-                                                    <button type="submit" class="btn btn-outline-secondary">↓ Down</button>
+                                                    <button type="submit" class="btn btn-outline-secondary">↓</button>
                                                 </form>
                                             @else
-                                                <button type="button" class="btn btn-outline-secondary" disabled>↓ Down</button>
+                                                <button type="button" class="btn btn-outline-secondary" disabled>↓</button>
                                             @endif
                                         </div>
                                     </div>

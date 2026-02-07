@@ -21,7 +21,7 @@
                 </div>
                 <div class="card-body">
                     @if($assignedTasks->isEmpty())
-                        <p class="text-muted mb-0">No tasks assigned to you yet.</p>
+                        <p class="text-muted mb-0">You don't have any tasks assigned to you. Tasks will appear here once you're assigned to them.</p>
                     @else
                         <div class="list-group list-group-flush">
                             @foreach($assignedTasks as $task)
@@ -63,7 +63,7 @@
                 </div>
                 <div class="card-body">
                     @if($upcomingDeadlineTasks->isEmpty())
-                        <p class="text-muted mb-0">No upcoming deadlines.</p>
+                        <p class="text-muted mb-0">No upcoming deadlines. Tasks with due dates will appear here.</p>
                     @else
                         @foreach($upcomingDeadlineTasks as $date => $tasks)
                             <div class="mb-3">
@@ -89,12 +89,12 @@
             <!-- Quick Navigation -->
             <div class="card">
                 <div class="card-header">
-                    <h3 class="h5 mb-0">Quick Navigation</h3>
+                    <h3 class="h5 mb-0">Quick Actions</h3>
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{{ route('projects.index') }}" class="btn btn-outline-primary">View All Projects</a>
-                        <a href="{{ route('schedule.index') }}" class="btn btn-outline-primary">Organization Schedule</a>
+                        <a href="{{ route('projects.index') }}" class="btn btn-outline-primary">Browse All Projects</a>
+                        <a href="{{ route('schedule.index') }}" class="btn btn-outline-primary">View Organization Schedule</a>
                     </div>
                 </div>
             </div>

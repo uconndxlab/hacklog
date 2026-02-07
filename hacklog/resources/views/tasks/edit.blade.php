@@ -56,7 +56,7 @@
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label for="column_id" class="form-label">Column</label>
+                    <label for="column_id" class="form-label">Status Column</label>
                     <select 
                         class="form-select @error('column_id') is-invalid @enderror" 
                         id="column_id" 

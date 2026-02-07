@@ -30,7 +30,7 @@
             id="epic_id"
             name="epic_id"
             required>
-            <option value="">Select an epic...</option>
+            <option value="">Choose an epic...</option>
             @php
                 $defaultEpicId = old('epic_id', $isEdit ? $task->epic_id : ($epics->where('status', 'active')->first()?->id ?? $epics->first()?->id));
             @endphp
@@ -139,7 +139,7 @@
 
     @if($isEdit)
         <div class="mb-3">
-            <label for="column_id_select" class="form-label">Column</label>
+            <label for="column_id_select" class="form-label">Status Column</label>
             <select 
                 class="form-select @error('column_id') is-invalid @enderror" 
                 id="column_id_select" 

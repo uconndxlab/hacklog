@@ -17,6 +17,14 @@
     
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        // Configure HTMX to include CSRF token in headers for non-GET requests
+        document.body.addEventListener('htmx:configRequest', function(evt) {
+            if (evt.detail.verb !== 'get') {
+                evt.detail.headers['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            }
+        });
+    </script>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">

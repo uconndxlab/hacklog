@@ -14,8 +14,9 @@ class ProjectController extends Controller
     {
         $query = Project::query();
 
-        // Filter by assigned to me
-        if ($request->input('assigned') === 'me') {
+        // Filter by assigned to me (default behavior, unless explicitly disabled)
+        $assignedFilter = $request->input('assigned');
+        if ($assignedFilter !== 'all') {
             $query->whereHas('epics.tasks.users', function ($query) use ($request) {
                 $query->where('users.id', $request->user()->id);
             })->whereHas('epics.tasks', function ($query) {
