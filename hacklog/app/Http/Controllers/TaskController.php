@@ -105,8 +105,10 @@ class TaskController extends Controller
         
         $task->update($validated);
 
-        // Sync assignees
-        $task->users()->sync($validated['assignees'] ?? []);
+        // Only sync assignees if not a simple column change from board
+        if (!$request->input('column_change_only')) {
+            $task->users()->sync($validated['assignees'] ?? []);
+        }
 
         // Check if this is from the board view
         $fromBoard = $request->input('from_board');
@@ -140,16 +142,37 @@ class TaskController extends Controller
         $columns = $project->columns;
         
         if ($isProjectBoard) {
-            // Load all tasks for this project across all epics
-            $tasks = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
+            // Build task query with same filtering logic as board view
+            $tasksQuery = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
                 $query->where('project_id', $project->id);
-            })
-            ->with('epic')
-            ->get()
-            ->groupBy('column_id');
+            });
+
+            // Apply epic filter if provided in request
+            if (request('epic')) {
+                $tasksQuery->where('epic_id', request('epic'));
+            }
+
+            // Apply assignment filter if provided in request
+            $assigned = request('assigned');
+            if ($assigned === 'me') {
+                // Filter to tasks assigned to current user
+                $tasksQuery->whereHas('users', function ($query) {
+                    $query->where('users.id', auth()->id());
+                });
+            } elseif ($assigned === 'none') {
+                // Filter to unassigned tasks
+                $tasksQuery->whereDoesntHave('users');
+            } elseif ($assigned && is_numeric($assigned)) {
+                // Filter to tasks assigned to specific user
+                $tasksQuery->whereHas('users', function ($query) use ($assigned) {
+                    $query->where('users.id', $assigned);
+                });
+            }
+            
+            $tasks = $tasksQuery->with(['epic', 'users'])->get()->groupBy('column_id');
         } else {
             // Load only tasks for this specific epic
-            $tasks = $epic->tasks()->with('epic')->get()->groupBy('column_id');
+            $tasks = $epic->tasks()->with(['epic', 'users'])->get()->groupBy('column_id');
         }
         
         // Get the source and destination columns
@@ -297,13 +320,35 @@ class TaskController extends Controller
     {
         $columns = $project->columns;
         
-        // Load all tasks for this project
-        $tasks = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
+        // Build task query with same filtering logic as board view
+        $tasksQuery = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
             $query->where('project_id', $project->id);
-        })
-        ->with('epic')
-        ->get()
-        ->groupBy('column_id');
+        });
+
+        // Apply epic filter if provided in request
+        if (request('epic')) {
+            $tasksQuery->where('epic_id', request('epic'));
+        }
+
+        // Apply assignment filter if provided in request
+        $assigned = request('assigned');
+        if ($assigned === 'me') {
+            // Filter to tasks assigned to current user
+            $tasksQuery->whereHas('users', function ($query) {
+                $query->where('users.id', auth()->id());
+            });
+        } elseif ($assigned === 'none') {
+            // Filter to unassigned tasks
+            $tasksQuery->whereDoesntHave('users');
+        } elseif ($assigned && is_numeric($assigned)) {
+            // Filter to tasks assigned to specific user
+            $tasksQuery->whereHas('users', function ($query) use ($assigned) {
+                $query->where('users.id', $assigned);
+            });
+        }
+        
+        // Load tasks with filtering applied
+        $tasks = $tasksQuery->with(['epic', 'users'])->get()->groupBy('column_id');
         
         $column = $columns->firstWhere('id', $columnId);
         

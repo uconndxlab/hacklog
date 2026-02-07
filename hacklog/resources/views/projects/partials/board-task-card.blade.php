@@ -101,10 +101,6 @@
         <form 
             action="{{ route('projects.epics.tasks.update', [$project, $task->epic, $task]) }}" 
             method="POST"
-            hx-put="{{ route('projects.epics.tasks.update', [$project, $task->epic, $task]) }}"
-            hx-target="#board-column-{{ $task->column_id }}-tasks"
-            hx-swap="outerHTML"
-            hx-include="[name='_token'], [name='column_id']"
             class="mt-2">
             @csrf
             @method('PUT')
@@ -115,12 +111,20 @@
             <input type="hidden" name="status" value="{{ $task->status }}">
             <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
             <input type="hidden" name="old_column_id" value="{{ $task->column_id }}">
+            <input type="hidden" name="column_change_only" value="1">
+            @foreach($task->users as $user)
+                <input type="hidden" name="assignees[]" value="{{ $user->id }}">
+            @endforeach
             
             <div class="input-group input-group-sm">
                 <select 
                     name="column_id" 
                     class="form-select form-select-sm"
-                    onchange="this.form.submit()">
+                    hx-trigger="change"
+                    hx-put="{{ route('projects.epics.tasks.update', [$project, $task->epic, $task]) }}"
+                    hx-target="#board-column-{{ $task->column_id }}-tasks"
+                    hx-swap="outerHTML"
+                    hx-include="closest form">
                     @foreach($allColumns as $col)
                         <option value="{{ $col->id }}" {{ $task->column_id == $col->id ? 'selected' : '' }}>
                             {{ $col->name }}

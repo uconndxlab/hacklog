@@ -47,12 +47,42 @@
                 @endforeach
             </ul>
         </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="assignedFilter" 
-                   {{ request('assigned') === 'me' ? 'checked' : '' }}>
-            <label class="form-check-label" for="assignedFilter">
-                Assigned to Me
-            </label>
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                @php
+                    $assigned = request('assigned');
+                    $assignedLabel = 'All Tasks';
+                    if ($assigned === 'me') {
+                        $assignedLabel = 'Assigned to Me';
+                    } elseif ($assigned === 'none') {
+                        $assignedLabel = 'Unassigned';
+                    } elseif ($assigned && is_numeric($assigned)) {
+                        $assignedUser = \App\Models\User::find($assigned);
+                        $assignedLabel = $assignedUser ? 'Assigned to ' . $assignedUser->name : 'All Tasks';
+                    }
+                @endphp
+                {{ $assignedLabel }}
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item {{ !request('assigned') ? 'active' : '' }}" 
+                       href="{{ request()->fullUrlWithQuery(['assigned' => null]) }}">All Tasks</a></li>
+                <li><a class="dropdown-item {{ request('assigned') === 'me' ? 'active' : '' }}" 
+                       href="{{ request()->fullUrlWithQuery(['assigned' => 'me']) }}">Assigned to Me</a></li>
+                <li><a class="dropdown-item {{ request('assigned') === 'none' ? 'active' : '' }}" 
+                       href="{{ request()->fullUrlWithQuery(['assigned' => 'none']) }}">Unassigned</a></li>
+                <li><hr class="dropdown-divider"></li>
+                @php
+                    $users = \App\Models\User::orderBy('name')->get();
+                @endphp
+                @foreach($users as $user)
+                    <li>
+                        <a class="dropdown-item {{ request('assigned') == $user->id ? 'active' : '' }}" 
+                           href="{{ request()->fullUrlWithQuery(['assigned' => $user->id]) }}">
+                            {{ $user->name }}
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
         </div>
         <a href="{{ route('projects.columns.index', $project) }}" class="btn btn-sm btn-outline-secondary">Manage Columns</a>
     </div>
@@ -193,14 +223,19 @@
 @endif
 
 <script>
-document.getElementById('assignedFilter').addEventListener('change', function() {
-    const url = new URL(window.location);
-    if (this.checked) {
-        url.searchParams.set('assigned', 'me');
-    } else {
-        url.searchParams.delete('assigned');
+// Add current filter parameters to HTMX requests
+document.body.addEventListener('htmx:configRequest', function(evt) {
+    const params = new URLSearchParams(window.location.search);
+    
+    // Add epic filter if present
+    if (params.get('epic')) {
+        evt.detail.parameters['epic'] = params.get('epic');
     }
-    window.location.href = url.toString();
+    
+    // Add assigned filter if present
+    if (params.get('assigned')) {
+        evt.detail.parameters['assigned'] = params.get('assigned');
+    }
 });
 </script>
 

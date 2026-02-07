@@ -182,10 +182,20 @@ class ProjectController extends Controller
             $tasksQuery->where('epic_id', $request->epic);
         }
 
-        // Apply "assigned to me" filter if requested
-        if ($request->query('assigned') === 'me') {
+        // Apply assignment filter if requested
+        $assigned = $request->query('assigned');
+        if ($assigned === 'me') {
+            // Filter to tasks assigned to current user
             $tasksQuery->whereHas('users', function ($query) use ($request) {
                 $query->where('users.id', $request->user()->id);
+            });
+        } elseif ($assigned === 'none') {
+            // Filter to unassigned tasks
+            $tasksQuery->whereDoesntHave('users');
+        } elseif ($assigned && is_numeric($assigned)) {
+            // Filter to tasks assigned to specific user
+            $tasksQuery->whereHas('users', function ($query) use ($assigned) {
+                $query->where('users.id', $assigned);
             });
         }
         
