@@ -1,0 +1,383 @@
+/**
+ * Hacklog Theme
+ * 
+ * A minimal, high-contrast theme for professional project management.
+ * Designed for long daily use with improved legibility and hierarchy.
+ * 
+ * Fonts:
+ * - IBM Plex Sans (headings)
+ * - Ubuntu (body text)
+ * 
+ * Color Philosophy:
+ * - Uses Bootstrap 5's semantic color system
+ * - Enhances contrast through font-weight and spacing
+ * - Maintains calm, professional aesthetic
+ */
+
+/* ============================================
+   FONTS
+   ============================================ */
+
+/* IBM Plex Sans - Headings */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+/* Ubuntu - Body Text */
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap');
+
+
+/* ============================================
+   BASE TYPOGRAPHY
+   ============================================ */
+
+/**
+ * Body text uses Ubuntu for excellent on-screen readability
+ * Light weight (300) improves clarity at standard sizes
+ */
+body {
+    font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 400;
+    color: #212529;
+    background-color: #F8F9FA;
+}
+
+/**
+ * Headings use IBM Plex Sans for clear hierarchy
+ * Medium weights (500-600) provide structure without aggression
+ */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 600;
+    color: #212529;
+}
+
+/**
+ * Page-level headings (h1) use slightly bolder weight
+ * for immediate visual hierarchy
+ */
+h1, .h1 {
+    font-weight: 700;
+}
+
+/**
+ * Smaller headings use medium weight to avoid visual clutter
+ */
+h5, h6, .h5, .h6 {
+    font-weight: 500;
+}
+
+
+/* ============================================
+   LINKS
+   ============================================ */
+
+/**
+ * Links use primary color with medium weight for clarity
+ * Hover state increases weight rather than relying solely on color
+ */
+a {
+    color: #0B5ED7;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+a:hover {
+    color: #0a58ca;
+    text-decoration: underline;
+}
+
+
+/* ============================================
+   CARDS & SURFACES
+   ============================================ */
+
+/**
+ * Cards use pure white backgrounds on the light gray page
+ * This creates clear visual separation without shadows
+ */
+.card {
+    background-color: #FFFFFF;
+    border-color: #DEE2E6;
+}
+
+/**
+ * Card headers use light background for subtle hierarchy
+ * Font weight creates emphasis without color contrast
+ */
+.card-header {
+    background-color: #F8F9FA;
+    border-bottom-color: #DEE2E6;
+    font-weight: 500;
+}
+
+/**
+ * Light card variant maintains readability
+ */
+.card.bg-light {
+    background-color: #F8F9FA !important;
+}
+
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+/**
+ * Primary buttons use the accent color
+ * Font weight adds substance without increasing size
+ */
+.btn-primary {
+    background-color: #0B5ED7;
+    border-color: #0B5ED7;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background-color: #0a58ca;
+    border-color: #0a58ca;
+}
+
+/**
+ * Outline buttons maintain consistency with improved weight
+ */
+.btn-outline-primary {
+    color: #0B5ED7;
+    border-color: #0B5ED7;
+    font-weight: 500;
+}
+
+.btn-outline-primary:hover {
+    background-color: #0B5ED7;
+    border-color: #0B5ED7;
+}
+
+/**
+ * Secondary and outline-secondary buttons remain subdued
+ * to maintain action hierarchy
+ */
+.btn-secondary,
+.btn-outline-secondary {
+    font-weight: 400;
+}
+
+
+/* ============================================
+   BADGES
+   ============================================ */
+
+/**
+ * Badges use medium weight for readability at small sizes
+ * No font-family override - inherits from context
+ */
+.badge {
+    font-weight: 500;
+}
+
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+
+/**
+ * Navbar brand uses heading font for consistency
+ */
+.navbar-brand {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 600;
+}
+
+/**
+ * Navigation links use medium weight for clarity
+ */
+.nav-link {
+    font-weight: 500;
+}
+
+
+/* ============================================
+   TABLES
+   ============================================ */
+
+/**
+ * Table headers use heading font for hierarchy
+ */
+thead th {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 600;
+}
+
+/**
+ * Table borders use neutral gray
+ */
+.table-bordered {
+    border-color: #DEE2E6;
+}
+
+.table-bordered th,
+.table-bordered td {
+    border-color: #DEE2E6;
+}
+
+
+/* ============================================
+   FORMS
+   ============================================ */
+
+/**
+ * Form labels use medium weight for clarity
+ * without overwhelming the form field
+ */
+.form-label {
+    font-weight: 500;
+    color: #212529;
+}
+
+/**
+ * Form controls maintain readability
+ */
+.form-control,
+.form-select {
+    border-color: #DEE2E6;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #0B5ED7;
+    box-shadow: 0 0 0 0.25rem rgba(11, 94, 215, 0.25);
+}
+
+
+/* ============================================
+   ALERTS & EMPTY STATES
+   ============================================ */
+
+/**
+ * Alerts use subtle backgrounds with clear borders
+ * Text weight ensures readability
+ */
+.alert {
+    border-color: #DEE2E6;
+}
+
+/**
+ * Alert links inherit proper weight
+ */
+.alert-link {
+    font-weight: 600;
+}
+
+
+/* ============================================
+   LIST GROUPS
+   ============================================ */
+
+/**
+ * List group items maintain clean borders
+ */
+.list-group-item {
+    border-color: #DEE2E6;
+}
+
+
+/* ============================================
+   BREADCRUMBS
+   ============================================ */
+
+/**
+ * Breadcrumbs use medium weight for readability
+ */
+.breadcrumb-item {
+    font-weight: 400;
+}
+
+.breadcrumb-item.active {
+    font-weight: 500;
+    color: #6C757D;
+}
+
+
+/* ============================================
+   MODALS
+   ============================================ */
+
+/**
+ * Modal headers use heading font and weight
+ */
+.modal-header {
+    border-bottom-color: #DEE2E6;
+}
+
+.modal-title {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 600;
+}
+
+.modal-footer {
+    border-top-color: #DEE2E6;
+}
+
+
+/* ============================================
+   TEXT UTILITIES - IMPROVED CONTRAST
+   ============================================ */
+
+/**
+ * Muted text uses Bootstrap's neutral gray
+ * Maintains readability while being visually subordinate
+ */
+.text-muted {
+    color: #6C757D !important;
+}
+
+/**
+ * Small text maintains adequate weight
+ */
+.small,
+small {
+    font-weight: 400;
+}
+
+
+/* ============================================
+   SEMANTIC EMPHASIS
+   ============================================ */
+
+/**
+ * Font-weight utilities for emphasis without color
+ * Provides hierarchy through typography alone
+ */
+.fw-medium {
+    font-weight: 500 !important;
+}
+
+.fw-semibold {
+    font-weight: 600 !important;
+}
+
+
+/* ============================================
+   TRIX EDITOR CONTENT
+   ============================================ */
+
+/**
+ * Rendered Trix content maintains body font
+ * Headings within content use appropriate hierarchy
+ */
+.trix-content {
+    font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.trix-content h1,
+.trix-content h2,
+.trix-content h3,
+.trix-content h4,
+.trix-content h5,
+.trix-content h6 {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 600;
+}
+
+
+/* ============================================
+   END OF THEME
+   ============================================ */
