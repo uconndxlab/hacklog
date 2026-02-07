@@ -254,6 +254,43 @@ class TaskController extends Controller
     }
 
     /**
+     * Admin view for managing tasks in an epic
+     */
+    public function adminIndex(Project $project, Epic $epic)
+    {
+        $tasks = $epic->tasks()->with(['users', 'column'])->get();
+        
+        return view('admin.epics.tasks.index', compact('project', 'epic', 'tasks'));
+    }
+
+    /**
+     * Bulk delete tasks (admin only)
+     */
+    public function bulkDelete(Request $request, Project $project, Epic $epic)
+    {
+        $validated = $request->validate([
+            'task_ids' => 'required|array',
+            'task_ids.*' => 'exists:tasks,id',
+        ]);
+
+        // Ensure all selected tasks belong to this epic
+        $tasksToDelete = Task::whereIn('id', $validated['task_ids'])
+            ->where('epic_id', $epic->id)
+            ->get();
+
+        if ($tasksToDelete->isEmpty()) {
+            return back()->with('error', 'No valid tasks selected for deletion.');
+        }
+
+        $deletedCount = $tasksToDelete->count();
+        
+        // Delete the tasks (this will also handle relationships due to cascade)
+        Task::whereIn('id', $tasksToDelete->pluck('id'))->delete();
+
+        return back()->with('success', "Successfully deleted {$deletedCount} task(s).");
+    }
+
+    /**
      * Helper method to return board column tasks for HTMX
      */
     protected function returnBoardColumnTasks(Project $project, int $columnId)

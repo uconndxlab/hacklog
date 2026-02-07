@@ -45,7 +45,12 @@
 <div class="card mb-4">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <h3 class="h6 mb-0 fw-semibold">Kanban Board</h3>
-        <a href="{{ route('projects.epics.tasks.create', [$project, $epic]) }}" class="btn btn-sm btn-primary">Create Task</a>
+        <div class="d-flex gap-2">
+            @can('admin')
+                <a href="{{ route('admin.epics.tasks.index', [$project, $epic]) }}" class="btn btn-sm btn-outline-danger">Admin: Cleanup Tasks</a>
+            @endcan
+            <a href="{{ route('projects.epics.tasks.create', [$project, $epic]) }}" class="btn btn-sm btn-primary">Create Task</a>
+        </div>
     </div>
     <div class="card-body">
         @if($columns->isEmpty())

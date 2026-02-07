@@ -55,6 +55,35 @@
             <small class="text-muted">Epic: {{ $task->epic->name }}</small>
         </p>
         
+        @if($task->due_date)
+            <p class="card-text mb-2">
+                <small class="text-muted">
+                    <strong>Due:</strong> {{ $task->due_date->format('M j, Y') }}
+                    @if($task->isOverdue())
+                        <span class="badge bg-danger ms-1">Overdue</span>
+                    @endif
+                </small>
+            </p>
+        @endif
+        
+        @if($task->users->isNotEmpty())
+            <p class="card-text mb-2">
+                <small class="text-muted">
+                    <strong>Assigned:</strong> {{ $task->users->pluck('name')->join(', ') }}
+                </small>
+            </p>
+        @endif
+        
+        <p class="card-text mb-2">
+            <span class="badge 
+                @if($task->status === 'planned') bg-secondary
+                @elseif($task->status === 'active') bg-success
+                @else bg-primary
+                @endif">
+                {{ ucfirst($task->status) }}
+            </span>
+        </p>
+        
         {{-- Edit button --}}
         <div class="mb-2">
             <button 

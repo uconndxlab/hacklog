@@ -85,6 +85,44 @@
                     @endif
                 </div>
             </div>
+            
+            <!-- Projects with Unassigned Tasks -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="h5 mb-0">Available Work</h3>
+                </div>
+                <div class="card-body">
+                    @if($projectsWithUnassignedTasks->isEmpty())
+                        <p class="text-muted mb-0">No unassigned tasks available right now.</p>
+                    @else
+                        <p class="text-muted mb-3 small">Projects with tasks that need someone to work on them:</p>
+                        <div class="list-group list-group-flush">
+                            @foreach($projectsWithUnassignedTasks as $project)
+                                @php
+                                    $unassignedCount = $project->epics->sum(function($epic) {
+                                        return $epic->tasks()->whereDoesntHave('users')
+                                            ->where('status', '!=', 'completed')
+                                            ->count();
+                                    });
+                                @endphp
+                                <div class="list-group-item px-0 py-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">
+                                                <a href="{{ route('projects.board', $project) }}" class="text-decoration-none">
+                                                    {{ $project->name }}
+                                                </a>
+                                            </h6>
+                                            <small class="text-muted">{{ $unassignedCount }} unassigned task{{ $unassignedCount === 1 ? '' : 's' }}</small>
+                                        </div>
+                                        <a href="{{ route('projects.board', $project) }}" class="btn btn-sm btn-outline-primary">View Tasks</a>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            </div>
 
             <!-- Quick Navigation -->
             <div class="card">

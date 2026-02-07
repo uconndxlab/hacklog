@@ -33,9 +33,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
     Route::get('/timeline', [TimelineController::class, 'index'])->name('timeline.index');
 
-    // Admin-only: User management
+    // Admin-only: User management and task cleanup
     Route::middleware('admin')->group(function () {
         Route::resource('users', UsersController::class)->only(['index', 'create', 'store', 'edit', 'update']);
+        Route::get('admin/projects/{project}/epics/{epic}/tasks', [TaskController::class, 'adminIndex'])->name('admin.epics.tasks.index');
+        Route::delete('admin/projects/{project}/epics/{epic}/tasks/bulk', [TaskController::class, 'bulkDelete'])->name('admin.epics.tasks.bulk-delete');
     });
 
     Route::resource('projects', ProjectController::class);

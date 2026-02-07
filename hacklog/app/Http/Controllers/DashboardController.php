@@ -42,6 +42,22 @@ class DashboardController extends Controller
         })
         ->take(5); // Take only the first 5 dates
 
-        return view('dashboard', compact('assignedTasks', 'upcomingDeadlineTasks'));
+        // Get projects with unassigned tasks
+        $projectsWithUnassignedTasks = \App\Models\Project::whereHas('epics.tasks', function ($query) {
+            $query->whereDoesntHave('users')
+                ->where('status', '!=', 'completed');
+        })
+        ->with(['epics' => function ($query) {
+            $query->whereHas('tasks', function ($subQuery) {
+                $subQuery->whereDoesntHave('users')
+                    ->where('status', '!=', 'completed');
+            });
+        }])
+        ->where('status', '!=', 'archived')
+        ->orderBy('name')
+        ->limit(5)
+        ->get();
+
+        return view('dashboard', compact('assignedTasks', 'upcomingDeadlineTasks', 'projectsWithUnassignedTasks'));
     }
 }
