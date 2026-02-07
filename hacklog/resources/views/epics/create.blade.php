@@ -7,8 +7,9 @@
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ route('projects.index') }}">Projects</a></li>
         <li class="breadcrumb-item"><a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.epics.index', $project) }}">Epics</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Create</li>
+        <li class="breadcrumb-item"><a href="{{ route('projects.edit', $project) }}">Settings</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('projects.epics.index', $project) }}">Manage Epics</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create Epic</li>
     </ol>
 </nav>
 

@@ -9,23 +9,20 @@
 
         {{-- Project Header --}}
         <div class="mb-4">
-            <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="mb-2">
+                <h1 class="mb-2">{{ $project->name }}</h1>
                 <div>
-                    <h1 class="mb-2">{{ $project->name }}</h1>
-                    <div>
-                        <span class="badge 
-                            @if($project->status === 'active') bg-success
-                            @elseif($project->status === 'paused') bg-warning text-dark
-                            @else bg-secondary
-                            @endif">
-                            {{ ucfirst($project->status) }}
-                        </span>
-                        <span class="text-muted small ms-2">
-                            Created {{ $project->created_at->format('M j, Y') }}
-                        </span>
-                    </div>
+                    <span class="badge 
+                        @if($project->status === 'active') bg-success
+                        @elseif($project->status === 'paused') bg-warning text-dark
+                        @else bg-secondary
+                        @endif">
+                        {{ ucfirst($project->status) }}
+                    </span>
+                    <span class="text-muted small ms-2">
+                        Created {{ $project->created_at->format('M j, Y') }}
+                    </span>
                 </div>
-                <a href="{{ route('projects.edit', $project) }}" class="btn btn-outline-secondary">Edit Project</a>
             </div>
             
             @if($project->description)
@@ -35,13 +32,6 @@
                     </div>
                 </div>
             @endif
-        </div>
-
-        {{-- Quick Actions --}}
-        <div class="mb-4">
-            <a href="{{ route('projects.epics.create', $project) }}" class="btn btn-outline-primary">Create Epic</a>
-            <a href="{{ route('projects.epics.index', $project) }}" class="btn btn-outline-secondary">Manage Epics</a>
-            <a href="{{ route('projects.columns.index', $project) }}" class="btn btn-outline-secondary">Manage Columns</a>
         </div>
 
         {{-- Project Health Summary --}}
@@ -101,7 +91,7 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
                                                 <div class="mb-1">
-                                                    <a href="{{ route('projects.epics.tasks.show', [$project, $task->epic, $task]) }}" 
+                                                    <a href="{{ route('projects.board', ['project' => $project, 'task' => $task->id]) }}" 
                                                        class="text-decoration-none @if($task->isOverdue()) text-danger fw-semibold @endif">
                                                         {{ $task->title }}
                                                     </a>

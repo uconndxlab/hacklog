@@ -34,10 +34,10 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-bordered mb-0">
+                        <table class="table mb-0 timeline-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 150px;" class="bg-light">Epic</th>
+                                    <th style="width: 150px;" class="timeline-header">Epic</th>
                                     @foreach($weeks as $week)
                                         @php
                                             // Determine heat level based on due date density
@@ -51,10 +51,10 @@
                                                 $heatClass = 'timeline-heat-low';
                                             }
                                         @endphp
-                                        <th class="text-center bg-light {{ $heatClass }}" style="width: 95px;" title="{{ $dueCount }} {{ Str::plural('due date', $dueCount) }} this week">
-                                            <small>{{ $week['label'] }}</small>
+                                        <th class="text-center timeline-header {{ $heatClass }}" style="width: 95px;" title="{{ $dueCount }} {{ Str::plural('due date', $dueCount) }} this week">
+                                            <small class="text-muted">{{ $week['label'] }}</small>
                                             @if($dueCount > 0)
-                                                <br><a href="{{ route('projects.board', $project) }}" class="badge bg-primary rounded-pill text-decoration-none" style="font-size: 0.7rem;">{{ $dueCount }}</a>
+                                                <br><span class="badge bg-secondary bg-opacity-50 rounded-pill" style="font-size: 0.7rem;">{{ $dueCount }}</span>
                                             @endif
                                         </th>
                                     @endforeach
@@ -80,32 +80,33 @@
                                             }
                                         }
                                     @endphp
-                                    <tr class="@if($epic->isOverdue()) border-danger border-2 @endif @if($epic->status === 'completed') bg-light @endif">
-                                        <td class="@if($epic->isOverdue()) bg-danger-subtle @elseif($epic->status === 'completed') bg-light @endif">
-                                            <div class="d-flex flex-column">
-                                                <span class="@if($epic->isOverdue()) fw-semibold text-danger @elseif($epic->status === 'completed') text-muted @endif">
+                                    <tr class="timeline-row @if($epic->status === 'completed') opacity-75 @endif">
+                                        <td class="timeline-epic-label @if($epic->isOverdue()) timeline-overdue @endif">
+                                            <div class="d-flex flex-column gap-1">
+                                                <a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}" 
+                                                   class="@if($epic->isOverdue()) text-danger @elseif($epic->status === 'completed') text-muted @else text-body @endif text-decoration-none" style="font-size: 0.875rem;">
                                                     {{ $epic->name }}
-                                                </span>
-                                                <small class="text-muted">
-                                                    <span class="badge 
-                                                        @if($epic->status === 'planned') bg-secondary
-                                                        @elseif($epic->status === 'active') bg-success
-                                                        @else bg-primary
-                                                        @endif">
-                                                        {{ ucfirst($epic->status) }}
-                                                    </span>
-                                                    @if($epic->start_date && $epic->end_date)
-                                                        {{ $epic->start_date->format('M j') }} - {{ $epic->end_date->format('M j, Y') }}
-                                                    @elseif($epic->start_date)
-                                                        Start: {{ $epic->start_date->format('M j, Y') }}
-                                                    @else
-                                                        End: {{ $epic->end_date->format('M j, Y') }}
-                                                    @endif
-                                                </small>
+                                                </a>
+                                                <div class="d-flex flex-column gap-1">
+                                                    <div>
+                                                        <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.7rem; font-weight: 400;">
+                                                            {{ ucfirst($epic->status) }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="text-muted" style="font-size: 0.8125rem; line-height: 1.3;">
+                                                        @if($epic->start_date && $epic->end_date)
+                                                            {{ $epic->start_date->format('M j') }} – {{ $epic->end_date->format('M j, Y') }}
+                                                        @elseif($epic->start_date)
+                                                            Start: {{ $epic->start_date->format('M j, Y') }}
+                                                        @else
+                                                            End: {{ $epic->end_date->format('M j, Y') }}
+                                                        @endif
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                         @foreach($cellStates as $state)
-                                            <td class="@if($state === 'filled') @if($epic->isOverdue()) bg-danger @elseif($epic->status === 'completed') bg-secondary-subtle @else bg-primary @endif @elseif($epic->status === 'completed') bg-light @endif" style="width: 95px;">
+                                            <td class="timeline-cell @if($state === 'filled') @if($epic->isOverdue()) timeline-bar-overdue @elseif($epic->status === 'completed') timeline-bar-completed @else timeline-bar-active @endif @endif" style="width: 95px;">
                                                 @if($state === 'filled')
                                                     &nbsp;
                                                 @endif

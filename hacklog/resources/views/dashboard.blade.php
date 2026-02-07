@@ -28,7 +28,7 @@
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div class="flex-grow-1">
                                             <h6 class="mb-1">
-                                                <a href="{{ route('projects.board', $task->epic->project) }}" class="text-decoration-none">
+                                                <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
                                                     {{ $task->title }}
                                                 </a>
                                             </h6>
@@ -71,7 +71,7 @@
                                     @foreach($tasks as $task)
                                         <li class="mb-1">
                                             <small>
-                                                <a href="{{ route('projects.board', $task->epic->project) }}" class="text-decoration-none">
+                                                <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
                                                     {{ $task->title }}
                                                 </a>
                                                 <span class="text-muted">in {{ $task->epic->project->name }}</span>

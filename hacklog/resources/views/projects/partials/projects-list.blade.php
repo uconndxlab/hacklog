@@ -15,9 +15,13 @@
     <div class="row">
         @foreach($projects as $project)
             <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
+                <div class="card h-100 project-card">
                     <div class="card-body">
-                        <h2 class="h5 card-title mb-2">{{ $project->name }}</h2>
+                        <h2 class="h5 card-title mb-2">
+                            <a href="{{ route('projects.show', $project) }}" class="text-decoration-none text-reset stretched-link">
+                                {{ $project->name }}
+                            </a>
+                        </h2>
                         <div class="mb-2">
                             <span class="badge 
                                 @if($project->status === 'active') bg-success
@@ -32,10 +36,6 @@
                                 {{ Str::limit(strip_tags($project->description), 100) }}
                             </p>
                         @endif
-                    </div>
-                    <div class="card-footer bg-transparent">
-                        <a href="{{ route('projects.show', $project) }}" class="btn btn-sm btn-outline-primary">View</a>
-                        <a href="{{ route('projects.edit', $project) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
                     </div>
                 </div>
             </div>

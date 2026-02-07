@@ -5,15 +5,15 @@
 @section('content')
 @include('projects.partials.project-nav', ['currentView' => 'board'])
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div class="d-flex align-items-center gap-3">
-        <h1 class="mb-0">{{ $project->name }}</h1>
+<div class="board-header mb-4">
+    <div class="board-header-title">
+        <h1 class="mb-2 mb-md-0">{{ $project->name }}</h1>
         @if(request('epic'))
             @php
                 $filteredEpic = $epics->firstWhere('id', request('epic'));
             @endphp
             @if($filteredEpic)
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
                     <span class="badge bg-primary">
                         {{ $filteredEpic->name }}
                         <a href="{{ route('projects.board', $project) }}" class="text-white text-decoration-none ms-1">×</a>
@@ -23,18 +23,24 @@
                         class="btn btn-sm btn-outline-secondary"
                         data-bs-toggle="modal" 
                         data-bs-target="#epicInfoModal">
-                        View Details
+                        <span class="d-none d-sm-inline">View Details</span>
+                        <span class="d-inline d-sm-none">Details</span>
                     </button>
                 </div>
             @endif
         @endif
     </div>
-    <div class="d-flex gap-2">
+    <div class="board-header-actions">
+        <a href="{{ route('projects.epics.create', $project) }}" class="btn btn-sm btn-primary">
+            <span class="d-none d-md-inline">Create Epic</span>
+            <span class="d-inline d-md-none">New Epic</span>
+        </a>
         <div class="dropdown">
-            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                Filter by Epic
+            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Filter by Epic">
+                <span class="d-none d-lg-inline">Filter by Epic</span>
+                <span class="d-inline d-lg-none">Epic</span>
             </button>
-            <ul class="dropdown-menu">
+            <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="{{ route('projects.board', $project) }}">All Epics</a></li>
                 <li><hr class="dropdown-divider"></li>
                 @foreach($epics as $epic)
@@ -48,22 +54,29 @@
             </ul>
         </div>
         <div class="dropdown">
-            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Filter by assignee">
                 @php
                     $assigned = request('assigned');
-                    $assignedLabel = 'All Tasks';
+                    $assignedLabel = 'All';
+                    $assignedLabelFull = 'All Tasks';
                     if ($assigned === 'me') {
-                        $assignedLabel = 'Assigned to Me';
+                        $assignedLabel = 'Me';
+                        $assignedLabelFull = 'Assigned to Me';
                     } elseif ($assigned === 'none') {
-                        $assignedLabel = 'Unassigned';
+                        $assignedLabel = 'None';
+                        $assignedLabelFull = 'Unassigned';
                     } elseif ($assigned && is_numeric($assigned)) {
                         $assignedUser = \App\Models\User::find($assigned);
-                        $assignedLabel = $assignedUser ? 'Assigned to ' . $assignedUser->name : 'All Tasks';
+                        if ($assignedUser) {
+                            $assignedLabel = $assignedUser->name;
+                            $assignedLabelFull = 'Assigned to ' . $assignedUser->name;
+                        }
                     }
                 @endphp
-                {{ $assignedLabel }}
+                <span class="d-none d-lg-inline">{{ $assignedLabelFull }}</span>
+                <span class="d-inline d-lg-none">{{ $assignedLabel }}</span>
             </button>
-            <ul class="dropdown-menu">
+            <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item {{ !request('assigned') ? 'active' : '' }}" 
                        href="{{ request()->fullUrlWithQuery(['assigned' => null]) }}">All Tasks</a></li>
                 <li><a class="dropdown-item {{ request('assigned') === 'me' ? 'active' : '' }}" 
@@ -84,7 +97,6 @@
                 @endforeach
             </ul>
         </div>
-        <a href="{{ route('projects.columns.index', $project) }}" class="btn btn-sm btn-outline-secondary">Manage Columns</a>
     </div>
 </div>
 
@@ -220,6 +232,34 @@
         </div>
     </div>
 </div>
+@endif
+
+{{-- Auto-open task modal if task parameter is present in URL --}}
+{{-- This enables deep linking from Dashboard or other views --}}
+@if(request()->has('task'))
+    @php
+        // Tasks belong to epics, so we need to find the task through the project's epics
+        $targetTask = \App\Models\Task::whereHas('epic', function($query) use ($project) {
+            $query->where('project_id', $project->id);
+        })->find(request()->get('task'));
+    @endphp
+    
+    @if($targetTask)
+        {{-- Hidden trigger that loads and opens the task modal on page load --}}
+        <div 
+            hx-get="{{ route('projects.board.tasks.show', [$project, $targetTask]) }}" 
+            hx-target="#taskDetailsModalContent"
+            hx-trigger="load"
+            hx-on::after-request="
+                const modal = new bootstrap.Modal(document.getElementById('taskDetailsModal'));
+                modal.show();
+                const url = new URL(window.location);
+                url.searchParams.delete('task');
+                window.history.replaceState({}, '', url);
+            "
+            style="display: none;">
+        </div>
+    @endif
 @endif
 
 <script>

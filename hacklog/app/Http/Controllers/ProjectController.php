@@ -176,10 +176,13 @@ class ProjectController extends Controller
             
             // If there's an active epic, redirect to it
             if ($firstActiveEpic) {
-                return redirect()->route('projects.board', [
-                    'project' => $project,
-                    'epic' => $firstActiveEpic->id
-                ]);
+                return redirect()->route('projects.board', array_merge(
+                    [
+                        'project' => $project,
+                        'epic' => $firstActiveEpic->id
+                    ],
+                    $request->only(['task', 'assigned'])
+                ));
             }
             
             // Otherwise, try to find the first planned epic
@@ -189,10 +192,13 @@ class ProjectController extends Controller
                 ->first();
             
             if ($firstPlannedEpic) {
-                return redirect()->route('projects.board', [
-                    'project' => $project,
-                    'epic' => $firstPlannedEpic->id
-                ]);
+                return redirect()->route('projects.board', array_merge(
+                    [
+                        'project' => $project,
+                        'epic' => $firstPlannedEpic->id
+                    ],
+                    $request->only(['task', 'assigned'])
+                ));
             }
             
             // If no active or planned epics, fall through to show all

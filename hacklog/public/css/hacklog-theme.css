@@ -127,28 +127,28 @@ a:hover {
  * Font weight adds substance without increasing size
  */
 .btn-primary {
-    background-color: #0B5ED7;
-    border-color: #0B5ED7;
+    background-color: #6482b4;
+    border-color: #6482b4;
     font-weight: 500;
 }
 
 .btn-primary:hover {
-    background-color: #0a58ca;
-    border-color: #0a58ca;
+    background-color: #557099;
+    border-color: #557099;
 }
 
 /**
  * Outline buttons maintain consistency with improved weight
  */
 .btn-outline-primary {
-    color: #0B5ED7;
-    border-color: #0B5ED7;
+    color: #6482b4;
+    border-color: #6482b4;
     font-weight: 500;
 }
 
 .btn-outline-primary:hover {
-    background-color: #0B5ED7;
-    border-color: #0B5ED7;
+    background-color: #6482b4;
+    border-color: #6482b4;
 }
 
 /**
@@ -401,25 +401,199 @@ small {
  * Heat levels represent density (count), not urgency
  */
 
-/* Low density: 1 due date */
+/* Timeline table structure - calm, subtle borders */
+.timeline-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.timeline-table thead th {
+    border: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    padding: 0.75rem 0.5rem;
+    background: linear-gradient(180deg, #fafbfc 0%, #f8f9fa 100%);
+}
+
+.timeline-table tbody td {
+    border-left: 1px solid rgba(0, 0, 0, 0.03);
+    border-top: 1px solid rgba(0, 0, 0, 0.03);
+    padding: 0.75rem 0.5rem;
+}
+
+.timeline-table tbody td:first-child {
+    border-left: none;
+}
+
+.timeline-header {
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.timeline-row {
+    transition: background-color 0.2s ease;
+}
+
+.timeline-row:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.timeline-epic-label {
+    font-weight: 500;
+}
+
+.timeline-overdue {
+    background-color: rgba(220, 53, 69, 0.03);
+}
+
+/* Epic bars - soft, muted colors */
+.timeline-bar-active {
+    background-color: rgba(100, 130, 180, 0.18) !important;
+}
+
+.timeline-bar-completed {
+    background-color: rgba(108, 117, 125, 0.12) !important;
+}
+
+.timeline-bar-overdue {
+    background-color: rgba(220, 53, 69, 0.2) !important;
+}
+
+.timeline-cell {
+    position: relative;
+}
+
+/* Low density: 1 due date - subtle background hint */
 .timeline-heat-low {
-    background-color: rgba(13, 110, 253, 0.08) !important;
-    border-bottom: 2px solid rgba(13, 110, 253, 0.2);
+    background-color: rgba(100, 130, 180, 0.04) !important;
 }
 
-/* Medium density: 2-3 due dates */
+/* Medium density: 2-3 due dates - light emphasis */
 .timeline-heat-medium {
-    background-color: rgba(13, 110, 253, 0.15) !important;
-    border-bottom: 2px solid rgba(13, 110, 253, 0.35);
+    background-color: rgba(100, 130, 180, 0.08) !important;
 }
 
-/* High density: 4+ due dates */
+/* High density: 4+ due dates - noticeable but not dominant */
 .timeline-heat-high {
-    background-color: rgba(13, 110, 253, 0.25) !important;
-    border-bottom: 3px solid rgba(13, 110, 253, 0.5);
-    font-weight: 600;
+    background-color: rgba(100, 130, 180, 0.14) !important;
 }
 
 /* ============================================
-   END OF THEME
+   MOBILE RESPONSIVE IMPROVEMENTS
+   ============================================ */
+
+/**
+ * Project navigation tabs - horizontal scrolling on mobile
+ */
+.project-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.project-card:hover {
+    border-color: #0B5ED7;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.bg-primary-subtle {
+    background-color: rgba(11, 94, 215, 0.3) !important;
+}
+
+.project-card .card-title a {
+    color: inherit;
+    transition: color 0.2s ease;
+}
+
+.project-card:hover .card-title a {
+    color: #0B5ED7;
+}
+
+/**
+ * Project navigation tabs - horizontal scrolling on mobile
+ */
+.project-nav-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.project-nav-wrapper::-webkit-scrollbar {
+    height: 4px;
+}
+
+.project-nav-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.project-nav-wrapper::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 2px;
+}
+
+.project-nav-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.project-nav-wrapper .nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+    white-space: nowrap;
+}
+
+.project-nav-wrapper .nav-item {
+    flex-shrink: 0;
+}
+
+/**
+ * Board header - responsive layout for title and actions
+ */
+.board-header {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.board-header-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.board-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* On tablets and up, arrange header horizontally */
+@media (min-width: 768px) {
+    .board-header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .board-header-title {
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .board-header-actions {
+        flex-shrink: 0;
+    }
+}
+
+/* Ensure buttons don't get too small on mobile */
+@media (max-width: 767px) {
+    .board-header-actions .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .board-header-actions .dropdown-menu {
+        font-size: 0.875rem;
+    }
+}
+
+/* ============================================
    ============================================ */
