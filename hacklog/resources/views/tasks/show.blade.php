@@ -14,7 +14,7 @@
 </nav>
 
 <div class="row">
-    <div class="col-lg-10">
+    <div class="col-lg-12">
         <div class="d-flex justify-content-between align-items-start mb-4">
             <div>
                 <h1>{{ $task->title }}</h1>

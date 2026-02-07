@@ -12,11 +12,9 @@ use App\Http\Controllers\TimelineController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
-// Authentication routes
+// CAS Authentication routes - NetID only
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
-Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
-Route::post('/register', [AuthController::class, 'register']);
+Route::get('/login/cas', [AuthController::class, 'login'])->name('login.cas');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Public home
@@ -35,7 +33,9 @@ Route::middleware('auth')->group(function () {
 
     // Admin-only: User management and task cleanup
     Route::middleware('admin')->group(function () {
-        Route::resource('users', UsersController::class)->only(['index', 'create', 'store', 'edit', 'update']);
+        Route::resource('users', UsersController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+        Route::post('users/search', [UsersController::class, 'searchUsers'])->name('users.search');
+        Route::post('users/lookup-netid', [UsersController::class, 'lookupNetid'])->name('users.lookup-netid');
         Route::get('admin/projects/{project}/epics/{epic}/tasks', [TaskController::class, 'adminIndex'])->name('admin.epics.tasks.index');
         Route::delete('admin/projects/{project}/epics/{epic}/tasks/bulk', [TaskController::class, 'bulkDelete'])->name('admin.epics.tasks.bulk-delete');
     });

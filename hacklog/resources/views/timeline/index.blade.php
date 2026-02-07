@@ -66,11 +66,26 @@
                         <table class="table table-bordered mb-0">
                             <thead>
                                 <tr>
-                                    <th style="min-width: 150px;" class="bg-light">Project</th>
-                                    <th style="min-width: 200px;" class="bg-light">Epic</th>
+                                    <th style="width: 120px;" class="bg-light">Project</th>
+                                    <th style="width: 150px;" class="bg-light">Epic</th>
                                     @foreach($weeks as $week)
-                                        <th class="text-center bg-light" style="min-width: 60px;">
+                                        @php
+                                            // Determine heat level based on due date density
+                                            $dueCount = $week['due_count'];
+                                            $heatClass = '';
+                                            if ($dueCount >= 4) {
+                                                $heatClass = 'timeline-heat-high';
+                                            } elseif ($dueCount >= 2) {
+                                                $heatClass = 'timeline-heat-medium';
+                                            } elseif ($dueCount >= 1) {
+                                                $heatClass = 'timeline-heat-low';
+                                            }
+                                        @endphp
+                                        <th class="text-center bg-light {{ $heatClass }}" style="width: 95px;" title="{{ $dueCount }} {{ Str::plural('due date', $dueCount) }} this week">
                                             <small>{{ $week['label'] }}</small>
+                                            @if($dueCount > 0)
+                                                <br><a href="{{ route('schedule.index', ['start' => $week['start']->format('Y-m-d'), 'end' => $week['end']->format('Y-m-d')]) }}" class="badge bg-primary rounded-pill text-decoration-none" style="font-size: 0.7rem;">{{ $dueCount }}</a>
+                                            @endif
                                         </th>
                                     @endforeach
                                 </tr>
@@ -125,10 +140,10 @@
                                                     </div>
                                                 @endif
                                             </td>
-                                            <td class="@if($epic->isOverdue()) bg-danger-subtle @elseif($epic->status === 'completed') bg-light @endif @if($showProjectName) border-top border-dark border-2 @endif">
+                                            <td class="@if($showProjectName) border-top border-dark border-2 @endif @if($epic->isOverdue()) bg-danger-subtle @elseif($epic->status === 'completed') bg-light @endif">
                                                 <div class="d-flex flex-column">
                                                     <a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}" 
-                                                       class="@if($epic->isOverdue()) fw-semibold text-danger @elseif($epic->status === 'completed') text-muted @endif text-decoration-none">
+                                                       class="@if($epic->isOverdue()) fw-semibold text-danger @elseif($epic->status === 'completed') text-muted @else @endif text-decoration-none">
                                                         {{ $epic->name }}
                                                     </a>
                                                     <small class="text-muted">
@@ -150,7 +165,7 @@
                                                 </div>
                                             </td>
                                             @foreach($cellStates as $state)
-                                                <td class="@if($state === 'filled') @if($epic->isOverdue()) bg-danger @elseif($epic->status === 'completed') bg-secondary-subtle @else bg-primary @endif @elseif($epic->status === 'completed') bg-light @endif @if($showProjectName) border-top border-dark border-2 @endif">
+                                                <td class="@if($state === 'filled') @if($epic->isOverdue()) bg-danger @elseif($epic->status === 'completed') bg-secondary-subtle @else bg-primary @endif @elseif($epic->status === 'completed') bg-light @endif @if($showProjectName) border-top border-dark border-2 @endif" style="width: 95px;">
                                                     @if($state === 'filled')
                                                         &nbsp;
                                                     @endif

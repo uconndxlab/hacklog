@@ -254,6 +254,12 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
     max-width: 320px;
 }
 
+/* When there are 3 or fewer columns, make them take full width */
+.board-container:has(.board-column-wrapper:nth-child(-n+4):last-child) .board-column-wrapper {
+    flex: 1 1 0;
+    max-width: none;
+}
+
 /* Hide scrollbar on webkit browsers */
 .board-container::-webkit-scrollbar {
     height: 8px;

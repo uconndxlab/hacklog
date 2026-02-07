@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="row">
-    <div class="col-lg-10">
+    <div class="col-lg-12">
         @include('projects.partials.project-nav', ['currentView' => 'schedule'])
 
         <div class="d-flex justify-content-between align-items-start mb-4">

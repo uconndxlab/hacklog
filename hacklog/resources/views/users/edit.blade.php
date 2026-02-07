@@ -11,10 +11,10 @@
 </nav>
 
 <div class="row">
-    <div class="col-lg-6">
+    <div class="col-lg-8">
         <div class="mb-4">
             <h1 class="mb-1">Edit User</h1>
-            <p class="text-muted mb-0">Update user information</p>
+            <p class="text-muted mb-0">Update user role and status</p>
         </div>
 
         <div class="card">
@@ -24,31 +24,38 @@
                     @method('PUT')
 
                     <div class="mb-3">
-                        <label for="name" class="form-label">Name</label>
+                        <label class="form-label">NetID</label>
                         <input 
                             type="text" 
-                            class="form-control @error('name') is-invalid @enderror" 
-                            id="name" 
-                            name="name" 
-                            value="{{ old('name', $user->name) }}" 
-                            required>
-                        @error('name')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                            class="form-control" 
+                            value="{{ $user->netid }}" 
+                            readonly>
+                        <div class="form-text">NetID cannot be changed</div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
+                        <label class="form-label">Name</label>
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                value="{{ $user->name }}" 
+                                readonly>
+                            <button type="submit" name="refresh_ldap" value="1" class="btn btn-outline-secondary">
+                                Refresh from Directory
+                            </button>
+                        </div>
+                        <div class="form-text">Name is managed via directory lookup</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
                         <input 
                             type="email" 
-                            class="form-control @error('email') is-invalid @enderror" 
-                            id="email" 
-                            name="email" 
-                            value="{{ old('email', $user->email) }}" 
-                            required>
-                        @error('email')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                            class="form-control" 
+                            value="{{ $user->email }}" 
+                            readonly>
+                        <div class="form-text">Email is managed via directory lookup</div>
                     </div>
 
                     <div class="mb-3">
@@ -58,16 +65,15 @@
                             id="role" 
                             name="role" 
                             required>
-                            <option value="user" {{ old('role', $user->role) === 'user' ? 'selected' : '' }}>User</option>
-                            <option value="admin" {{ old('role', $user->role) === 'admin' ? 'selected' : '' }}>Admin</option>
+                            <option value="user" {{ old('role', $user->role) == 'user' ? 'selected' : '' }}>User</option>
+                            <option value="admin" {{ old('role', $user->role) == 'admin' ? 'selected' : '' }}>Admin</option>
                         </select>
                         @error('role')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
-                        <div class="form-text">Admins can manage users and have full access</div>
                     </div>
 
-                    <div class="mb-3 form-check">
+                    <div class="mb-4 form-check">
                         <input 
                             type="checkbox" 
                             class="form-check-input" 
@@ -75,30 +81,33 @@
                             name="active" 
                             {{ old('active', $user->active) ? 'checked' : '' }}>
                         <label class="form-check-label" for="active">
-                            Active (user can log in)
+                            Active
                         </label>
+                        <div class="form-text">Inactive users cannot log in</div>
                     </div>
 
+                    @error('refresh_ldap')
+                        <div class="alert alert-warning">{{ $message }}</div>
+                    @enderror
+
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">Update User</button>
-                        <a href="{{ route('users.index') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            Update User
+                        </button>
+                        <a href="{{ route('users.index') }}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>
         </div>
 
-        <div class="mt-4">
-            <div class="card border-light bg-light">
-                <div class="card-body">
-                    <h2 class="h6 mb-2">User Information</h2>
-                    <dl class="row mb-0 small">
-                        <dt class="col-sm-4">Created</dt>
-                        <dd class="col-sm-8">{{ $user->created_at->format('F j, Y \a\t g:i A') }}</dd>
-
-                        <dt class="col-sm-4">Last Updated</dt>
-                        <dd class="col-sm-8 mb-0">{{ $user->updated_at->format('F j, Y \a\t g:i A') }}</dd>
-                    </dl>
-                </div>
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="card-title">Directory Integration</h6>
+                <p class="mb-0">
+                    Name and email are automatically managed through the University directory.
+                    Click "Refresh from Directory" to update these fields with the latest information.
+                    Only role and active status can be changed manually.
+                </p>
             </div>
         </div>
     </div>

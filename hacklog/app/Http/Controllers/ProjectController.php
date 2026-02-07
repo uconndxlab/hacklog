@@ -14,26 +14,61 @@ class ProjectController extends Controller
     {
         $query = Project::query();
 
-        // Filter by assigned to me (default behavior, unless explicitly disabled)
+        // Default to "My Projects" if user has assignments and no filter is explicitly set
         $assignedFilter = $request->input('assigned');
-        if ($assignedFilter !== 'all') {
-            $query->whereHas('epics.tasks.users', function ($query) use ($request) {
-                $query->where('users.id', $request->user()->id);
-            })->whereHas('epics.tasks', function ($query) {
-                $query->where('tasks.status', '!=', 'completed');
+        if ($assignedFilter === null && !$request->has('assigned')) {
+            // Check if user has any non-completed tasks assigned
+            $userHasTasks = $request->user()->tasks()
+                ->where('status', '!=', 'completed')
+                ->exists();
+            
+            if ($userHasTasks) {
+                $assignedFilter = 'me';
+            }
+        }
+
+        // Filter: User Assignment
+        // Show only projects containing non-completed tasks assigned to a specific user
+        if ($assignedFilter === 'me') {
+            // Projects with non-completed tasks assigned to the authenticated user
+            $query->whereHas('epics.tasks', function ($q) use ($request) {
+                $q->where('status', '!=', 'completed')
+                  ->whereHas('users', function ($userQuery) use ($request) {
+                      $userQuery->where('users.id', $request->user()->id);
+                  });
+            });
+        } elseif ($assignedFilter && is_numeric($assignedFilter)) {
+            // Projects with non-completed tasks assigned to a specific user (admin only)
+            $query->whereHas('epics.tasks', function ($q) use ($assignedFilter) {
+                $q->where('status', '!=', 'completed')
+                  ->whereHas('users', function ($userQuery) use ($assignedFilter) {
+                      $userQuery->where('users.id', $assignedFilter);
+                  });
             });
         }
 
-        // Filter by status (hide archived by default)
+        // Filter: Project Status
+        // Allow filtering by specific status (planned, active, completed, etc.)
         $statusFilter = $request->input('status');
-        if ($statusFilter) {
+        if ($statusFilter && in_array($statusFilter, ['planned', 'active', 'paused', 'completed', 'archived'])) {
             $query->where('status', $statusFilter);
-        } else {
-            // Default: hide archived projects
-            $query->where('status', '!=', 'archived');
+        }
+
+        // Filter: Has Upcoming Work
+        // Show only projects with non-completed tasks that have a future due date
+        if ($request->boolean('upcoming')) {
+            $query->whereHas('epics.tasks', function ($q) {
+                $q->where('status', '!=', 'completed')
+                  ->where('due_date', '>', now());
+            });
         }
 
         $projects = $query->orderBy('created_at', 'desc')->get();
+
+        // If this is an HTMX request, return only the projects list partial
+        if ($request->header('HX-Request')) {
+            return view('projects.partials.projects-list', compact('projects'));
+        }
 
         return view('projects.index', compact('projects'));
     }
@@ -628,11 +663,53 @@ class ProjectController extends Controller
         $displayWeeks = min($weekCount, 26);
         
         for ($i = 0; $i < $displayWeeks; $i++) {
+            $weekStart = $currentWeek->copy();
+            $weekEnd = $currentWeek->copy()->endOfWeek();
+            
+            // Format label as date range
+            if ($weekStart->month === $weekEnd->month) {
+                $label = $weekStart->format('M j') . '-' . $weekEnd->format('j');
+            } else {
+                $label = $weekStart->format('M j') . ' - ' . $weekEnd->format('M j');
+            }
+            
             $weeks[] = [
-                'start' => $currentWeek->copy(),
-                'label' => $currentWeek->format('M j'),
+                'start' => $weekStart,
+                'end' => $weekEnd,
+                'label' => $label,
+                'due_count' => 0, // Will be populated below
             ];
             $currentWeek->addWeek();
+        }
+
+        // Aggregate due dates per week
+        // Count epic end_date and task due_date occurrences per week
+        foreach ($weeks as $index => $week) {
+            $dueDateCount = 0;
+            
+            // Count epic end dates in this week
+            foreach ($epics as $epic) {
+                if ($epic->end_date && 
+                    $epic->end_date->gte($week['start']) && 
+                    $epic->end_date->lte($week['end'])) {
+                    $dueDateCount++;
+                }
+            }
+            
+            // Count task due dates in this week
+            $tasksDueInWeek = \App\Models\Task::whereHas('epic', function ($q) use ($epics) {
+                $q->whereIn('id', $epics->pluck('id'));
+            })
+            ->whereNotNull('due_date')
+            ->whereBetween('due_date', [$week['start'], $week['end']])
+            ->when(!$showCompleted, function ($q) {
+                $q->where('status', '!=', 'completed');
+            })
+            ->count();
+            
+            $dueDateCount += $tasksDueInWeek;
+            
+            $weeks[$index]['due_count'] = $dueDateCount;
         }
 
         return view('projects.timeline', compact('project', 'epics', 'weeks', 'timelineStart', 'timelineEnd', 'tooWide', 'showCompleted'));

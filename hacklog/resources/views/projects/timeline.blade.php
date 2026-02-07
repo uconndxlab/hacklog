@@ -37,10 +37,25 @@
                         <table class="table table-bordered mb-0">
                             <thead>
                                 <tr>
-                                    <th style="min-width: 200px;" class="bg-light">Epic</th>
+                                    <th style="width: 150px;" class="bg-light">Epic</th>
                                     @foreach($weeks as $week)
-                                        <th class="text-center bg-light" style="min-width: 60px;">
+                                        @php
+                                            // Determine heat level based on due date density
+                                            $dueCount = $week['due_count'];
+                                            $heatClass = '';
+                                            if ($dueCount >= 4) {
+                                                $heatClass = 'timeline-heat-high';
+                                            } elseif ($dueCount >= 2) {
+                                                $heatClass = 'timeline-heat-medium';
+                                            } elseif ($dueCount >= 1) {
+                                                $heatClass = 'timeline-heat-low';
+                                            }
+                                        @endphp
+                                        <th class="text-center bg-light {{ $heatClass }}" style="width: 95px;" title="{{ $dueCount }} {{ Str::plural('due date', $dueCount) }} this week">
                                             <small>{{ $week['label'] }}</small>
+                                            @if($dueCount > 0)
+                                                <br><a href="{{ route('projects.board', $project) }}" class="badge bg-primary rounded-pill text-decoration-none" style="font-size: 0.7rem;">{{ $dueCount }}</a>
+                                            @endif
                                         </th>
                                     @endforeach
                                 </tr>
@@ -90,7 +105,7 @@
                                             </div>
                                         </td>
                                         @foreach($cellStates as $state)
-                                            <td class="@if($state === 'filled') @if($epic->isOverdue()) bg-danger @elseif($epic->status === 'completed') bg-secondary-subtle @else bg-primary @endif @elseif($epic->status === 'completed') bg-light @endif">
+                                            <td class="@if($state === 'filled') @if($epic->isOverdue()) bg-danger @elseif($epic->status === 'completed') bg-secondary-subtle @else bg-primary @endif @elseif($epic->status === 'completed') bg-light @endif" style="width: 95px;">
                                                 @if($state === 'filled')
                                                     &nbsp;
                                                 @endif

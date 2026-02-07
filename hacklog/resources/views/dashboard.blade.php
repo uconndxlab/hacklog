@@ -3,11 +3,10 @@
 @section('title', 'Dashboard')
 
 @section('content')
-<div class="container">
     <!-- Welcome Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <h1 class="display-4">Welcome back, {{ Auth::user()->name }}</h1>
+            <h1>Welcome back, {{ Auth::user()->name }}</h1>
             <p class="lead text-muted">Here's what you need to focus on right now.</p>
         </div>
     </div>
@@ -138,5 +137,4 @@
             </div>
         </div>
     </div>
-</div>
 @endsection

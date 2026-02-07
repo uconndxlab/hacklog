@@ -377,6 +377,48 @@ small {
     font-weight: 600;
 }
 
+.hl-logo {
+  display: inline-block;
+  padding: 8px 10px;
+  background: linear-gradient(
+    to right,
+    #0B5ED7,
+    #0A58CA,
+    #084298
+  );
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* ============================================
+   TIMELINE DUE-DATE HEAT MARKERS
+   ============================================ */
+
+/**
+ * Visual density indicators for timeline weeks with due dates
+ * Uses subtle blue tints to show work concentration without overwhelming epic bars
+ * Heat levels represent density (count), not urgency
+ */
+
+/* Low density: 1 due date */
+.timeline-heat-low {
+    background-color: rgba(13, 110, 253, 0.08) !important;
+    border-bottom: 2px solid rgba(13, 110, 253, 0.2);
+}
+
+/* Medium density: 2-3 due dates */
+.timeline-heat-medium {
+    background-color: rgba(13, 110, 253, 0.15) !important;
+    border-bottom: 2px solid rgba(13, 110, 253, 0.35);
+}
+
+/* High density: 4+ due dates */
+.timeline-heat-high {
+    background-color: rgba(13, 110, 253, 0.25) !important;
+    border-bottom: 3px solid rgba(13, 110, 253, 0.5);
+    font-weight: 600;
+}
 
 /* ============================================
    END OF THEME

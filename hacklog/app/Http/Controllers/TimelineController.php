@@ -136,11 +136,54 @@ class TimelineController extends Controller
         $displayWeeks = min($weekCount, 26);
         
         for ($i = 0; $i < $displayWeeks; $i++) {
+            $weekStart = $currentWeek->copy();
+            $weekEnd = $currentWeek->copy()->endOfWeek();
+            
+            // Format label as date range
+            if ($weekStart->month === $weekEnd->month) {
+                $label = $weekStart->format('M j') . '-' . $weekEnd->format('j');
+            } else {
+                $label = $weekStart->format('M j') . ' - ' . $weekEnd->format('M j');
+            }
+            
             $weeks[] = [
-                'start' => $currentWeek->copy(),
-                'label' => $currentWeek->format('M j'),
+                'start' => $weekStart,
+                'end' => $weekEnd,
+                'label' => $label,
+                'due_count' => 0, // Will be populated below
             ];
             $currentWeek->addWeek();
+        }
+
+        // Aggregate due dates per week
+        // Count epic end_date and task due_date occurrences per week
+        foreach ($weeks as $index => $week) {
+            $dueDateCount = 0;
+            
+            // Count epic end dates in this week
+            foreach ($epics as $epic) {
+                if ($epic->end_date && 
+                    $epic->end_date->gte($week['start']) && 
+                    $epic->end_date->lte($week['end'])) {
+                    $dueDateCount++;
+                }
+            }
+            
+            // Count task due dates in this week
+            // Get all tasks from these epics
+            $tasksDueInWeek = \App\Models\Task::whereHas('epic', function ($q) use ($epics) {
+                $q->whereIn('id', $epics->pluck('id'));
+            })
+            ->whereNotNull('due_date')
+            ->whereBetween('due_date', [$week['start'], $week['end']])
+            ->when(!$showCompleted, function ($q) {
+                $q->where('status', '!=', 'completed');
+            })
+            ->count();
+            
+            $dueDateCount += $tasksDueInWeek;
+            
+            $weeks[$index]['due_count'] = $dueDateCount;
         }
 
         // Group epics by project
