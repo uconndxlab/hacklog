@@ -341,8 +341,7 @@
                                 class="form-control" 
                                 rows="1" 
                                 placeholder="Add a comment... (Ctrl+Enter to submit)"
-                                style="resize: none; min-height: 36px;"
-                                required></textarea>
+                                style="resize: none; min-height: 36px;"></textarea>
                         </div>
                         <div class="d-flex justify-content-between align-items-center">
                             <small class="text-muted">Press Ctrl+Enter to submit</small>

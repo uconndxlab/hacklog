@@ -223,8 +223,8 @@
 {{-- This enables deep linking from Dashboard or other views --}}
 @if(request()->has('task'))
     @php
-        // Tasks belong to phases, so we need to find the task through the project's phases
-        $targetTask = \App\Models\Task::whereHas('phase', function($query) use ($project) {
+        // Tasks belong to columns, so we need to find the task through the project's columns
+        $targetTask = \App\Models\Task::whereHas('column', function($query) use ($project) {
             $query->where('project_id', $project->id);
         })->find(request()->get('task'));
     @endphp
@@ -232,11 +232,11 @@
     @if($targetTask)
         {{-- Hidden trigger that loads and opens the task modal on page load --}}
         <div 
-            hx-get="{{ route('projects.board.tasks.show', [$project, $targetTask]) }}" 
-            hx-target="#taskDetailsModalContent"
+            hx-get="{{ route('projects.board.tasks.edit', [$project, $targetTask]) }}" 
+            hx-target="#taskModalContent"
             hx-trigger="load"
             hx-on::after-request="
-                const modal = new bootstrap.Modal(document.getElementById('taskDetailsModal'));
+                const modal = new bootstrap.Modal(document.getElementById('taskModal'));
                 modal.show();
                 const url = new URL(window.location);
                 url.searchParams.delete('task');
