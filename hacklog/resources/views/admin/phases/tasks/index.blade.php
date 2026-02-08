@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Admin: ' . $epic->name . ' Tasks')
+@section('title', 'Admin: ' . $phase->name . ' Tasks')
 
 @section('content')
 <div class="row">
@@ -9,7 +9,7 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ route('projects.index') }}">Projects</a></li>
                 <li class="breadcrumb-item"><a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('projects.epics.show', [$project, $epic]) }}">{{ $epic->name }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('projects.phases.show', [$project, $phase]) }}">{{ $phase->name }}</a></li>
                 <li class="breadcrumb-item active">Admin: Tasks</li>
             </ol>
         </nav>
@@ -17,7 +17,7 @@
         <div class="d-flex justify-content-between align-items-start mb-4">
             <div>
                 <h1 class="mb-1">Admin: Task Cleanup</h1>
-                <p class="text-muted mb-0">Epic: {{ $epic->name }}</p>
+                <p class="text-muted mb-0">Phase: {{ $phase->name }}</p>
                 <small class="text-muted">{{ $tasks->count() }} task(s) total</small>
             </div>
         </div>
@@ -25,19 +25,19 @@
         @if($tasks->isEmpty())
             <div class="alert alert-info">
                 <h5 class="alert-heading">No tasks found</h5>
-                <p class="mb-0">This epic doesn't have any tasks yet.</p>
+                <p class="mb-0">This phase doesn't have any tasks yet.</p>
             </div>
         @else
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Tasks in this Epic</h5>
+                    <h5 class="mb-0">Tasks in this Phase</h5>
                     <div class="d-flex gap-2">
                         <button type="button" id="selectAll" class="btn btn-sm btn-outline-secondary">Select All</button>
                         <button type="button" id="selectNone" class="btn btn-sm btn-outline-secondary">Select None</button>
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <form id="bulkDeleteForm" method="POST" action="{{ route('admin.epics.tasks.bulk-delete', [$project, $epic]) }}">
+                    <form id="bulkDeleteForm" method="POST" action="{{ route('admin.phases.tasks.bulk-delete', [$project, $phase]) }}">
                         @csrf
                         @method('DELETE')
                         

@@ -28,31 +28,31 @@
                 @csrf
 
                 <div class="mb-3">
-                    <label for="epic_id" class="form-label">Epic</label>
+                    <label for="phase_id" class="form-label">Phase</label>
                     <select
-                        class="form-select @error('epic_id') is-invalid @enderror"
-                        id="epic_id"
-                        name="epic_id"
+                        class="form-select @error('phase_id') is-invalid @enderror"
+                        id="phase_id"
+                        name="phase_id"
                         required>
-                        <option value="">Choose an epic...</option>
+                        <option value="">Choose a phase...</option>
                         @php
-                            $defaultEpicId = old('epic_id', $epic->id);
+                            $defaultPhaseId = old('phase_id', $phase->id);
                         @endphp
-                        @foreach($epics as $epicOption)
-                            <option value="{{ $epicOption->id }}"
-                                {{ $defaultEpicId == $epicOption->id ? 'selected' : '' }}>
-                                {{ $epicOption->name }}
-                                @if($epicOption->status === 'active')
+                        @foreach($phases as $phaseOption)
+                            <option value="{{ $phaseOption->id }}"
+                                {{ $defaultPhaseId == $phaseOption->id ? 'selected' : '' }}>
+                                {{ $phaseOption->name }}
+                                @if($phaseOption->status === 'active')
                                     (Active)
-                                @elseif($epicOption->status === 'planned')
+                                @elseif($phaseOption->status === 'planned')
                                     (Planned)
-                                @elseif($epicOption->status === 'completed')
+                                @elseif($phaseOption->status === 'completed')
                                     (Completed)
                                 @endif
                             </option>
                         @endforeach
                     </select>
-                    @error('epic_id')
+                    @error('phase_id')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
@@ -164,7 +164,7 @@
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary">Create Task</button>
-                    <a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}" class="btn btn-secondary">Cancel</a>
+                    <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
         @endif

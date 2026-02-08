@@ -8,21 +8,21 @@
 <div class="board-header mb-4">
     <div class="board-header-title">
         <h1 class="mb-2 mb-md-0">{{ $project->name }}</h1>
-        @if(request('epic'))
+        @if(request('phase'))
             @php
-                $filteredEpic = $epics->firstWhere('id', request('epic'));
+                $filteredPhase = $phases->firstWhere('id', request('phase'));
             @endphp
-            @if($filteredEpic)
+            @if($filteredPhase)
                 <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
                     <span class="badge bg-primary">
-                        {{ $filteredEpic->name }}
+                        {{ $filteredPhase->name }}
                         <a href="{{ route('projects.board', $project) }}" class="text-white text-decoration-none ms-1">×</a>
                     </span>
                     <button 
                         type="button" 
                         class="btn btn-sm btn-outline-secondary"
                         data-bs-toggle="modal" 
-                        data-bs-target="#epicInfoModal">
+                        data-bs-target="#phaseInfoModal">
                         <span class="d-none d-sm-inline">View Details</span>
                         <span class="d-inline d-sm-none">Details</span>
                     </button>
@@ -31,23 +31,23 @@
         @endif
     </div>
     <div class="board-header-actions">
-        <a href="{{ route('projects.epics.create', $project) }}" class="btn btn-sm btn-primary">
-            <span class="d-none d-md-inline">Create Epic</span>
-            <span class="d-inline d-md-none">New Epic</span>
+        <a href="{{ route('projects.phases.create', $project) }}" class="btn btn-sm btn-primary">
+            <span class="d-none d-md-inline">Create Phase</span>
+            <span class="d-inline d-md-none">New Phase</span>
         </a>
         <div class="dropdown">
-            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Filter by Epic">
-                <span class="d-none d-lg-inline">Filter by Epic</span>
-                <span class="d-inline d-lg-none">Epic</span>
+            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Filter by Phase">
+                <span class="d-none d-lg-inline">Filter by Phase</span>
+                <span class="d-inline d-lg-none">Phase</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="{{ route('projects.board', $project) }}">All Epics</a></li>
+                <li><a class="dropdown-item" href="{{ route('projects.board', $project) }}">All Phases</a></li>
                 <li><hr class="dropdown-divider"></li>
-                @foreach($epics as $epic)
+                @foreach($phases as $phase)
                     <li>
-                        <a class="dropdown-item {{ request('epic') == $epic->id ? 'active' : '' }}" 
-                           href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}">
-                            {{ $epic->name }}
+                        <a class="dropdown-item {{ request('phase') == $phase->id ? 'active' : '' }}" 
+                           href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}">
+                            {{ $phase->name }}
                         </a>
                     </li>
                 @endforeach
@@ -162,34 +162,34 @@
     </div>
 </div>
 
-{{-- Epic Information Modal --}}
-@if(request('epic') && isset($filteredEpic))
-<div class="modal fade" id="epicInfoModal" tabindex="-1" aria-labelledby="epicInfoModalLabel" aria-hidden="true">
+{{-- Phase Information Modal --}}
+@if(request('phase') && isset($filteredPhase))
+<div class="modal fade" id="phaseInfoModal" tabindex="-1" aria-labelledby="phaseInfoModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="epicInfoModalLabel">{{ $filteredEpic->name }}</h5>
+                <h5 class="modal-title" id="phaseInfoModalLabel">{{ $filteredPhase->name }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
                     <span class="badge 
-                        @if($filteredEpic->status === 'planned') bg-secondary
-                        @elseif($filteredEpic->status === 'active') bg-success
+                        @if($filteredPhase->status === 'planned') bg-secondary
+                        @elseif($filteredPhase->status === 'active') bg-success
                         @else bg-primary
                         @endif">
-                        {{ ucfirst($filteredEpic->status) }}
+                        {{ ucfirst($filteredPhase->status) }}
                     </span>
                 </div>
 
-                @if($filteredEpic->description)
+                @if($filteredPhase->description)
                     <div class="card mb-3">
                         <div class="card-header">
                             <h6 class="mb-0">Description</h6>
                         </div>
                         <div class="card-body">
                             <div class="trix-content">
-                                {!! $filteredEpic->description !!}
+                                {!! $filteredPhase->description !!}
                             </div>
                         </div>
                     </div>
@@ -206,27 +206,27 @@
                                 <a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a>
                             </dd>
 
-                            @if($filteredEpic->start_date)
+                            @if($filteredPhase->start_date)
                                 <dt class="col-sm-3">Start Date</dt>
-                                <dd class="col-sm-9">{{ $filteredEpic->start_date->format('F j, Y') }}</dd>
+                                <dd class="col-sm-9">{{ $filteredPhase->start_date->format('F j, Y') }}</dd>
                             @endif
 
-                            @if($filteredEpic->end_date)
+                            @if($filteredPhase->end_date)
                                 <dt class="col-sm-3">End Date</dt>
-                                <dd class="col-sm-9">{{ $filteredEpic->end_date->format('F j, Y') }}</dd>
+                                <dd class="col-sm-9">{{ $filteredPhase->end_date->format('F j, Y') }}</dd>
                             @endif
 
                             <dt class="col-sm-3">Created</dt>
-                            <dd class="col-sm-9">{{ $filteredEpic->created_at->format('F j, Y \a\t g:i A') }}</dd>
+                            <dd class="col-sm-9">{{ $filteredPhase->created_at->format('F j, Y \a\t g:i A') }}</dd>
 
                             <dt class="col-sm-3">Last Updated</dt>
-                            <dd class="col-sm-9 mb-0">{{ $filteredEpic->updated_at->format('F j, Y \a\t g:i A') }}</dd>
+                            <dd class="col-sm-9 mb-0">{{ $filteredPhase->updated_at->format('F j, Y \a\t g:i A') }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <a href="{{ route('projects.epics.edit', [$project, $filteredEpic]) }}" class="btn btn-primary">Edit Epic</a>
+                <a href="{{ route('projects.phases.edit', [$project, $filteredPhase]) }}" class="btn btn-primary">Edit Phase</a>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
@@ -238,8 +238,8 @@
 {{-- This enables deep linking from Dashboard or other views --}}
 @if(request()->has('task'))
     @php
-        // Tasks belong to epics, so we need to find the task through the project's epics
-        $targetTask = \App\Models\Task::whereHas('epic', function($query) use ($project) {
+        // Tasks belong to phases, so we need to find the task through the project's phases
+        $targetTask = \App\Models\Task::whereHas('phase', function($query) use ($project) {
             $query->where('project_id', $project->id);
         })->find(request()->get('task'));
     @endphp
@@ -267,9 +267,9 @@
 document.body.addEventListener('htmx:configRequest', function(evt) {
     const params = new URLSearchParams(window.location.search);
     
-    // Add epic filter if present
-    if (params.get('epic')) {
-        evt.detail.parameters['epic'] = params.get('epic');
+    // Add phase filter if present
+    if (params.get('phase')) {
+        evt.detail.parameters['phase'] = params.get('phase');
     }
     
     // Add assigned filter if present

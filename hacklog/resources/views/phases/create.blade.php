@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Create Epic - ' . $project->name)
+@section('title', 'Create Phase - ' . $project->name)
 
 @section('content')
 <nav aria-label="breadcrumb">
@@ -8,23 +8,23 @@
         <li class="breadcrumb-item"><a href="{{ route('projects.index') }}">Projects</a></li>
         <li class="breadcrumb-item"><a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a></li>
         <li class="breadcrumb-item"><a href="{{ route('projects.edit', $project) }}">Settings</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.epics.index', $project) }}">Manage Epics</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Create Epic</li>
+        <li class="breadcrumb-item"><a href="{{ route('projects.phases.index', $project) }}">Manage Phases</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create Phase</li>
     </ol>
 </nav>
 
 <div class="row">
     <div class="col-lg-8">
         <div class="mb-4">
-            <h1 class="mb-1">Create Epic</h1>
+            <h1 class="mb-1">Create Phase</h1>
             <p class="text-muted mb-0">{{ $project->name }}</p>
         </div>
 
-        <form action="{{ route('projects.epics.store', $project) }}" method="POST">
+        <form action="{{ route('projects.phases.store', $project) }}" method="POST">
             @csrf
 
             <div class="mb-3">
-                <label for="name" class="form-label">Epic Name</label>
+                <label for="name" class="form-label">Phase Name</label>
                 <input 
                     type="text" 
                     class="form-control @error('name') is-invalid @enderror" 
@@ -95,8 +95,8 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">Create Epic</button>
-                <a href="{{ route('projects.epics.index', $project) }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create Phase</button>
+                <a href="{{ route('projects.phases.index', $project) }}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>

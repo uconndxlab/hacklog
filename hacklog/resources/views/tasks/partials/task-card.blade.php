@@ -2,7 +2,7 @@
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-2">
             <h6 class="card-title mb-0">
-                <a href="{{ route('projects.epics.tasks.show', [$project, $epic, $task]) }}">
+                <a href="{{ route('projects.phases.tasks.show', [$project, $phase, $task]) }}">
                     {{ $task->title }}
                 </a>
             </h6>
@@ -11,7 +11,7 @@
             @if($task->canMoveUp() || $task->canMoveDown())
                 <div class="btn-group btn-group-sm" role="group">
                     @if($task->canMoveUp())
-                        <form action="{{ route('projects.epics.tasks.move-up', [$project, $epic, $task]) }}" method="POST" class="d-inline">
+                        <form action="{{ route('projects.phases.tasks.move-up', [$project, $phase, $task]) }}" method="POST" class="d-inline">
                             @csrf
                             <button type="submit" class="btn btn-outline-secondary">↑</button>
                         </form>
@@ -20,7 +20,7 @@
                     @endif
                     
                     @if($task->canMoveDown())
-                        <form action="{{ route('projects.epics.tasks.move-down', [$project, $epic, $task]) }}" method="POST" class="d-inline">
+                        <form action="{{ route('projects.phases.tasks.move-down', [$project, $phase, $task]) }}" method="POST" class="d-inline">
                             @csrf
                             <button type="submit" class="btn btn-outline-secondary">↓</button>
                         </form>
@@ -42,14 +42,14 @@
         </p>
         
         <div class="d-flex gap-1 flex-wrap">
-            <a href="{{ route('projects.epics.tasks.edit', [$project, $epic, $task]) }}" 
+            <a href="{{ route('projects.phases.tasks.edit', [$project, $phase, $task]) }}" 
                class="btn btn-sm btn-outline-secondary">Edit</a>
             
             <form 
-                action="{{ route('projects.epics.tasks.destroy', [$project, $epic, $task]) }}" 
+                action="{{ route('projects.phases.tasks.destroy', [$project, $phase, $task]) }}" 
                 method="POST" 
                 class="d-inline"
-                hx-delete="{{ route('projects.epics.tasks.destroy', [$project, $epic, $task]) }}"
+                hx-delete="{{ route('projects.phases.tasks.destroy', [$project, $phase, $task]) }}"
                 hx-target="#task-{{ $task->id }}"
                 hx-swap="outerHTML"
                 hx-confirm="Are you sure you want to delete this task?">

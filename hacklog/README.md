@@ -4,7 +4,7 @@ An open-source project management platform built with Laravel 12, Bootstrap 5, a
 
 ## Features
 
-- **Projects & Epics**: Organize work hierarchically
+- **Projects & Phases**: Organize work hierarchically
 - **Kanban Board**: Visual task management with customizable columns
 - **Task Assignments**: Assign tasks to team members
 - **Schedule View**: Timeline view of tasks by due date (project-level and organization-wide)
@@ -67,7 +67,7 @@ Visit `http://localhost:8000` and log in with one of the test accounts.
 
 ## Project Structure
 
-- **Projects** contain **Epics** which contain **Tasks**
+- **Projects** contain **Phases** which contain **Tasks**
 - Tasks are organized in **Columns** (kanban workflow)
 - Tasks have:
   - Status (planned, active, completed)

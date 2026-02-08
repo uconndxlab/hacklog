@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Task extends Model
 {
     protected $fillable = [
-        'epic_id',
+        'phase_id',
         'column_id',
         'title',
         'description',
@@ -51,8 +51,8 @@ class Task extends Model
      * Get the effective due date for this task.
      * 
      * Returns the task's explicit due_date if set, otherwise falls back
-     * to the parent epic's due_date. This allows tasks without explicit
-     * dates to inherit timing from their epic for visualization and
+     * to the parent phase's due_date. This allows tasks without explicit
+     * dates to inherit timing from their phase for visualization and
      * aggregation purposes.
      * 
      * @return \Carbon\Carbon|null
@@ -64,8 +64,8 @@ class Task extends Model
             return $this->due_date;
         }
 
-        // Fall back to epic's end_date
-        return $this->epic?->end_date;
+        // Fall back to phase's end_date
+        return $this->phase?->end_date;
     }
 
     /**
@@ -79,9 +79,9 @@ class Task extends Model
         });
     }
 
-    public function epic(): BelongsTo
+    public function phase(): BelongsTo
     {
-        return $this->belongsTo(Epic::class);
+        return $this->belongsTo(Phase::class);
     }
 
     public function column(): BelongsTo

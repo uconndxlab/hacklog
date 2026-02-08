@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Epic;
+use App\Models\Phase;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
@@ -16,14 +16,14 @@ class GenerateSampleTasks extends Command
      *
      * @var string
      */
-    protected $signature = 'tasks:generate-sample {--project= : Project ID} {--epic= : Epic ID} {--count=5 : Number of tasks to generate}';
+    protected $signature = 'tasks:generate-sample {--project= : Project ID} {--phase= : Phase ID} {--count=5 : Number of tasks to generate}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Generate sample tasks for a given epic with random assignments and future due dates';
+    protected $description = 'Generate sample tasks for a given phase with random assignments and future due dates';
 
     /**
      * Execute the console command.
@@ -33,16 +33,16 @@ class GenerateSampleTasks extends Command
         // Get or prompt for project
         $project = $this->getProject();
 
-        // Get or prompt for epic
-        $epic = $this->getEpic($project);
+        // Get or prompt for phase
+        $phase = $this->getEpic($project);
 
         // Get number of tasks
         $count = $this->getTaskCount();
 
         // Generate tasks
-        $this->generateTasks($project, $epic, $count);
+        $this->generateTasks($project, $phase, $count);
 
-        $this->info("Successfully generated {$count} sample tasks for epic '{$epic->name}'!");
+        $this->info("Successfully generated {$count} sample tasks for phase '{$phase->name}'!");
         return Command::SUCCESS;
     }
 
@@ -81,39 +81,39 @@ class GenerateSampleTasks extends Command
         return $projects->find($projectId);
     }
 
-    private function getEpic(Project $project): Epic
+    private function getEpic(Project $project): Phase
     {
-        $epicId = $this->option('epic');
+        $epicId = $this->option('phase');
 
         if ($epicId) {
-            $epic = $project->epics()->find($epicId);
-            if (!$epic) {
-                $this->error("Epic with ID {$epicId} not found in project '{$project->name}'.");
+            $phase = $project->phases()->find($epicId);
+            if (!$phase) {
+                $this->error("Phase with ID {$epicId} not found in project '{$project->name}'.");
                 return Command::FAILURE;
             }
-            return $epic;
+            return $phase;
         }
 
-        $epics = $project->epics()->orderBy('name')->get();
+        $phases = $project->phases()->orderBy('name')->get();
 
-        if ($epics->isEmpty()) {
-            $this->error("No epics found in project '{$project->name}'. Please create an epic first.");
+        if ($phases->isEmpty()) {
+            $this->error("No phases found in project '{$project->name}'. Please create a phase first.");
             return Command::FAILURE;
         }
 
         $options = [];
-        foreach ($epics as $epic) {
-            $options[(string)$epic->id] = "{$epic->name} (ID: {$epic->id})";
+        foreach ($phases as $phase) {
+            $options[(string)$phase->id] = "{$phase->name} (ID: {$phase->id})";
         }
 
-        $epicId = $this->choice('Select an epic', $options);
+        $epicId = $this->choice('Select a phase', $options);
         
         // Extract ID from the selected option (format: "Name (ID: X)")
         if (preg_match('/\(ID: (\d+)\)$/', $epicId, $matches)) {
             $epicId = $matches[1];
         }
 
-        return $epics->find($epicId);
+        return $phases->find($epicId);
     }
 
     private function getTaskCount(): int
@@ -128,7 +128,7 @@ class GenerateSampleTasks extends Command
         return max(1, $count);
     }
 
-    private function generateTasks(Project $project, Epic $epic, int $count): void
+    private function generateTasks(Project $project, Phase $phase, int $count): void
     {
         $users = User::where('active', true)->get();
         $columns = $project->columns()->orderBy('position')->get();
@@ -188,12 +188,12 @@ class GenerateSampleTasks extends Command
             // Generate position
             $position = Task::getNextPositionInColumn($defaultColumn->id);
 
-            // Generate dates within epic bounds
-            $dates = $this->generateDatesWithinEpic($epic);
+            // Generate dates within phase bounds
+            $dates = $this->generateDatesWithinEpic($phase);
 
             // Create task
             $task = Task::create([
-                'epic_id' => $epic->id,
+                'epic_id' => $phase->id,
                 'column_id' => $defaultColumn->id,
                 'title' => $title,
                 'description' => $description,
@@ -230,18 +230,18 @@ class GenerateSampleTasks extends Command
         return $descriptions[array_rand($descriptions)];
     }
 
-    private function generateDatesWithinEpic(Epic $epic): array
+    private function generateDatesWithinEpic(Phase $phase): array
     {
-        // Only generate dates if the epic has date bounds
-        if (!$epic->start_date && !$epic->end_date) {
+        // Only generate dates if the phase has date bounds
+        if (!$phase->start_date && !$phase->end_date) {
             return [
                 'start_date' => null,
                 'due_date' => null,
             ];
         }
 
-        $startDate = $epic->start_date ?? now();
-        $endDate = $epic->end_date ?? now()->addDays(90);
+        $startDate = $phase->start_date ?? now();
+        $endDate = $phase->end_date ?? now()->addDays(90);
 
         // Ensure we have valid date bounds
         if ($startDate->gte($endDate)) {
@@ -250,25 +250,25 @@ class GenerateSampleTasks extends Command
 
         $epicDuration = $endDate->diffInDays($startDate);
 
-        // Generate random start date within first 80% of epic duration
+        // Generate random start date within first 80% of phase duration
         $maxStartOffset = max(0, intval($epicDuration * 0.8));
         $startOffset = rand(0, $maxStartOffset);
         $taskStart = $startDate->copy()->addDays($startOffset);
 
-        // Generate due date within remaining epic time
+        // Generate due date within remaining phase time
         $remainingDays = $endDate->diffInDays($taskStart);
         
         if ($remainingDays <= 1) {
-            // Very little time left, due date is epic end
+            // Very little time left, due date is phase end
             $taskEnd = $endDate->copy();
         } else {
-            // Random due date between task start and epic end
+            // Random due date between task start and phase end
             $maxTaskDuration = min(14, $remainingDays); // Max 2 weeks or remaining time
             $minTaskDuration = min(1, $remainingDays);
             $taskDuration = rand($minTaskDuration, max($minTaskDuration, $maxTaskDuration));
             $taskEnd = $taskStart->copy()->addDays($taskDuration);
             
-            // Ensure task doesn't go beyond epic end
+            // Ensure task doesn't go beyond phase end
             if ($taskEnd->gt($endDate)) {
                 $taskEnd = $endDate->copy();
             }

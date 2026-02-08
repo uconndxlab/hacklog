@@ -19,7 +19,7 @@ return new class extends Migration
         // Create new table with updated enum
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('epic_id')->constrained()->onDelete('cascade');
+            $table->foreignId('phase_id')->constrained()->onDelete('cascade');
             $table->foreignId('column_id')->constrained()->onDelete('cascade');
             $table->string('title');
             $table->text('description')->nullable();
@@ -32,10 +32,10 @@ return new class extends Migration
         
         // Copy data with status mapping
         DB::statement("
-            INSERT INTO tasks (id, epic_id, column_id, title, description, status, position, start_date, due_date, created_at, updated_at)
+            INSERT INTO tasks (id, phase_id, column_id, title, description, status, position, start_date, due_date, created_at, updated_at)
             SELECT 
                 id, 
-                epic_id, 
+                phase_id, 
                 column_id, 
                 title, 
                 description, 
@@ -67,7 +67,7 @@ return new class extends Migration
         // Recreate old table structure
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('epic_id')->constrained()->onDelete('cascade');
+            $table->foreignId('phase_id')->constrained()->onDelete('cascade');
             $table->foreignId('column_id')->constrained()->onDelete('cascade');
             $table->string('title');
             $table->text('description')->nullable();
@@ -80,10 +80,10 @@ return new class extends Migration
         
         // Copy data back with reverse mapping
         DB::statement("
-            INSERT INTO tasks (id, epic_id, column_id, title, description, status, position, start_date, due_date, created_at, updated_at)
+            INSERT INTO tasks (id, phase_id, column_id, title, description, status, position, start_date, due_date, created_at, updated_at)
             SELECT 
                 id, 
-                epic_id, 
+                phase_id, 
                 column_id, 
                 title, 
                 description, 

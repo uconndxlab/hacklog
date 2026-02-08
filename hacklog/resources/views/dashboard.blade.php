@@ -38,17 +38,17 @@
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div class="flex-grow-1">
                                             <h6 class="mb-1">
-                                                <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                                <a href="{{ route('projects.board', ['project' => $task->phase->project, 'task' => $task->id]) }}" class="text-decoration-none">
                                                     {{ $task->title }}
                                                 </a>
                                             </h6>
                                             <p class="mb-1 text-muted small">
-                                                {{ $task->epic->project->name }} › {{ $task->epic->name }}
+                                                {{ $task->phase->project->name }} › {{ $task->phase->name }}
                                             </p>
                                             <span class="badge bg-danger">
                                                 Overdue: {{ $effectiveDueDate->format('M j, Y') }}
                                                 @if($isInherited)
-                                                    (from epic)
+                                                    (from phase)
                                                 @endif
                                             </span>
                                         </div>
@@ -83,17 +83,17 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
                                                 <h6 class="mb-1">
-                                                    <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                                    <a href="{{ route('projects.board', ['project' => $task->phase->project, 'task' => $task->id]) }}" class="text-decoration-none">
                                                         {{ $task->title }}
                                                     </a>
                                                 </h6>
                                                 <p class="mb-1 text-muted small">
-                                                    {{ $task->epic->project->name }} › {{ $task->epic->name }}
+                                                    {{ $task->phase->project->name }} › {{ $task->phase->name }}
                                                 </p>
                                                 <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">
                                                     Due {{ $effectiveDueDate->format('M j') }}
                                                     @if($isInherited)
-                                                        (from epic)
+                                                        (from phase)
                                                     @endif
                                                 </span>
                                             </div>
@@ -126,17 +126,17 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
                                                 <h6 class="mb-1">
-                                                    <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                                    <a href="{{ route('projects.board', ['project' => $task->phase->project, 'task' => $task->id]) }}" class="text-decoration-none">
                                                         {{ $task->title }}
                                                     </a>
                                                 </h6>
                                                 <p class="mb-1 text-muted small">
-                                                    {{ $task->epic->project->name }} › {{ $task->epic->name }}
+                                                    {{ $task->phase->project->name }} › {{ $task->phase->name }}
                                                 </p>
                                                 <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">
                                                     Due {{ $effectiveDueDate->format('M j, Y') }}
                                                     @if($isInherited)
-                                                        (from epic)
+                                                        (from phase)
                                                     @endif
                                                 </span>
                                             </div>
@@ -160,12 +160,12 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
                                                 <h6 class="mb-1">
-                                                    <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                                    <a href="{{ route('projects.board', ['project' => $task->phase->project, 'task' => $task->id]) }}" class="text-decoration-none">
                                                         {{ $task->title }}
                                                     </a>
                                                 </h6>
                                                 <p class="mb-1 text-muted small">
-                                                    {{ $task->epic->project->name }} › {{ $task->epic->name }}
+                                                    {{ $task->phase->project->name }} › {{ $task->phase->name }}
                                                 </p>
                                             </div>
                                             <div class="ms-3">
@@ -199,12 +199,12 @@
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div class="flex-grow-1">
                                             <h6 class="mb-1">
-                                                <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                                <a href="{{ route('projects.board', ['project' => $task->phase->project, 'task' => $task->id]) }}" class="text-decoration-none">
                                                     {{ $task->title }}
                                                 </a>
                                             </h6>
                                             <p class="mb-1 text-muted small">
-                                                {{ $task->epic->project->name }} › {{ $task->epic->name }}
+                                                {{ $task->phase->project->name }} › {{ $task->phase->name }}
                                             </p>
                                             <small class="text-muted">Updated {{ $task->updated_at->diffForHumans() }}</small>
                                         </div>
@@ -239,18 +239,18 @@
                                 <div class="list-group-item px-0 py-2">
                                     <div class="d-flex flex-column">
                                         <h6 class="mb-1">
-                                            <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                            <a href="{{ route('projects.board', ['project' => $task->phase->project, 'task' => $task->id]) }}" class="text-decoration-none">
                                                 {{ $task->title }}
                                             </a>
                                         </h6>
                                         <small class="text-muted mb-1">
-                                            {{ $task->epic->project->name }}
+                                            {{ $task->phase->project->name }}
                                         </small>
                                         @if($effectiveDueDate)
                                             <small class="text-muted">
                                                 Due {{ $effectiveDueDate->format('M j') }}
                                                 @if($isInherited)
-                                                    (from epic)
+                                                    (from phase)
                                                 @endif
                                             </small>
                                         @endif

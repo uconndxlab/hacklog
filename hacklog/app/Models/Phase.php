@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Epic extends Model
+class Phase extends Model
 {
     protected $fillable = [
         'project_id',
@@ -24,9 +24,9 @@ class Epic extends Model
     ];
 
     /**
-     * Determine if the epic is overdue.
+     * Determine if the phase is overdue.
      * 
-     * An epic is overdue if:
+     * A phase is overdue if:
      * - end_date exists
      * - AND end_date < today
      * - AND status != completed

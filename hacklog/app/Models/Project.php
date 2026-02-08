@@ -18,9 +18,9 @@ class Project extends Model
         'status' => 'string',
     ];
 
-    public function epics(): HasMany
+    public function phases(): HasMany
     {
-        return $this->hasMany(Epic::class);
+        return $this->hasMany(Phase::class);
     }
 
     public function columns(): HasMany

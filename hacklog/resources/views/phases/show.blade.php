@@ -1,39 +1,39 @@
 @extends('layouts.app')
 
-@section('title', $epic->name)
+@section('title', $phase->name)
 
 @section('content')
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ route('projects.index') }}">Projects</a></li>
         <li class="breadcrumb-item"><a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.epics.index', $project) }}">Epics</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{{ $epic->name }}</li>
+        <li class="breadcrumb-item"><a href="{{ route('projects.phases.index', $project) }}">Phases</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ $phase->name }}</li>
     </ol>
 </nav>
 
 <div class="d-flex justify-content-between align-items-start mb-4">
     <div>
-        <h1>{{ $epic->name }}</h1>
+        <h1>{{ $phase->name }}</h1>
         <p class="text-muted mb-0">
             <span class="badge 
-                @if($epic->status === 'planned') bg-secondary
-                @elseif($epic->status === 'active') bg-success
+                @if($phase->status === 'planned') bg-secondary
+                @elseif($phase->status === 'active') bg-success
                 @else bg-primary
                 @endif">
-                {{ ucfirst($epic->status) }}
+                {{ ucfirst($phase->status) }}
             </span>
         </p>
     </div>
-    <a href="{{ route('projects.epics.edit', [$project, $epic]) }}" class="btn btn-secondary">Edit Epic</a>
+    <a href="{{ route('projects.phases.edit', [$project, $phase]) }}" class="btn btn-secondary">Edit Phase</a>
 </div>
 
 <h2 class="h4 mb-3">Description</h2>
 <div class="card mb-4">
     <div class="card-body">
-        @if($epic->description)
+        @if($phase->description)
             <div class="trix-content">
-                {!! $epic->description !!}
+                {!! $phase->description !!}
             </div>
         @else
             <p class="text-muted mb-0">No description provided.</p>
@@ -47,9 +47,9 @@
         <h3 class="h6 mb-0 fw-semibold">Kanban Board</h3>
         <div class="d-flex gap-2">
             @can('admin')
-                <a href="{{ route('admin.epics.tasks.index', [$project, $epic]) }}" class="btn btn-sm btn-outline-danger">Admin: Cleanup Tasks</a>
+                <a href="{{ route('admin.phases.tasks.index', [$project, $phase]) }}" class="btn btn-sm btn-outline-danger">Admin: Cleanup Tasks</a>
             @endcan
-            <a href="{{ route('projects.epics.tasks.create', [$project, $epic]) }}" class="btn btn-sm btn-primary">Create Task</a>
+            <a href="{{ route('projects.phases.tasks.create', [$project, $phase]) }}" class="btn btn-sm btn-primary">Create Task</a>
         </div>
     </div>
     <div class="card-body">
@@ -61,8 +61,8 @@
             ])
         @elseif($tasks->isEmpty())
             @include('partials.empty-state', [
-                'message' => 'No tasks yet. Break down this epic into actionable tasks.',
-                'actionUrl' => route('projects.epics.tasks.create', [$project, $epic]),
+                'message' => 'No tasks yet. Break down this phase into actionable tasks.',
+                'actionUrl' => route('projects.phases.tasks.create', [$project, $phase]),
                 'actionText' => 'Create your first task'
             ])
         @else
@@ -86,7 +86,7 @@
 <h2 class="h4 mb-3">Details</h2>
 <div class="card mb-4">
     <div class="card-header bg-light">
-        <h3 class="h6 mb-0 fw-semibold">Epic Information</h3>
+        <h3 class="h6 mb-0 fw-semibold">Phase Information</h3>
     </div>
     <div class="card-body">
         <dl class="row mb-0">
@@ -95,27 +95,27 @@
                 <a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a>
             </dd>
 
-            @if($epic->start_date)
+            @if($phase->start_date)
                 <dt class="col-sm-3">Start Date</dt>
-                <dd class="col-sm-9">{{ $epic->start_date->format('F j, Y') }}</dd>
+                <dd class="col-sm-9">{{ $phase->start_date->format('F j, Y') }}</dd>
             @endif
 
-            @if($epic->end_date)
+            @if($phase->end_date)
                 <dt class="col-sm-3">End Date</dt>
-                <dd class="col-sm-9">{{ $epic->end_date->format('F j, Y') }}</dd>
+                <dd class="col-sm-9">{{ $phase->end_date->format('F j, Y') }}</dd>
             @endif
 
             <dt class="col-sm-3">Created</dt>
-            <dd class="col-sm-9">{{ $epic->created_at->format('F j, Y \a\t g:i A') }}</dd>
+            <dd class="col-sm-9">{{ $phase->created_at->format('F j, Y \a\t g:i A') }}</dd>
 
             <dt class="col-sm-3">Last Updated</dt>
-            <dd class="col-sm-9 mb-0">{{ $epic->updated_at->format('F j, Y \a\t g:i A') }}</dd>
+            <dd class="col-sm-9 mb-0">{{ $phase->updated_at->format('F j, Y \a\t g:i A') }}</dd>
         </dl>
     </div>
 </div>
 
 <div class="mt-3">
-    <a href="{{ route('projects.epics.index', $project) }}" class="btn btn-outline-secondary">Back to Epics</a>
+    <a href="{{ route('projects.phases.index', $project) }}" class="btn btn-outline-secondary">Back to Phases</a>
 </div>
 
 @push('scripts')

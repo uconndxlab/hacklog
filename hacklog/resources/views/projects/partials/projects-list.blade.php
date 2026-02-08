@@ -6,7 +6,7 @@
         </div>
     @else
         @include('partials.empty-state', [
-            'message' => 'No projects yet. Projects are top-level containers for organizing your work into epics and tasks.',
+            'message' => 'No projects yet. Projects are top-level containers for organizing your work into phases and tasks.',
             'actionUrl' => route('projects.create'),
             'actionText' => 'Create your first project'
         ])
@@ -15,29 +15,29 @@
     <div class="row">
         @foreach($projects as $project)
             @php
-                // Count active epics
-                $activeEpicsCount = $project->epics->where('status', '!=', 'completed')->count();
+                // Count active phases
+                $activePhasesCount = $project->phases->where('status', '!=', 'completed')->count();
                 
-                // Find next relevant date (earliest upcoming epic end_date or task due_date)
+                // Find next relevant date (earliest upcoming phase end_date or task due_date)
                 $nextDate = null;
                 $today = \Carbon\Carbon::today();
                 
-                foreach ($project->epics as $epic) {
-                    if ($epic->end_date && $epic->end_date->gte($today) && (!$nextDate || $epic->end_date->lt($nextDate))) {
-                        $nextDate = $epic->end_date;
+                foreach ($project->phases as $phase) {
+                    if ($phase->end_date && $phase->end_date->gte($today) && (!$nextDate || $phase->end_date->lt($nextDate))) {
+                        $nextDate = $phase->end_date;
                     }
                 }
                 
                 // Check tasks for earlier dates
-                $nextTaskDate = \App\Models\Task::whereHas('epic', function($q) use ($project) {
+                $nextTaskDate = \App\Models\Task::whereHas('phase', function($q) use ($project) {
                     $q->where('project_id', $project->id)
                       ->where('status', '!=', 'completed');
                 })
                 ->where('status', '!=', 'completed')
                 ->where(function($q) use ($today) {
                     $q->where('due_date', '>=', $today)
-                      ->orWhereHas('epic', function($epicQ) use ($today) {
-                          $epicQ->where('end_date', '>=', $today)
+                      ->orWhereHas('phase', function($phaseQ) use ($today) {
+                          $phaseQ->where('end_date', '>=', $today)
                                 ->whereNull('tasks.due_date');
                       });
                 })
@@ -73,9 +73,9 @@
                         @endif
                         
                         <div class="mt-auto small text-muted">
-                            @if($activeEpicsCount > 0)
+                            @if($activePhasesCount > 0)
                                 <div class="mb-1">
-                                    {{ $activeEpicsCount }} active {{ Str::plural('epic', $activeEpicsCount) }}
+                                    {{ $activePhasesCount }} active {{ Str::plural('phase', $activePhasesCount) }}
                                 </div>
                             @endif
                             

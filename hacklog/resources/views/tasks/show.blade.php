@@ -7,8 +7,8 @@
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ route('projects.index') }}">Projects</a></li>
         <li class="breadcrumb-item"><a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.epics.index', $project) }}">Epics</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}">{{ $epic->name }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('projects.phases.index', $project) }}">Phases</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}">{{ $phase->name }}</a></li>
         <li class="breadcrumb-item active" aria-current="page">{{ $task->title }}</li>
     </ol>
 </nav>
@@ -28,7 +28,7 @@
                     </span>
                 </p>
             </div>
-            <a href="{{ route('projects.epics.tasks.edit', [$project, $epic, $task]) }}" class="btn btn-secondary">Edit Task</a>
+            <a href="{{ route('projects.phases.tasks.edit', [$project, $phase, $task]) }}" class="btn btn-secondary">Edit Task</a>
         </div>
 
         <h2 class="h4 mb-3">Description</h2>
@@ -51,9 +51,9 @@
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-3">Epic</dt>
+                    <dt class="col-sm-3">Phase</dt>
                     <dd class="col-sm-9">
-                        <a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}">{{ $epic->name }}</a>
+                        <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}">{{ $phase->name }}</a>
                     </dd>
 
                     <dt class="col-sm-3">Project</dt>
@@ -89,7 +89,7 @@
         </div>
 
         <div class="mt-3">
-            <a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}" class="btn btn-outline-secondary">Back to Board</a>
+            <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" class="btn btn-outline-secondary">Back to Board</a>
         </div>
     </div>
 </div>

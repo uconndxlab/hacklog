@@ -414,7 +414,7 @@ small {
 
 /**
  * Visual density indicators for timeline weeks with due dates
- * Uses subtle blue tints to show work concentration without overwhelming epic bars
+ * Uses subtle blue tints to show work concentration without overwhelming phase bars
  * Heat levels represent density (count), not urgency
  */
 
@@ -454,7 +454,7 @@ small {
     background-color: rgba(0, 0, 0, 0.02);
 }
 
-.timeline-epic-label {
+.timeline-phase-label {
     font-weight: 500;
 }
 

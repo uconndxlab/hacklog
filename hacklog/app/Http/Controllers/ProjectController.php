@@ -16,7 +16,7 @@ class ProjectController extends Controller
         
         // Start with visibility-filtered projects
         $query = Project::visibleTo($user)
-            ->with(['epics' => function($q) {
+            ->with(['phases' => function($q) {
                 $q->where('status', '!=', 'completed');
             }]);
 
@@ -33,7 +33,7 @@ class ProjectController extends Controller
         // Scope filter: All / Assigned to me / I'm a contributor / Projects I'm on
         if ($scope === 'assigned') {
             // Projects where user has assigned tasks (not completed)
-            $query->whereHas('epics.tasks', function ($q) use ($user) {
+            $query->whereHas('phases.tasks', function ($q) use ($user) {
                 $q->where('status', '!=', 'completed')
                   ->whereHas('users', function ($userQuery) use ($user) {
                       $userQuery->where('users.id', $user->id);
@@ -41,14 +41,14 @@ class ProjectController extends Controller
             });
         } elseif ($scope === 'contributor') {
             // Projects where user has ANY tasks (completed or not)
-            $query->whereHas('epics.tasks.users', function ($q) use ($user) {
+            $query->whereHas('phases.tasks.users', function ($q) use ($user) {
                 $q->where('users.id', $user->id);
             });
         } elseif ($scope === 'member') {
             // Projects where user has tasks OR is a project resource OR directly shared
             $query->where(function($q) use ($user) {
                 // Has tasks assigned
-                $q->whereHas('epics.tasks.users', function ($taskQuery) use ($user) {
+                $q->whereHas('phases.tasks.users', function ($taskQuery) use ($user) {
                     $taskQuery->where('users.id', $user->id);
                 })
                 // OR is a project resource (contributor, manager, viewer)
@@ -74,18 +74,18 @@ class ProjectController extends Controller
             $today = \Carbon\Carbon::today();
             
             if ($timeFilter === 'overdue') {
-                // Projects with overdue tasks or epics
+                // Projects with overdue tasks or phases
                 $query->where(function($q) use ($today) {
-                    $q->whereHas('epics', function($epicQuery) use ($today) {
-                        $epicQuery->where('end_date', '<', $today)
+                    $q->whereHas('phases', function($phaseQuery) use ($today) {
+                        $phaseQuery->where('end_date', '<', $today)
                                   ->where('status', '!=', 'completed');
-                    })->orWhereHas('epics.tasks', function($taskQuery) use ($today) {
+                    })->orWhereHas('phases.tasks', function($taskQuery) use ($today) {
                         $taskQuery->where('status', '!=', 'completed')
                                   ->where(function($dateQuery) use ($today) {
-                                      // Task explicit due_date or inherited from epic
+                                      // Task explicit due_date or inherited from phase
                                       $dateQuery->where('due_date', '<', $today)
-                                                ->orWhereHas('epic', function($epicQ) use ($today) {
-                                                    $epicQ->where('end_date', '<', $today)
+                                                ->orWhereHas('phase', function($phaseQ) use ($today) {
+                                                    $phaseQ->where('end_date', '<', $today)
                                                           ->whereNull('tasks.due_date');
                                                 });
                                   });
@@ -95,18 +95,18 @@ class ProjectController extends Controller
                 $daysAhead = (int) $timeFilter;
                 $futureDate = $today->copy()->addDays($daysAhead);
                 
-                // Projects with tasks/epics due within timeframe
+                // Projects with tasks/phases due within timeframe
                 $query->where(function($q) use ($today, $futureDate) {
-                    $q->whereHas('epics', function($epicQuery) use ($today, $futureDate) {
-                        $epicQuery->whereBetween('end_date', [$today, $futureDate])
+                    $q->whereHas('phases', function($phaseQuery) use ($today, $futureDate) {
+                        $phaseQuery->whereBetween('end_date', [$today, $futureDate])
                                   ->where('status', '!=', 'completed');
-                    })->orWhereHas('epics.tasks', function($taskQuery) use ($today, $futureDate) {
+                    })->orWhereHas('phases.tasks', function($taskQuery) use ($today, $futureDate) {
                         $taskQuery->where('status', '!=', 'completed')
                                   ->where(function($dateQuery) use ($today, $futureDate) {
-                                      // Task explicit due_date or inherited from epic
+                                      // Task explicit due_date or inherited from phase
                                       $dateQuery->whereBetween('due_date', [$today, $futureDate])
-                                                ->orWhereHas('epic', function($epicQ) use ($today, $futureDate) {
-                                                    $epicQ->whereBetween('end_date', [$today, $futureDate])
+                                                ->orWhereHas('phase', function($phaseQ) use ($today, $futureDate) {
+                                                    $phaseQ->whereBetween('end_date', [$today, $futureDate])
                                                           ->whereNull('tasks.due_date');
                                                 });
                                   });
@@ -171,29 +171,29 @@ class ProjectController extends Controller
      */
     public function show(Project $project)
     {
-        // Load epics (exclude completed by default)
-        $project->load(['epics' => function ($query) {
+        // Load phases (exclude completed by default)
+        $project->load(['phases' => function ($query) {
             $query->where('status', '!=', 'completed')
                   ->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
                   ->orderBy('start_date', 'asc');
         }, 'columns']);
 
         // Get upcoming tasks (next 5, ordered by due date)
-        $upcomingTasks = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
+        $upcomingTasks = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         })
         ->where('status', '!=', 'completed')
         ->whereNotNull('due_date')
-        ->with(['epic', 'column'])
+        ->with(['phase', 'column'])
         ->orderByRaw('CASE WHEN due_date < ? THEN 0 ELSE 1 END', [today()])
         ->orderBy('due_date', 'asc')
         ->limit(5)
         ->get();
 
         // Calculate project health metrics
-        $activeEpicsCount = $project->epics()->where('status', '!=', 'completed')->count();
+        $activePhasesCount = $project->phases()->where('status', '!=', 'completed')->count();
         
-        $overdueTasks = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
+        $overdueTasks = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         })
         ->where('status', '!=', 'completed')
@@ -201,8 +201,8 @@ class ProjectController extends Controller
         ->where('due_date', '<', today())
         ->count();
 
-        // Find nearest upcoming due date (task or epic)
-        $nearestTaskDate = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
+        // Find nearest upcoming due date (task or phase)
+        $nearestTaskDate = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         })
         ->where('status', '!=', 'completed')
@@ -211,7 +211,7 @@ class ProjectController extends Controller
         ->orderBy('due_date', 'asc')
         ->value('due_date');
 
-        $nearestEpicDate = $project->epics()
+        $nearestPhaseDate = $project->phases()
             ->where('status', '!=', 'completed')
             ->whereNotNull('end_date')
             ->where('end_date', '>=', today())
@@ -219,42 +219,42 @@ class ProjectController extends Controller
             ->value('end_date');
 
         $nearestDueDate = null;
-        if ($nearestTaskDate && $nearestEpicDate) {
-            $nearestDueDate = $nearestTaskDate->isBefore($nearestEpicDate) ? $nearestTaskDate : $nearestEpicDate;
+        if ($nearestTaskDate && $nearestPhaseDate) {
+            $nearestDueDate = $nearestTaskDate->isBefore($nearestPhaseDate) ? $nearestTaskDate : $nearestPhaseDate;
         } elseif ($nearestTaskDate) {
             $nearestDueDate = $nearestTaskDate;
-        } elseif ($nearestEpicDate) {
-            $nearestDueDate = $nearestEpicDate;
+        } elseif ($nearestPhaseDate) {
+            $nearestDueDate = $nearestPhaseDate;
         }
 
-        return view('projects.show', compact('project', 'upcomingTasks', 'activeEpicsCount', 'overdueTasks', 'nearestDueDate'));
+        return view('projects.show', compact('project', 'upcomingTasks', 'activePhasesCount', 'overdueTasks', 'nearestDueDate'));
     }
 
     /**
-     * Display the project kanban board with all tasks across epics
+     * Display the project kanban board with all tasks across phases
      */
     public function board(Request $request, Project $project)
     {
-        // If no epic filter is specified, redirect to first active epic
-        if (!$request->has('epic') || !$request->epic) {
-            $firstActiveEpic = $project->epics()
+        // If no phase filter is specified, redirect to first active phase
+        if (!$request->has('phase') || !$request->phase) {
+            $firstActivePhase = $project->phases()
                 ->where('status', 'active')
                 ->orderBy('name')
                 ->first();
             
-            // If there's an active epic, redirect to it
-            if ($firstActiveEpic) {
+            // If there's an active phase, redirect to it
+            if ($firstActivePhase) {
                 return redirect()->route('projects.board', array_merge(
                     [
                         'project' => $project,
-                        'epic' => $firstActiveEpic->id
+                        'phase' => $firstActivePhase->id
                     ],
                     $request->only(['task', 'assigned'])
                 ));
             }
             
-            // Otherwise, try to find the first planned epic
-            $firstPlannedEpic = $project->epics()
+            // Otherwise, try to find the first planned phase
+            $firstPlannedEpic = $project->phases()
                 ->where('status', 'planned')
                 ->orderBy('name')
                 ->first();
@@ -263,32 +263,32 @@ class ProjectController extends Controller
                 return redirect()->route('projects.board', array_merge(
                     [
                         'project' => $project,
-                        'epic' => $firstPlannedEpic->id
+                        'phase' => $firstPlannedEpic->id
                     ],
                     $request->only(['task', 'assigned'])
                 ));
             }
             
-            // If no active or planned epics, fall through to show all
+            // If no active or planned phases, fall through to show all
         }
         
         // Load columns ordered by position
         $columns = $project->columns()->orderBy('position')->get();
         
-        // Load epics for filter dropdown
-        $epics = $project->epics()
+        // Load phases for filter dropdown
+        $phases = $project->phases()
             ->orderByRaw('CASE WHEN status = "active" THEN 1 WHEN status = "planned" THEN 2 ELSE 3 END')
             ->orderBy('name')
             ->get();
         
         // Build task query
-        $tasksQuery = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
+        $tasksQuery = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         });
         
-        // Apply epic filter if provided
-        if ($request->has('epic') && $request->epic) {
-            $tasksQuery->where('epic_id', $request->epic);
+        // Apply phase filter if provided
+        if ($request->has('phase') && $request->phase) {
+            $tasksQuery->where('phase_id', $request->phase);
         }
 
         // Apply assignment filter if requested
@@ -308,11 +308,11 @@ class ProjectController extends Controller
             });
         }
         
-        // Load all tasks for this project (optionally filtered by epic)
-        // Eager load epic and users relationships and order by position within each column
-        $tasks = $tasksQuery->with(['epic', 'users'])->get()->groupBy('column_id');
+        // Load all tasks for this project (optionally filtered by phase)
+        // Eager load phase and users relationships and order by position within each column
+        $tasks = $tasksQuery->with(['phase', 'users'])->get()->groupBy('column_id');
         
-        return view('projects.board', compact('project', 'columns', 'tasks', 'epics'));
+        return view('projects.board', compact('project', 'columns', 'tasks', 'phases'));
     }
 
     /**
@@ -321,13 +321,13 @@ class ProjectController extends Controller
     public function taskForm(Request $request, Project $project)
     {
         $columnId = $request->query('column');
-        $epics = $project->epics()
+        $phases = $project->phases()
             ->orderByRaw('CASE WHEN status = "active" THEN 1 WHEN status = "planned" THEN 2 ELSE 3 END')
             ->orderBy('name')
             ->get();
         $users = \App\Models\User::orderBy('name')->get();
         
-        return view('projects.partials.board-task-form', compact('project', 'columnId', 'epics', 'users'));
+        return view('projects.partials.board-task-form', compact('project', 'columnId', 'phases', 'users'));
     }
 
     /**
@@ -336,11 +336,11 @@ class ProjectController extends Controller
     public function editTask(Project $project, \App\Models\Task $task)
     {
         // Verify task belongs to this project
-        if ($task->epic->project_id !== $project->id) {
+        if ($task->phase->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
         }
 
-        $epics = $project->epics()
+        $phases = $project->phases()
             ->orderByRaw('CASE WHEN status = "active" THEN 1 WHEN status = "planned" THEN 2 ELSE 3 END')
             ->orderBy('name')
             ->get();
@@ -348,7 +348,7 @@ class ProjectController extends Controller
         $users = \App\Models\User::orderBy('name')->get();
         $task->load('users');
         
-        return view('projects.partials.board-task-form', compact('project', 'task', 'epics', 'columns', 'users'));
+        return view('projects.partials.board-task-form', compact('project', 'task', 'phases', 'columns', 'users'));
     }
 
     /**
@@ -357,11 +357,11 @@ class ProjectController extends Controller
     public function showTask(Project $project, \App\Models\Task $task)
     {
         // Verify task belongs to this project
-        if ($task->epic->project_id !== $project->id) {
+        if ($task->phase->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
         }
 
-        $task->load(['epic', 'column', 'users']);
+        $task->load(['phase', 'column', 'users']);
         
         return view('projects.partials.board-task-details', compact('project', 'task'));
     }
@@ -372,7 +372,7 @@ class ProjectController extends Controller
     public function storeTask(Request $request, Project $project)
     {
         $validated = $request->validate([
-            'epic_id' => 'required|exists:epics,id',
+            'phase_id' => 'required|exists:phases,id',
             'column_id' => 'required|exists:columns,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -383,17 +383,17 @@ class ProjectController extends Controller
             'assignees.*' => 'exists:users,id',
         ]);
 
-        // Find the epic and verify it belongs to this project
-        $epic = \App\Models\Epic::findOrFail($validated['epic_id']);
-        if ($epic->project_id !== $project->id) {
-            abort(403, 'Epic does not belong to this project.');
+        // Find the phase and verify it belongs to this project
+        $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
+        if ($phase->project_id !== $project->id) {
+            abort(403, 'Phase does not belong to this project.');
         }
 
         // Set position to end of column
         $validated['position'] = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
 
         // Create the task
-        $task = $epic->tasks()->create($validated);
+        $task = $phase->tasks()->create($validated);
 
         // Sync assignees
         $task->users()->sync($validated['assignees'] ?? []);
@@ -404,10 +404,10 @@ class ProjectController extends Controller
         if (request()->header('HX-Request') && $fromBoardModal) {
             // HTMX: Return updated column task list
             $columns = $project->columns;
-            $tasks = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
+            $tasks = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
                 $query->where('project_id', $project->id);
             })
-            ->with(['epic', 'users'])
+            ->with(['phase', 'users'])
             ->get()
             ->groupBy('column_id');
             
@@ -434,12 +434,12 @@ class ProjectController extends Controller
     }
 
     /**
-     * Store a task from the task create form (with selectable epic)
+     * Store a task from the task create form (with selectable phase)
      */
     public function storeProjectTask(Request $request, Project $project)
     {
         $validated = $request->validate([
-            'epic_id' => 'required|exists:epics,id',
+            'phase_id' => 'required|exists:phases,id',
             'column_id' => 'required|exists:columns,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -450,22 +450,22 @@ class ProjectController extends Controller
             'assignees.*' => 'exists:users,id',
         ]);
 
-        // Find the epic and verify it belongs to this project
-        $epic = \App\Models\Epic::findOrFail($validated['epic_id']);
-        if ($epic->project_id !== $project->id) {
-            abort(403, 'Epic does not belong to this project.');
+        // Find the phase and verify it belongs to this project
+        $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
+        if ($phase->project_id !== $project->id) {
+            abort(403, 'Phase does not belong to this project.');
         }
 
         // Set position to end of column
         $validated['position'] = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
 
         // Create the task
-        $task = $epic->tasks()->create($validated);
+        $task = $phase->tasks()->create($validated);
 
         // Sync assignees
         $task->users()->sync($validated['assignees'] ?? []);
 
-        return redirect()->route('projects.epics.tasks.show', [$project, $epic, $task])
+        return redirect()->route('projects.phases.tasks.show', [$project, $phase, $task])
             ->with('success', 'Task created successfully.');
     }
 
@@ -475,12 +475,12 @@ class ProjectController extends Controller
     public function updateTask(Request $request, Project $project, \App\Models\Task $task)
     {
         // Verify task belongs to this project
-        if ($task->epic->project_id !== $project->id) {
+        if ($task->phase->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
         }
 
         $validated = $request->validate([
-            'epic_id' => 'required|exists:epics,id',
+            'phase_id' => 'required|exists:phases,id',
             'column_id' => 'required|exists:columns,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -491,10 +491,10 @@ class ProjectController extends Controller
             'assignees.*' => 'exists:users,id',
         ]);
 
-        // Verify the new epic belongs to this project
-        $epic = \App\Models\Epic::findOrFail($validated['epic_id']);
-        if ($epic->project_id !== $project->id) {
-            abort(403, 'Epic does not belong to this project.');
+        // Verify the new phase belongs to this project
+        $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
+        if ($phase->project_id !== $project->id) {
+            abort(403, 'Phase does not belong to this project.');
         }
 
         $oldColumnId = $task->column_id;
@@ -517,10 +517,10 @@ class ProjectController extends Controller
         if (request()->header('HX-Request') && $fromBoardModal) {
             // HTMX: Return updated column task lists
             $columns = $project->columns;
-            $tasks = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
+            $tasks = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
                 $query->where('project_id', $project->id);
             })
-            ->with(['epic', 'users'])
+            ->with(['phase', 'users'])
             ->get()
             ->groupBy('column_id');
             
@@ -617,9 +617,9 @@ class ProjectController extends Controller
     {
         $showCompleted = $request->query('show_completed', '0') === '1';
 
-        // Load epics with their tasks, eager loading columns for task display
-        // Tasks are sorted by effective due date (explicit due_date or inherited from epic)
-        $project->load(['epics' => function ($query) use ($showCompleted, $request) {
+        // Load phases with their tasks, eager loading columns for task display
+        // Tasks are sorted by effective due date (explicit due_date or inherited from phase)
+        $project->load(['phases' => function ($query) use ($showCompleted, $request) {
             if (!$showCompleted) {
                 $query->where('status', '!=', 'completed');
             }
@@ -658,29 +658,29 @@ class ProjectController extends Controller
     {
         $showCompleted = $request->query('show_completed', '0') === '1';
 
-        // Get epics that have at least one date
-        $epicsQuery = $project->epics()
+        // Get phases that have at least one date
+        $phasesQuery = $project->phases()
             ->where(function ($query) {
                 $query->whereNotNull('start_date')
                       ->orWhereNotNull('end_date');
             });
         
         if (!$showCompleted) {
-            $epicsQuery->where('status', '!=', 'completed');
+            $phasesQuery->where('status', '!=', 'completed');
         }
         
-        $epics = $epicsQuery
+        $phases = $phasesQuery
             ->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
             ->orderByRaw('CASE WHEN start_date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('start_date', 'asc')
             ->orderBy('end_date', 'asc')
             ->get();
 
-        // If no epics with dates, return early
-        if ($epics->isEmpty()) {
+        // If no phases with dates, return early
+        if ($phases->isEmpty()) {
             return view('projects.timeline', [
                 'project' => $project,
-                'epics' => $epics,
+                'phases' => $phases,
                 'weeks' => [],
                 'timelineStart' => null,
                 'timelineEnd' => null,
@@ -689,28 +689,28 @@ class ProjectController extends Controller
         }
 
         // Calculate timeline window - use a smart range that focuses on current/future work
-        // Only use non-completed epics for date range calculation
+        // Only use non-completed phases for date range calculation
         $allDates = [];
-        foreach ($epics as $epic) {
-            if ($epic->status === 'completed') {
+        foreach ($phases as $phase) {
+            if ($phase->status === 'completed') {
                 continue;
             }
-            if ($epic->start_date) {
-                $allDates[] = $epic->start_date;
+            if ($phase->start_date) {
+                $allDates[] = $phase->start_date;
             }
-            if ($epic->end_date) {
-                $allDates[] = $epic->end_date;
+            if ($phase->end_date) {
+                $allDates[] = $phase->end_date;
             }
         }
 
-        // If no active epic dates, use all dates for calculation
+        // If no active phase dates, use all dates for calculation
         if (empty($allDates)) {
-            foreach ($epics as $epic) {
-                if ($epic->start_date) {
-                    $allDates[] = $epic->start_date;
+            foreach ($phases as $phase) {
+                if ($phase->start_date) {
+                    $allDates[] = $phase->start_date;
                 }
-                if ($epic->end_date) {
-                    $allDates[] = $epic->end_date;
+                if ($phase->end_date) {
+                    $allDates[] = $phase->end_date;
                 }
             }
         }
@@ -766,25 +766,25 @@ class ProjectController extends Controller
         }
 
         // Aggregate due dates per week
-        // Count epic end_date and task due_date occurrences per week
-        // Tasks use "effective due date" - explicit due_date or epic end_date fallback
+        // Count phase end_date and task due_date occurrences per week
+        // Tasks use "effective due date" - explicit due_date or phase end_date fallback
         foreach ($weeks as $index => $week) {
             $dueDateCount = 0;
             
-            // Count epic end dates in this week
-            foreach ($epics as $epic) {
-                if ($epic->end_date && 
-                    $epic->end_date->gte($week['start']) && 
-                    $epic->end_date->lte($week['end'])) {
+            // Count phase end dates in this week
+            foreach ($phases as $phase) {
+                if ($phase->end_date && 
+                    $phase->end_date->gte($week['start']) && 
+                    $phase->end_date->lte($week['end'])) {
                     $dueDateCount++;
                 }
             }
             
             // Count task effective due dates in this week
-            // Includes tasks with explicit due_date OR tasks inheriting from epic end_date
-            $tasks = \App\Models\Task::with('epic')
-                ->whereHas('epic', function ($q) use ($epics) {
-                    $q->whereIn('id', $epics->pluck('id'));
+            // Includes tasks with explicit due_date OR tasks inheriting from phase end_date
+            $tasks = \App\Models\Task::with('phase')
+                ->whereHas('phase', function ($q) use ($phases) {
+                    $q->whereIn('id', $phases->pluck('id'));
                 })
                 ->when(!$showCompleted, function ($q) {
                     $q->where('status', '!=', 'completed');
@@ -803,7 +803,7 @@ class ProjectController extends Controller
             $weeks[$index]['due_count'] = $dueDateCount;
         }
 
-        return view('projects.timeline', compact('project', 'epics', 'weeks', 'timelineStart', 'timelineEnd', 'tooWide', 'showCompleted'));
+        return view('projects.timeline', compact('project', 'phases', 'weeks', 'timelineStart', 'timelineEnd', 'tooWide', 'showCompleted'));
     }
 
     /**

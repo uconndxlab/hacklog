@@ -3,7 +3,7 @@
     <div class="card-body p-2">
         <div class="d-flex justify-content-between align-items-start mb-1">
             <h6 class="card-title mb-0">
-                <a href="{{ route('projects.epics.tasks.show', [$project, $task->epic, $task]) }}" 
+                <a href="{{ route('projects.phases.tasks.show', [$project, $task->phase, $task]) }}" 
                    class="text-decoration-none"
                    data-bs-toggle="modal" 
                    data-bs-target="#taskDetailsModal"
@@ -18,10 +18,10 @@
                 <div class="btn-group btn-group-sm" role="group">
                     @if($task->canMoveUp())
                         <form 
-                            action="{{ route('projects.epics.tasks.move-up', [$project, $task->epic, $task]) }}" 
+                            action="{{ route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) }}" 
                             method="POST" 
                             class="d-inline"
-                            hx-post="{{ route('projects.epics.tasks.move-up', [$project, $task->epic, $task]) }}"
+                            hx-post="{{ route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) }}"
                             hx-target="#board-column-{{ $task->column_id }}-tasks"
                             hx-swap="outerHTML">
                             @csrf
@@ -34,10 +34,10 @@
                     
                     @if($task->canMoveDown())
                         <form 
-                            action="{{ route('projects.epics.tasks.move-down', [$project, $task->epic, $task]) }}" 
+                            action="{{ route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) }}" 
                             method="POST" 
                             class="d-inline"
-                            hx-post="{{ route('projects.epics.tasks.move-down', [$project, $task->epic, $task]) }}"
+                            hx-post="{{ route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) }}"
                             hx-target="#board-column-{{ $task->column_id }}-tasks"
                             hx-swap="outerHTML">
                             @csrf
@@ -52,7 +52,7 @@
         </div>
         
         <p class="card-text mb-2">
-            <small class="text-muted">Epic: {{ $task->epic->name }}</small>
+            <small class="text-muted">Phase: {{ $task->phase->name }}</small>
         </p>
         
         @if($task->due_date)
@@ -99,7 +99,7 @@
         
         {{-- Column selector with HTMX enhancement --}}
         <form 
-            action="{{ route('projects.epics.tasks.update', [$project, $task->epic, $task]) }}" 
+            action="{{ route('projects.phases.tasks.update', [$project, $task->phase, $task]) }}" 
             method="POST"
             class="mt-2">
             @csrf
@@ -121,7 +121,7 @@
                     name="column_id" 
                     class="form-select form-select-sm"
                     hx-trigger="change"
-                    hx-put="{{ route('projects.epics.tasks.update', [$project, $task->epic, $task]) }}"
+                    hx-put="{{ route('projects.phases.tasks.update', [$project, $task->phase, $task]) }}"
                     hx-target="#board-column-{{ $task->column_id }}-tasks"
                     hx-swap="outerHTML"
                     hx-include="closest form">

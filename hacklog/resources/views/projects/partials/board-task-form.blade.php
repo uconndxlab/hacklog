@@ -24,31 +24,31 @@
     <input type="hidden" name="from_board_modal" value="1">
     
     <div class="mb-3">
-        <label for="epic_id" class="form-label">Epic</label>
+        <label for="phase_id" class="form-label">Phase</label>
         <select
-            class="form-select @error('epic_id') is-invalid @enderror"
-            id="epic_id"
-            name="epic_id"
+            class="form-select @error('phase_id') is-invalid @enderror"
+            id="phase_id"
+            name="phase_id"
             required>
-            <option value="">Choose an epic...</option>
+            <option value="">Choose a phase...</option>
             @php
-                $defaultEpicId = old('epic_id', $isEdit ? $task->epic_id : ($epics->where('status', 'active')->first()?->id ?? $epics->first()?->id));
+                $defaultPhaseId = old('phase_id', $isEdit ? $task->phase_id : ($phases->where('status', 'active')->first()?->id ?? $phases->first()?->id));
             @endphp
-            @foreach($epics as $epic)
-                <option value="{{ $epic->id }}"
-                    {{ $defaultEpicId == $epic->id ? 'selected' : '' }}>
-                    {{ $epic->name }}
-                    @if($epic->status === 'active')
+            @foreach($phases as $phase)
+                <option value="{{ $phase->id }}"
+                    {{ $defaultPhaseId == $phase->id ? 'selected' : '' }}>
+                    {{ $phase->name }}
+                    @if($phase->status === 'active')
                         (Active)
-                    @elseif($epic->status === 'planned')
+                    @elseif($phase->status === 'planned')
                         (Planned)
-                    @elseif($epic->status === 'completed')
+                    @elseif($phase->status === 'completed')
                         (Completed)
                     @endif
                 </option>
             @endforeach
         </select>
-        @error('epic_id')
+        @error('phase_id')
             <div class="invalid-feedback">{{ $message }}</div>
         @enderror
     </div>

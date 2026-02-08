@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Project;
-use App\Models\Epic;
+use App\Models\Phase;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Column;
@@ -55,14 +55,14 @@ class GenerateDemo extends Command
         }
 
         $this->newLine();
-        $this->info("Generating {$projectCount} projects with epics and tasks...");
+        $this->info("Generating {$projectCount} projects with phases and tasks...");
         $this->newLine();
 
         $progressBar = $this->output->createProgressBar($projectCount);
         $progressBar->start();
 
         $totalProjects = 0;
-        $totalEpics = 0;
+        $totalPhases = 0;
         $totalTasks = 0;
 
         for ($i = 1; $i <= $projectCount; $i++) {
@@ -78,13 +78,13 @@ class GenerateDemo extends Command
             // Ensure project has columns (use default structure)
             $this->ensureProjectColumns($project);
 
-            // Create 2 epics per project
+            // Create 2 phases per project
             for ($epicNum = 1; $epicNum <= 2; $epicNum++) {
-                $epic = $this->createEpic($project, $epicNum);
-                $totalEpics++;
+                $phase = $this->createPhase($project, $epicNum);
+                $totalPhases++;
 
-                // Create 5 tasks per epic
-                $tasksCreated = $this->createTasksForEpic($project, $epic, $users, $hasUsers);
+                // Create 5 tasks per phase
+                $tasksCreated = $this->createTasksForPhase($project, $phase, $users, $hasUsers);
                 $totalTasks += $tasksCreated;
             }
 
@@ -97,7 +97,7 @@ class GenerateDemo extends Command
         $this->info('✓ Demo data generated successfully!');
         $this->newLine();
         $this->line("  Projects created: {$totalProjects}");
-        $this->line("  Epics created: {$totalEpics}");
+        $this->line("  Phases created: {$totalPhases}");
         $this->line("  Tasks created: {$totalTasks}");
         $this->newLine();
 
@@ -132,13 +132,13 @@ class GenerateDemo extends Command
     }
 
     /**
-     * Create an epic with realistic date range (4-8 weeks).
+     * Create a phase with realistic date range (4-8 weeks).
      */
-    protected function createEpic(Project $project, int $epicNumber): Epic
+    protected function createPhase(Project $project, int $epicNumber): Phase
     {
-        // Calculate epic start date
-        // First epic starts in ~1-2 weeks
-        // Second epic starts in ~5-6 weeks (slight overlap with first)
+        // Calculate phase start date
+        // First phase starts in ~1-2 weeks
+        // Second phase starts in ~5-6 weeks (slight overlap with first)
         $weeksOffset = $epicNumber === 1 ? rand(1, 2) : rand(5, 6);
         $startDate = Carbon::now()->addWeeks($weeksOffset)->addDays(rand(-3, 3));
 
@@ -146,10 +146,10 @@ class GenerateDemo extends Command
         $durationWeeks = rand(4, 8);
         $endDate = $startDate->copy()->addWeeks($durationWeeks)->addDays(rand(-2, 2));
 
-        return Epic::create([
+        return Phase::create([
             'project_id' => $project->id,
-            'name' => "Epic {$epicNumber}: Feature Development",
-            'description' => "Demo epic with planned work spanning {$durationWeeks} weeks.",
+            'name' => "Phase {$epicNumber}: Feature Development",
+            'description' => "Demo phase with planned work spanning {$durationWeeks} weeks.",
             'status' => 'active',
             'start_date' => $startDate,
             'end_date' => $endDate,
@@ -157,15 +157,15 @@ class GenerateDemo extends Command
     }
 
     /**
-     * Create 5 tasks for an epic with realistic due date distribution.
+     * Create 5 tasks for a phase with realistic due date distribution.
      * 
      * Date distribution strategy:
-     * - Divide epic duration into 5 roughly equal segments
+     * - Divide phase duration into 5 roughly equal segments
      * - Place one task due date in each segment
      * - Add randomness (±2 days) to avoid perfect alignment
      * - Mix statuses: some open, some in_progress, some done
      */
-    protected function createTasksForEpic(Project $project, Epic $epic, $users, bool $hasUsers): int
+    protected function createTasksForPhase(Project $project, Phase $phase, $users, bool $hasUsers): int
     {
         $columns = $project->columns()->orderBy('position')->get();
         
@@ -173,30 +173,30 @@ class GenerateDemo extends Command
             return 0;
         }
 
-        // Calculate epic duration in days
-        $epicStart = $epic->start_date;
-        $epicEnd = $epic->end_date;
-        $epicDurationDays = $epicStart->diffInDays($epicEnd);
+        // Calculate phase duration in days
+        $phaseStart = $phase->start_date;
+        $phaseEnd = $phase->end_date;
+        $phaseDurationDays = $phaseStart->diffInDays($phaseEnd);
 
         // Create 5 tasks with staggered due dates
         $taskStatuses = ['planned', 'planned', 'active', 'completed', 'completed'];
         shuffle($taskStatuses); // Randomize status order
 
         for ($taskNum = 1; $taskNum <= 5; $taskNum++) {
-            // Calculate due date: divide epic into 5 segments
-            $segmentSize = $epicDurationDays / 5;
+            // Calculate due date: divide phase into 5 segments
+            $segmentSize = $phaseDurationDays / 5;
             $segmentStart = ($taskNum - 1) * $segmentSize;
-            $baseDueDate = $epicStart->copy()->addDays($segmentStart + ($segmentSize / 2));
+            $baseDueDate = $phaseStart->copy()->addDays($segmentStart + ($segmentSize / 2));
             
             // Add randomness: ±2 days
             $dueDate = $baseDueDate->addDays(rand(-2, 2));
             
-            // Ensure due date stays within epic bounds
-            if ($dueDate->lt($epicStart)) {
-                $dueDate = $epicStart->copy()->addDays(rand(1, 3));
+            // Ensure due date stays within phase bounds
+            if ($dueDate->lt($phaseStart)) {
+                $dueDate = $phaseStart->copy()->addDays(rand(1, 3));
             }
-            if ($dueDate->gt($epicEnd)) {
-                $dueDate = $epicEnd->copy()->subDays(rand(1, 3));
+            if ($dueDate->gt($phaseEnd)) {
+                $dueDate = $phaseEnd->copy()->subDays(rand(1, 3));
             }
 
             $status = $taskStatuses[$taskNum - 1];
@@ -210,7 +210,7 @@ class GenerateDemo extends Command
             };
 
             $task = Task::create([
-                'epic_id' => $epic->id,
+                'phase_id' => $phase->id,
                 'column_id' => $column->id,
                 'title' => "Task {$taskNum}: Implementation work",
                 'description' => "Demo task with status: {$status}",

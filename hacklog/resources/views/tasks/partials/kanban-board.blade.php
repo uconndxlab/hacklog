@@ -7,9 +7,9 @@
                     <h5 class="mb-0">{{ $column->name }}</h5>
                 </div>
                 @php
-                    $columnTasks = $epic->tasks->where('column_id', $column->id);
+                    $columnTasks = $phase->tasks->where('column_id', $column->id);
                 @endphp
-                @include('tasks.partials.column-tasks', ['project' => $project, 'epic' => $epic, 'column' => $column, 'columnTasks' => $columnTasks])
+                @include('tasks.partials.column-tasks', ['project' => $project, 'phase' => $phase, 'column' => $column, 'columnTasks' => $columnTasks])
             </div>
         </div>
     @endforeach

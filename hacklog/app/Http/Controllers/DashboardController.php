@@ -20,7 +20,7 @@ class DashboardController extends Controller
             $query->where('users.id', $user->id);
         })
         ->where('status', '!=', 'completed')
-        ->with(['epic.project', 'column'])
+        ->with(['phase.project', 'column'])
         ->get();
 
         // Group assigned tasks by priority
@@ -59,7 +59,7 @@ class DashboardController extends Controller
         })
         ->where('updated_at', '>=', now()->subDays(7))
         ->where('status', '!=', 'completed')
-        ->with(['epic.project', 'column'])
+        ->with(['phase.project', 'column'])
         ->orderBy('updated_at', 'desc')
         ->limit(5)
         ->get();
@@ -67,12 +67,12 @@ class DashboardController extends Controller
         // Unassigned tasks from active projects
         $unassignedTasks = Task::whereDoesntHave('users')
             ->where('status', '!=', 'completed')
-            ->whereHas('epic', function($query) {
+            ->whereHas('phase', function($query) {
                 $query->whereHas('project', function($projectQuery) {
                     $projectQuery->where('status', 'active');
                 });
             })
-            ->with(['epic.project', 'column'])
+            ->with(['phase.project', 'column'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
@@ -83,7 +83,7 @@ class DashboardController extends Controller
             ->where('status', 'active')
             ->where(function($q) use ($user) {
                 // Has tasks assigned
-                $q->whereHas('epics.tasks.users', function ($taskQuery) use ($user) {
+                $q->whereHas('phases.tasks.users', function ($taskQuery) use ($user) {
                     $taskQuery->where('users.id', $user->id);
                 })
                 // OR is a project resource (contributor, manager, viewer)
@@ -96,14 +96,14 @@ class DashboardController extends Controller
                                ->where('shareable_id', (string)$user->id);
                 });
             })
-            ->with(['epics' => function($q) {
+            ->with(['phases' => function($q) {
                 $q->where('status', '!=', 'completed');
             }])
             ->orderBy('name')
             ->get()
             ->map(function($project) use ($user) {
                 // Count active tasks assigned to user
-                $taskCount = Task::whereHas('epic', function($q) use ($project) {
+                $taskCount = Task::whereHas('phase', function($q) use ($project) {
                     $q->where('project_id', $project->id);
                 })
                 ->whereHas('users', function($q) use ($user) {
@@ -112,9 +112,9 @@ class DashboardController extends Controller
                 ->where('status', '!=', 'completed')
                 ->count();
                 
-                // Find next epic date
-                $nextEpicDate = $project->epics
-                    ->filter(fn($epic) => $epic->end_date && $epic->end_date->gte(today()))
+                // Find next phase date
+                $nextEpicDate = $project->phases
+                    ->filter(fn($phase) => $phase->end_date && $phase->end_date->gte(today()))
                     ->sortBy('end_date')
                     ->first()?->end_date;
                 

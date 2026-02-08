@@ -44,9 +44,9 @@
                 <div class="row text-center">
                     <div class="col-md-4">
                         <div class="mb-2">
-                            <span class="fs-2 fw-semibold">{{ $activeEpicsCount }}</span>
+                            <span class="fs-2 fw-semibold">{{ $activePhasesCount }}</span>
                         </div>
-                        <div class="text-muted small">Active Epics</div>
+                        <div class="text-muted small">Active Phases</div>
                     </div>
                     <div class="col-md-4">
                         <div class="mb-2">
@@ -97,7 +97,7 @@
                                                     </a>
                                                 </div>
                                                 <div class="small text-muted">
-                                                    {{ $task->epic->name }}
+                                                    {{ $task->phase->name }}
                                                     <span class="mx-1">•</span>
                                                     <span class="@if($task->isOverdue()) text-danger @endif">
                                                         {{ $task->due_date->format('M j, Y') }}
@@ -122,42 +122,42 @@
             </div>
 
             <div class="col-md-6">
-                {{-- Epics Snapshot --}}
-                <h2 class="h4 mb-3">Active Epics</h2>
+                {{-- Phases Snapshot --}}
+                <h2 class="h4 mb-3">Active Phases</h2>
                 <div class="card mb-4">
                     <div class="card-body">
-                        @if($project->epics->isEmpty())
+                        @if($project->phases->isEmpty())
                             @include('partials.empty-state', [
-                                'message' => 'No active epics. Create an epic to organize your work into larger features or phases.',
-                                'actionUrl' => route('projects.epics.create', $project),
-                                'actionText' => 'Create your first epic'
+                                'message' => 'No active phases. Create a phase to organize your work into larger features or phases.',
+                                'actionUrl' => route('projects.phases.create', $project),
+                                'actionText' => 'Create your first phase'
                             ])
                         @else
                             <div class="list-group list-group-flush">
-                                @foreach($project->epics as $epic)
+                                @foreach($project->phases as $phase)
                                     <div class="list-group-item px-0 py-2">
                                         <div class="mb-1">
-                                            <a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}" 
+                                            <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" 
                                                class="text-decoration-none">
-                                                {{ $epic->name }}
+                                                {{ $phase->name }}
                                             </a>
                                         </div>
                                         <div class="small">
                                             <span class="badge 
-                                                @if($epic->status === 'planned') bg-secondary
-                                                @elseif($epic->status === 'active') bg-success
+                                                @if($phase->status === 'planned') bg-secondary
+                                                @elseif($phase->status === 'active') bg-success
                                                 @else bg-primary
                                                 @endif">
-                                                {{ ucfirst($epic->status) }}
+                                                {{ ucfirst($phase->status) }}
                                             </span>
-                                            @if($epic->start_date || $epic->end_date)
+                                            @if($phase->start_date || $phase->end_date)
                                                 <span class="text-muted ms-2">
-                                                    @if($epic->start_date && $epic->end_date)
-                                                        {{ $epic->start_date->format('M j') }} → {{ $epic->end_date->format('M j, Y') }}
-                                                    @elseif($epic->start_date)
-                                                        Starts {{ $epic->start_date->format('M j, Y') }}
+                                                    @if($phase->start_date && $phase->end_date)
+                                                        {{ $phase->start_date->format('M j') }} → {{ $phase->end_date->format('M j, Y') }}
+                                                    @elseif($phase->start_date)
+                                                        Starts {{ $phase->start_date->format('M j, Y') }}
                                                     @else
-                                                        Due {{ $epic->end_date->format('M j, Y') }}
+                                                        Due {{ $phase->end_date->format('M j, Y') }}
                                                     @endif
                                                 </span>
                                             @endif

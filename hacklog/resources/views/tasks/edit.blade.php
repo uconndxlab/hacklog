@@ -7,9 +7,9 @@
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ route('projects.index') }}">Projects</a></li>
         <li class="breadcrumb-item"><a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.epics.index', $project) }}">Epics</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}">{{ $epic->name }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.epics.tasks.show', [$project, $epic, $task]) }}">{{ $task->title }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('projects.phases.index', $project) }}">Phases</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}">{{ $phase->name }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('projects.phases.tasks.show', [$project, $phase, $task]) }}">{{ $task->title }}</a></li>
         <li class="breadcrumb-item active" aria-current="page">Edit</li>
     </ol>
 </nav>
@@ -18,11 +18,11 @@
     <div class="col-lg-8">
         <div class="mb-4">
             <h1 class="mb-1">Edit Task</h1>
-            <p class="text-muted mb-0">{{ $epic->name }}</p>
+            <p class="text-muted mb-0">{{ $phase->name }}</p>
         </div>
 
         <form 
-            action="{{ route('projects.epics.tasks.update', [$project, $epic, $task]) }}" 
+            action="{{ route('projects.phases.tasks.update', [$project, $phase, $task]) }}" 
             method="POST">
             @csrf
             @method('PUT')
@@ -134,13 +134,13 @@
 
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">Update Task</button>
-                <a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}" class="btn btn-secondary">Cancel</a>
+                <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
 
         <hr class="my-4">
 
-        <form action="{{ route('projects.epics.tasks.destroy', [$project, $epic, $task]) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');">
+        <form action="{{ route('projects.phases.tasks.destroy', [$project, $phase, $task]) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');">
             @csrf
             @method('DELETE')
             <button type="submit" class="btn btn-danger btn-sm">Delete Task</button>

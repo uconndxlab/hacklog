@@ -3,7 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ColumnController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\EpicController;
+use App\Http\Controllers\PhaseController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectResourceController;
 use App\Http\Controllers\ScheduleController;
@@ -36,8 +36,8 @@ Route::middleware('auth')->group(function () {
         Route::resource('users', UsersController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
         Route::post('users/search', [UsersController::class, 'searchUsers'])->name('users.search');
         Route::post('users/lookup-netid', [UsersController::class, 'lookupNetid'])->name('users.lookup-netid');
-        Route::get('admin/projects/{project}/epics/{epic}/tasks', [TaskController::class, 'adminIndex'])->name('admin.epics.tasks.index');
-        Route::delete('admin/projects/{project}/epics/{epic}/tasks/bulk', [TaskController::class, 'bulkDelete'])->name('admin.epics.tasks.bulk-delete');
+        Route::get('admin/projects/{project}/phases/{phase}/tasks', [TaskController::class, 'adminIndex'])->name('admin.phases.tasks.index');
+        Route::delete('admin/projects/{project}/phases/{phase}/tasks/bulk', [TaskController::class, 'bulkDelete'])->name('admin.phases.tasks.bulk-delete');
     });
 
     Route::resource('projects', ProjectController::class);
@@ -51,12 +51,12 @@ Route::get('projects/{project}/board/tasks/{task}/edit', [ProjectController::cla
 Route::post('projects/{project}/tasks', [ProjectController::class, 'storeProjectTask'])->name('projects.tasks.store');
 Route::get('projects/{project}/schedule', [ProjectController::class, 'schedule'])->name('projects.schedule');
 Route::get('projects/{project}/timeline', [ProjectController::class, 'timeline'])->name('projects.timeline');
-Route::resource('projects.epics', EpicController::class);
-Route::resource('projects.epics.tasks', TaskController::class);
-Route::post('projects/{project}/epics/{epic}/tasks/{task}/move-up', [TaskController::class, 'moveUp'])
-    ->name('projects.epics.tasks.move-up');
-Route::post('projects/{project}/epics/{epic}/tasks/{task}/move-down', [TaskController::class, 'moveDown'])
-    ->name('projects.epics.tasks.move-down');
+Route::resource('projects.phases', PhaseController::class);
+Route::resource('projects.phases.tasks', TaskController::class);
+Route::post('projects/{project}/phases/{phase}/tasks/{task}/move-up', [TaskController::class, 'moveUp'])
+    ->name('projects.phases.tasks.move-up');
+Route::post('projects/{project}/phases/{phase}/tasks/{task}/move-down', [TaskController::class, 'moveDown'])
+    ->name('projects.phases.tasks.move-down');
 Route::resource('projects.columns', ColumnController::class)->except(['show']);
 Route::resource('projects.resources', ProjectResourceController::class)->except(['show']);
 Route::post('projects/{project}/resources/{resource}/move-up', [ProjectResourceController::class, 'moveUp'])

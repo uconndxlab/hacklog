@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Epic;
+use App\Models\Phase;
 use App\Models\Project;
 use Illuminate\Http\Request;
 
-class EpicController extends Controller
+class PhaseController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index(Project $project)
     {
-        $epics = $project->epics()->orderBy('created_at', 'desc')->get();
-        return view('epics.index', compact('project', 'epics'));
+        $phases = $project->phases()->orderBy('created_at', 'desc')->get();
+        return view('phases.index', compact('project', 'phases'));
     }
 
     /**
@@ -22,7 +22,7 @@ class EpicController extends Controller
      */
     public function create(Project $project)
     {
-        return view('epics.create', compact('project'));
+        return view('phases.create', compact('project'));
     }
 
     /**
@@ -38,38 +38,38 @@ class EpicController extends Controller
             'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
 
-        $epic = $project->epics()->create($validated);
+        $phase = $project->phases()->create($validated);
 
-        return redirect()->route('projects.board', ['project' => $project, 'epic' => $epic->id])
-            ->with('success', 'Epic created successfully.');
+        return redirect()->route('projects.board', ['project' => $project, 'phase' => $phase->id])
+            ->with('success', 'Phase created successfully.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Project $project, Epic $epic)
+    public function show(Project $project, Phase $phase)
     {
         // Load columns ordered by position
         $columns = $project->columns()->orderBy('position')->get();
         
-        // Load tasks for this epic, grouped by column_id
-        $tasks = $epic->tasks()->with('epic')->get()->groupBy('column_id');
+        // Load tasks for this phase, grouped by column_id
+        $tasks = $phase->tasks()->with('phase')->get()->groupBy('column_id');
         
-        return view('epics.show', compact('project', 'epic', 'columns', 'tasks'));
+        return view('phases.show', compact('project', 'phase', 'columns', 'tasks'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Project $project, Epic $epic)
+    public function edit(Project $project, Phase $phase)
     {
-        return view('epics.edit', compact('project', 'epic'));
+        return view('phases.edit', compact('project', 'phase'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Project $project, Epic $epic)
+    public function update(Request $request, Project $project, Phase $phase)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -79,20 +79,20 @@ class EpicController extends Controller
             'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
 
-        $epic->update($validated);
+        $phase->update($validated);
 
-        return redirect()->route('projects.board', ['project' => $project, 'epic' => $epic->id])
-            ->with('success', 'Epic updated successfully.');
+        return redirect()->route('projects.board', ['project' => $project, 'phase' => $phase->id])
+            ->with('success', 'Phase updated successfully.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Project $project, Epic $epic)
+    public function destroy(Project $project, Phase $phase)
     {
-        $epic->delete();
+        $phase->delete();
 
-        return redirect()->route('projects.epics.index', $project)
-            ->with('success', 'Epic deleted successfully.');
+        return redirect()->route('projects.phases.index', $project)
+            ->with('success', 'Phase deleted successfully.');
     }
 }

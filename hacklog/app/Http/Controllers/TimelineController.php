@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Epic;
+use App\Models\Phase;
 use App\Models\Project;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -22,10 +22,10 @@ class TimelineController extends Controller
 
         $showCompleted = $request->has('show_completed') && $request->input('show_completed') === '1';
 
-        // Build query for epics with dates, respecting project visibility
-        $epicsQuery = Epic::query()
+        // Build query for phases with dates, respecting project visibility
+        $phasesQuery = Phase::query()
             ->whereHas('project', function ($q) use ($user) {
-                // Only show epics from projects user can see
+                // Only show phases from projects user can see
                 $q->whereIn('id', Project::visibleTo($user)->pluck('id'));
             })
             ->where(function ($query) {
@@ -34,14 +34,14 @@ class TimelineController extends Controller
             });
         
         if (!$showCompleted) {
-            $epicsQuery->where('status', '!=', 'completed');
+            $phasesQuery->where('status', '!=', 'completed');
         }
 
         // Apply date filters if provided
         if ($filterStart || $filterEnd) {
-            $epicsQuery->where(function ($query) use ($filterStart, $filterEnd) {
+            $phasesQuery->where(function ($query) use ($filterStart, $filterEnd) {
                 if ($filterStart && $filterEnd) {
-                    // Epic overlaps with filter range
+                    // Phase overlaps with filter range
                     $query->where(function ($q) use ($filterStart, $filterEnd) {
                         $q->where(function ($q2) use ($filterStart, $filterEnd) {
                             // start_date falls within range
@@ -50,7 +50,7 @@ class TimelineController extends Controller
                             // end_date falls within range
                             $q2->whereBetween('end_date', [$filterStart, $filterEnd]);
                         })->orWhere(function ($q2) use ($filterStart, $filterEnd) {
-                            // epic spans entire range
+                            // phase spans entire range
                             $q2->where('start_date', '<=', $filterStart)
                                ->where('end_date', '>=', $filterEnd);
                         });
@@ -71,8 +71,8 @@ class TimelineController extends Controller
             });
         }
 
-        // Eager load projects and order epics
-        $epics = $epicsQuery
+        // Eager load projects and order phases
+        $phases = $phasesQuery
             ->with('project')
             ->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
             ->orderByRaw('CASE WHEN start_date IS NULL THEN 1 ELSE 0 END')
@@ -80,11 +80,11 @@ class TimelineController extends Controller
             ->orderBy('end_date', 'asc')
             ->get();
 
-        // If no epics with dates, return early
-        if ($epics->isEmpty()) {
+        // If no phases with dates, return early
+        if ($phases->isEmpty()) {
             return view('timeline.index', [
                 'projects' => collect(),
-                'epics' => $epics,
+                'phases' => $phases,
                 'weeks' => [],
                 'timelineStart' => $filterStart,
                 'timelineEnd' => $filterEnd,
@@ -101,28 +101,28 @@ class TimelineController extends Controller
             $timelineStart = $filterStart->copy()->startOfWeek();
             $timelineEnd = $filterEnd->copy()->endOfWeek();
         } else {
-            // Calculate from epic dates (exclude completed epics)
+            // Calculate from phase dates (exclude completed phases)
             $allDates = [];
-            foreach ($epics as $epic) {
-                if ($epic->status === 'completed') {
+            foreach ($phases as $phase) {
+                if ($phase->status === 'completed') {
                     continue;
                 }
-                if ($epic->start_date) {
-                    $allDates[] = $epic->start_date;
+                if ($phase->start_date) {
+                    $allDates[] = $phase->start_date;
                 }
-                if ($epic->end_date) {
-                    $allDates[] = $epic->end_date;
+                if ($phase->end_date) {
+                    $allDates[] = $phase->end_date;
                 }
             }
             
-            // If no active epic dates, use all dates
+            // If no active phase dates, use all dates
             if (empty($allDates)) {
-                foreach ($epics as $epic) {
-                    if ($epic->start_date) {
-                        $allDates[] = $epic->start_date;
+                foreach ($phases as $phase) {
+                    if ($phase->start_date) {
+                        $allDates[] = $phase->start_date;
                     }
-                    if ($epic->end_date) {
-                        $allDates[] = $epic->end_date;
+                    if ($phase->end_date) {
+                        $allDates[] = $phase->end_date;
                     }
                 }
             }
@@ -161,25 +161,25 @@ class TimelineController extends Controller
         }
 
         // Aggregate due dates per week
-        // Count epic end_date and task due_date occurrences per week
-        // Tasks use "effective due date" - explicit due_date or epic end_date fallback
+        // Count phase end_date and task due_date occurrences per week
+        // Tasks use "effective due date" - explicit due_date or phase end_date fallback
         foreach ($weeks as $index => $week) {
             $dueDateCount = 0;
             
-            // Count epic end dates in this week
-            foreach ($epics as $epic) {
-                if ($epic->end_date && 
-                    $epic->end_date->gte($week['start']) && 
-                    $epic->end_date->lte($week['end'])) {
+            // Count phase end dates in this week
+            foreach ($phases as $phase) {
+                if ($phase->end_date && 
+                    $phase->end_date->gte($week['start']) && 
+                    $phase->end_date->lte($week['end'])) {
                     $dueDateCount++;
                 }
             }
             
             // Count task effective due dates in this week
-            // Includes tasks with explicit due_date OR tasks inheriting from epic end_date
-            $tasks = \App\Models\Task::with('epic')
-                ->whereHas('epic', function ($q) use ($epics) {
-                    $q->whereIn('id', $epics->pluck('id'));
+            // Includes tasks with explicit due_date OR tasks inheriting from phase end_date
+            $tasks = \App\Models\Task::with('phase')
+                ->whereHas('phase', function ($q) use ($phases) {
+                    $q->whereIn('id', $phases->pluck('id'));
                 })
                 ->when(!$showCompleted, function ($q) {
                     $q->where('status', '!=', 'completed');
@@ -198,17 +198,17 @@ class TimelineController extends Controller
             $weeks[$index]['due_count'] = $dueDateCount;
         }
 
-        // Group epics by project
-        $projects = $epics->groupBy('project_id')->map(function ($projectEpics) {
+        // Group phases by project
+        $projects = $phases->groupBy('project_id')->map(function ($projectEpics) {
             return [
                 'project' => $projectEpics->first()->project,
-                'epics' => $projectEpics,
+                'phases' => $projectEpics,
             ];
         })->values();
 
         return view('timeline.index', [
             'projects' => $projects,
-            'epics' => $epics,
+            'phases' => $phases,
             'weeks' => $weeks,
             'timelineStart' => $timelineStart,
             'timelineEnd' => $timelineEnd,

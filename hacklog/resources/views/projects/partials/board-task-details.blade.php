@@ -29,8 +29,8 @@
     </div>
     <div class="card-body">
         <dl class="row mb-0">
-            <dt class="col-sm-4">Epic</dt>
-            <dd class="col-sm-8">{{ $task->epic->name }}</dd>
+            <dt class="col-sm-4">Phase</dt>
+            <dd class="col-sm-8">{{ $task->phase->name }}</dd>
 
             <dt class="col-sm-4">Column</dt>
             <dd class="col-sm-8">{{ $task->column->name }}</dd>
@@ -60,7 +60,7 @@
 </div>
 
 <div class="mt-3 d-flex gap-2">
-    <a href="{{ route('projects.epics.tasks.show', [$project, $task->epic, $task]) }}" class="btn btn-outline-secondary">
+    <a href="{{ route('projects.phases.tasks.show', [$project, $task->phase, $task]) }}" class="btn btn-outline-secondary">
         View Full Page
     </a>
     <button 

@@ -35,18 +35,18 @@ class ScheduleController extends Controller
         $visibleProjectIds = Project::visibleTo($user)->pluck('id');
 
         // Build task query with eager loading to avoid N+1
-        // Include tasks with explicit due_date OR tasks that can inherit from epic end_date
+        // Include tasks with explicit due_date OR tasks that can inherit from phase end_date
         $tasksQuery = Task::query()
-            ->with(['epic.project', 'column', 'users'])
-            ->whereHas('epic', function ($q) use ($visibleProjectIds) {
+            ->with(['phase.project', 'column', 'users'])
+            ->whereHas('phase', function ($q) use ($visibleProjectIds) {
                 // Only show tasks from visible projects
                 $q->whereIn('project_id', $visibleProjectIds);
             })
             ->where(function ($query) {
                 // Tasks with explicit due_date
                 $query->whereNotNull('due_date')
-                      // OR tasks without due_date but epic has end_date (will inherit)
-                      ->orWhereHas('epic', function ($q) {
+                      // OR tasks without due_date but phase has end_date (will inherit)
+                      ->orWhereHas('phase', function ($q) {
                           $q->whereNotNull('end_date');
                       });
             });
@@ -67,7 +67,7 @@ class ScheduleController extends Controller
         $allTasks = $tasksQuery->orderBy('due_date', 'asc')->get();
 
         // Separate overdue from in-range tasks using effective due date
-        // Effective due date = task.due_date ?? epic.end_date
+        // Effective due date = task.due_date ?? phase.end_date
         $today = Carbon::today();
         $overdueTasks = collect();
         $rangeTasks = collect();

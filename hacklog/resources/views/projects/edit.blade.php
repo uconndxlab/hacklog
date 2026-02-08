@@ -75,16 +75,16 @@
             </div>
         </div>
 
-        {{-- Epics Management Section --}}
+        {{-- Phases Management Section --}}
         <div class="card mb-4">
             <div class="card-header bg-light">
-                <h2 class="h5 mb-0">Epics Management</h2>
+                <h2 class="h5 mb-0">Phases Management</h2>
             </div>
             <div class="card-body">
-                <p class="text-muted mb-3">Epics organize your work into major features or initiatives. Create and manage epics for this project.</p>
+                <p class="text-muted mb-3">Phases organize your work into major features or initiatives. Create and manage phases for this project.</p>
                 <div class="d-flex gap-2">
-                    <a href="{{ route('projects.epics.create', $project) }}" class="btn btn-outline-primary">Create New Epic</a>
-                    <a href="{{ route('projects.epics.index', $project) }}" class="btn btn-outline-secondary">View All Epics</a>
+                    <a href="{{ route('projects.phases.create', $project) }}" class="btn btn-outline-primary">Create New Phase</a>
+                    <a href="{{ route('projects.phases.index', $project) }}" class="btn btn-outline-secondary">View All Phases</a>
                 </div>
             </div>
         </div>
@@ -106,8 +106,8 @@
                 <h2 class="h5 mb-0">Danger Zone</h2>
             </div>
             <div class="card-body">
-                <p class="text-muted mb-3">Deleting this project will permanently remove all epics, tasks, and associated data. This action cannot be undone.</p>
-                <form action="{{ route('projects.destroy', $project) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this project? All epics and tasks will be permanently deleted.');">
+                <p class="text-muted mb-3">Deleting this project will permanently remove all phases, tasks, and associated data. This action cannot be undone.</p>
+                <form action="{{ route('projects.destroy', $project) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this project? All phases and tasks will be permanently deleted.');">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn btn-danger">Delete Project</button>

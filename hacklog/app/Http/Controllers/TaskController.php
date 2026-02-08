@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Epic;
+use App\Models\Phase;
 use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Http\Request;
@@ -12,30 +12,30 @@ class TaskController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Project $project, Epic $epic)
+    public function index(Project $project, Phase $phase)
     {
-        // Tasks are shown on the Board page, so redirect there with epic filter
-        return redirect()->route('projects.board', ['project' => $project, 'epic' => $epic->id]);
+        // Tasks are shown on the Board page, so redirect there with phase filter
+        return redirect()->route('projects.board', ['project' => $project, 'phase' => $phase->id]);
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Project $project, Epic $epic)
+    public function create(Project $project, Phase $phase)
     {
         $columns = $project->columns;
-        $epics = $project->epics()
+        $phases = $project->phases()
             ->orderByRaw('CASE WHEN status = "active" THEN 1 WHEN status = "planned" THEN 2 ELSE 3 END')
             ->orderBy('name')
             ->get();
         $users = \App\Models\User::orderBy('name')->get();
-        return view('tasks.create', compact('project', 'epic', 'columns', 'epics', 'users'));
+        return view('tasks.create', compact('project', 'phase', 'columns', 'phases', 'users'));
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, Project $project, Epic $epic)
+    public function store(Request $request, Project $project, Phase $phase)
     {
         $validated = $request->validate([
             'column_id' => 'required|exists:columns,id',
@@ -51,41 +51,41 @@ class TaskController extends Controller
         // Set position to end of column
         $validated['position'] = Task::getNextPositionInColumn($validated['column_id']);
 
-        $task = $epic->tasks()->create($validated);
+        $task = $phase->tasks()->create($validated);
 
         // Sync assignees
         if (isset($validated['assignees'])) {
             $task->users()->sync($validated['assignees']);
         }
 
-        return redirect()->route('projects.board', ['project' => $project, 'epic' => $epic->id])
+        return redirect()->route('projects.board', ['project' => $project, 'phase' => $phase->id])
             ->with('success', 'Task created successfully.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Project $project, Epic $epic, Task $task)
+    public function show(Project $project, Phase $phase, Task $task)
     {
         $task->load('users');
-        return view('tasks.show', compact('project', 'epic', 'task'));
+        return view('tasks.show', compact('project', 'phase', 'task'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Project $project, Epic $epic, Task $task)
+    public function edit(Project $project, Phase $phase, Task $task)
     {
         $columns = $project->columns;
         $users = \App\Models\User::orderBy('name')->get();
         $task->load('users');
-        return view('tasks.edit', compact('project', 'epic', 'task', 'columns', 'users'));
+        return view('tasks.edit', compact('project', 'phase', 'task', 'columns', 'users'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Project $project, Epic $epic, Task $task)
+    public function update(Request $request, Project $project, Phase $phase, Task $task)
     {
         $validated = $request->validate([
             'column_id' => 'required|exists:columns,id',
@@ -116,18 +116,18 @@ class TaskController extends Controller
         // HTMX request
         if (request()->header('HX-Request')) {
             if ($fromBoard && $oldColumnId != $task->column_id) {
-                // Board/Epic board context: return updated source column with out-of-band swap for destination
-                return $this->handleBoardColumnChange($project, $epic, $oldColumnId, $task->column_id, $fromBoard === '1');
+                // Board/Phase board context: return updated source column with out-of-band swap for destination
+                return $this->handleBoardColumnChange($project, $phase, $oldColumnId, $task->column_id, $fromBoard === '1');
             } elseif ($oldColumnId != $task->column_id) {
-                // Legacy epic kanban view: return entire kanban board (for old kanban-board partial if still used)
+                // Legacy phase kanban view: return entire kanban board (for old kanban-board partial if still used)
                 $columns = $project->columns()->with('tasks')->get();
-                return view('tasks.partials.kanban-board', compact('project', 'epic', 'columns'));
+                return view('tasks.partials.kanban-board', compact('project', 'phase', 'columns'));
             }
         }
 
         // Regular form submission
         $redirectRoute = $fromBoard === '1' ? 'projects.board' : 'projects.board';
-        $redirectParams = $fromBoard === '1' ? [$project] : ['project' => $project, 'epic' => $epic->id];
+        $redirectParams = $fromBoard === '1' ? [$project] : ['project' => $project, 'phase' => $phase->id];
         
         return redirect()->route($redirectRoute, $redirectParams)
             ->with('success', 'Task updated successfully.');
@@ -135,21 +135,21 @@ class TaskController extends Controller
 
     /**
      * Handle board column change with out-of-band swaps
-     * Works for both project board (all tasks) and epic board (epic tasks only)
+     * Works for both project board (all tasks) and phase board (phase tasks only)
      */
-    protected function handleBoardColumnChange(Project $project, Epic $epic, int $oldColumnId, int $newColumnId, bool $isProjectBoard = true)
+    protected function handleBoardColumnChange(Project $project, Phase $phase, int $oldColumnId, int $newColumnId, bool $isProjectBoard = true)
     {
         $columns = $project->columns;
         
         if ($isProjectBoard) {
             // Build task query with same filtering logic as board view
-            $tasksQuery = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
+            $tasksQuery = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
                 $query->where('project_id', $project->id);
             });
 
-            // Apply epic filter if provided in request
-            if (request('epic')) {
-                $tasksQuery->where('epic_id', request('epic'));
+            // Apply phase filter if provided in request
+            if (request('phase')) {
+                $tasksQuery->where('phase_id', request('phase'));
             }
 
             // Apply assignment filter if provided in request
@@ -169,10 +169,10 @@ class TaskController extends Controller
                 });
             }
             
-            $tasks = $tasksQuery->with(['epic', 'users'])->get()->groupBy('column_id');
+            $tasks = $tasksQuery->with(['phase', 'users'])->get()->groupBy('column_id');
         } else {
-            // Load only tasks for this specific epic
-            $tasks = $epic->tasks()->with(['epic', 'users'])->get()->groupBy('column_id');
+            // Load only tasks for this specific phase
+            $tasks = $phase->tasks()->with(['phase', 'users'])->get()->groupBy('column_id');
         }
         
         // Get the source and destination columns
@@ -203,7 +203,7 @@ class TaskController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Project $project, Epic $epic, Task $task)
+    public function destroy(Project $project, Phase $phase, Task $task)
     {
         $task->delete();
 
@@ -212,14 +212,14 @@ class TaskController extends Controller
             return response('', 200);
         }
 
-        return redirect()->route('projects.board', ['project' => $project, 'epic' => $epic->id])
+        return redirect()->route('projects.board', ['project' => $project, 'phase' => $phase->id])
             ->with('success', 'Task deleted successfully.');
     }
 
     /**
      * Move task up in its column (swap with previous task)
      */
-    public function moveUp(Request $request, Project $project, Epic $epic, Task $task)
+    public function moveUp(Request $request, Project $project, Phase $phase, Task $task)
     {
         $task->moveUp();
 
@@ -231,16 +231,16 @@ class TaskController extends Controller
                 // Board context: return board-column-tasks partial
                 return $this->returnBoardColumnTasks($project, $task->column_id);
             } else {
-                // Epic context: return epic column-tasks partial
+                // Phase context: return phase column-tasks partial
                 $column = $task->column;
-                $columnTasks = $epic->tasks()->where('column_id', $column->id)->get();
-                return view('tasks.partials.column-tasks', compact('project', 'epic', 'column', 'columnTasks'));
+                $columnTasks = $phase->tasks()->where('column_id', $column->id)->get();
+                return view('tasks.partials.column-tasks', compact('project', 'phase', 'column', 'columnTasks'));
             }
         }
 
         // Regular request - redirect based on context
         $redirectRoute = $fromBoard === '1' ? 'projects.board' : 'projects.board';
-        $redirectParams = $fromBoard === '1' ? [$project] : ['project' => $project, 'epic' => $epic->id];
+        $redirectParams = $fromBoard === '1' ? [$project] : ['project' => $project, 'phase' => $phase->id];
         
         return redirect()->route($redirectRoute, $redirectParams)
             ->with('success', 'Task moved up.');
@@ -249,7 +249,7 @@ class TaskController extends Controller
     /**
      * Move task down in its column (swap with next task)
      */
-    public function moveDown(Request $request, Project $project, Epic $epic, Task $task)
+    public function moveDown(Request $request, Project $project, Phase $phase, Task $task)
     {
         $task->moveDown();
 
@@ -261,44 +261,44 @@ class TaskController extends Controller
                 // Board context: return board-column-tasks partial
                 return $this->returnBoardColumnTasks($project, $task->column_id);
             } else {
-                // Epic context: return epic column-tasks partial
+                // Phase context: return phase column-tasks partial
                 $column = $task->column;
-                $columnTasks = $epic->tasks()->where('column_id', $column->id)->get();
-                return view('tasks.partials.column-tasks', compact('project', 'epic', 'column', 'columnTasks'));
+                $columnTasks = $phase->tasks()->where('column_id', $column->id)->get();
+                return view('tasks.partials.column-tasks', compact('project', 'phase', 'column', 'columnTasks'));
             }
         }
 
         // Regular request - redirect based on context
         $redirectRoute = $fromBoard === '1' ? 'projects.board' : 'projects.board';
-        $redirectParams = $fromBoard === '1' ? [$project] : ['project' => $project, 'epic' => $epic->id];
+        $redirectParams = $fromBoard === '1' ? [$project] : ['project' => $project, 'phase' => $phase->id];
         
         return redirect()->route($redirectRoute, $redirectParams)
             ->with('success', 'Task moved down.');
     }
 
     /**
-     * Admin view for managing tasks in an epic
+     * Admin view for managing tasks in a phase
      */
-    public function adminIndex(Project $project, Epic $epic)
+    public function adminIndex(Project $project, Phase $phase)
     {
-        $tasks = $epic->tasks()->with(['users', 'column'])->get();
+        $tasks = $phase->tasks()->with(['users', 'column'])->get();
         
-        return view('admin.epics.tasks.index', compact('project', 'epic', 'tasks'));
+        return view('admin.phases.tasks.index', compact('project', 'phase', 'tasks'));
     }
 
     /**
      * Bulk delete tasks (admin only)
      */
-    public function bulkDelete(Request $request, Project $project, Epic $epic)
+    public function bulkDelete(Request $request, Project $project, Phase $phase)
     {
         $validated = $request->validate([
             'task_ids' => 'required|array',
             'task_ids.*' => 'exists:tasks,id',
         ]);
 
-        // Ensure all selected tasks belong to this epic
+        // Ensure all selected tasks belong to this phase
         $tasksToDelete = Task::whereIn('id', $validated['task_ids'])
-            ->where('epic_id', $epic->id)
+            ->where('phase_id', $phase->id)
             ->get();
 
         if ($tasksToDelete->isEmpty()) {
@@ -321,13 +321,13 @@ class TaskController extends Controller
         $columns = $project->columns;
         
         // Build task query with same filtering logic as board view
-        $tasksQuery = \App\Models\Task::whereHas('epic', function ($query) use ($project) {
+        $tasksQuery = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         });
 
-        // Apply epic filter if provided in request
-        if (request('epic')) {
-            $tasksQuery->where('epic_id', request('epic'));
+        // Apply phase filter if provided in request
+        if (request('phase')) {
+            $tasksQuery->where('phase_id', request('phase'));
         }
 
         // Apply assignment filter if provided in request
@@ -348,7 +348,7 @@ class TaskController extends Controller
         }
         
         // Load tasks with filtering applied
-        $tasks = $tasksQuery->with(['epic', 'users'])->get()->groupBy('column_id');
+        $tasks = $tasksQuery->with(['phase', 'users'])->get()->groupBy('column_id');
         
         $column = $columns->firstWhere('id', $columnId);
         

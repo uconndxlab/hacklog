@@ -18,11 +18,11 @@
             </div>
         </div>
 
-        @if($epics->isEmpty())
+        @if($phases->isEmpty())
             @include('partials.empty-state', [
-                'message' => 'No epics with dates yet. Create an epic and add start or end dates to visualize your project timeline.',
-                'actionUrl' => route('projects.epics.create', $project),
-                'actionText' => 'Create an epic'
+                'message' => 'No phases with dates yet. Create a phase and add start or end dates to visualize your project timeline.',
+                'actionUrl' => route('projects.phases.create', $project),
+                'actionText' => 'Create a phase'
             ])
         @else
             @if($tooWide)
@@ -37,7 +37,7 @@
                         <table class="table mb-0 timeline-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 150px;" class="timeline-header">Epic</th>
+                                    <th style="width: 150px;" class="timeline-header">Phase</th>
                                     @foreach($weeks as $week)
                                         @php
                                             // Determine heat level based on due date density
@@ -61,52 +61,52 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($epics as $epic)
+                                @foreach($phases as $phase)
                                     @php
-                                        // Calculate which weeks this epic spans
-                                        $epicStart = $epic->start_date ?: $epic->end_date;
-                                        $epicEnd = $epic->end_date ?: $epic->start_date;
+                                        // Calculate which weeks this phase spans
+                                        $phaseStart = $phase->start_date ?: $phase->end_date;
+                                        $phaseEnd = $phase->end_date ?: $phase->start_date;
                                         
                                         // Determine which week cells to fill
                                         $cellStates = [];
                                         foreach ($weeks as $index => $week) {
                                             $weekEnd = $week['start']->copy()->endOfWeek();
                                             
-                                            // Check if epic overlaps this week
-                                            if ($epicStart->lte($weekEnd) && $epicEnd->gte($week['start'])) {
+                                            // Check if phase overlaps this week
+                                            if ($phaseStart->lte($weekEnd) && $phaseEnd->gte($week['start'])) {
                                                 $cellStates[$index] = 'filled';
                                             } else {
                                                 $cellStates[$index] = 'empty';
                                             }
                                         }
                                     @endphp
-                                    <tr class="timeline-row @if($epic->status === 'completed') opacity-75 @endif">
-                                        <td class="timeline-epic-label @if($epic->isOverdue()) timeline-overdue @endif">
+                                    <tr class="timeline-row @if($phase->status === 'completed') opacity-75 @endif">
+                                        <td class="timeline-phase-label @if($phase->isOverdue()) timeline-overdue @endif">
                                             <div class="d-flex flex-column gap-1">
-                                                <a href="{{ route('projects.board', ['project' => $project, 'epic' => $epic->id]) }}" 
-                                                   class="@if($epic->isOverdue()) text-danger @elseif($epic->status === 'completed') text-muted @else text-body @endif text-decoration-none" style="font-size: 0.875rem;">
-                                                    {{ $epic->name }}
+                                                <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" 
+                                                   class="@if($phase->isOverdue()) text-danger @elseif($phase->status === 'completed') text-muted @else text-body @endif text-decoration-none" style="font-size: 0.875rem;">
+                                                    {{ $phase->name }}
                                                 </a>
                                                 <div class="d-flex flex-column gap-1">
                                                     <div>
                                                         <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.7rem; font-weight: 400;">
-                                                            {{ ucfirst($epic->status) }}
+                                                            {{ ucfirst($phase->status) }}
                                                         </span>
                                                     </div>
                                                     <div class="text-muted" style="font-size: 0.8125rem; line-height: 1.3;">
-                                                        @if($epic->start_date && $epic->end_date)
-                                                            {{ $epic->start_date->format('M j') }} – {{ $epic->end_date->format('M j, Y') }}
-                                                        @elseif($epic->start_date)
-                                                            Start: {{ $epic->start_date->format('M j, Y') }}
+                                                        @if($phase->start_date && $phase->end_date)
+                                                            {{ $phase->start_date->format('M j') }} – {{ $phase->end_date->format('M j, Y') }}
+                                                        @elseif($phase->start_date)
+                                                            Start: {{ $phase->start_date->format('M j, Y') }}
                                                         @else
-                                                            End: {{ $epic->end_date->format('M j, Y') }}
+                                                            End: {{ $phase->end_date->format('M j, Y') }}
                                                         @endif
                                                     </div>
                                                 </div>
                                             </div>
                                         </td>
                                         @foreach($cellStates as $state)
-                                            <td class="timeline-cell @if($state === 'filled') @if($epic->isOverdue()) timeline-bar-overdue @elseif($epic->status === 'completed') timeline-bar-completed @else timeline-bar-active @endif @endif" style="width: 95px;">
+                                            <td class="timeline-cell @if($state === 'filled') @if($phase->isOverdue()) timeline-bar-overdue @elseif($phase->status === 'completed') timeline-bar-completed @else timeline-bar-active @endif @endif" style="width: 95px;">
                                                 @if($state === 'filled')
                                                     &nbsp;
                                                 @endif
