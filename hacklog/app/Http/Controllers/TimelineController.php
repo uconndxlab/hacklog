@@ -82,6 +82,13 @@ class TimelineController extends Controller
 
         // If no phases with dates, return early
         if ($phases->isEmpty()) {
+            // Set default filter values for form population if not already set
+            if (!$filterStart && !$filterEnd) {
+                $today = Carbon::today();
+                $filterStart = $today;
+                $filterEnd = $today->copy()->addMonths(2);
+            }
+            
             return view('timeline.index', [
                 'projects' => collect(),
                 'phases' => $phases,
@@ -101,34 +108,14 @@ class TimelineController extends Controller
             $timelineStart = $filterStart->copy()->startOfWeek();
             $timelineEnd = $filterEnd->copy()->endOfWeek();
         } else {
-            // Calculate from phase dates (exclude completed phases)
-            $allDates = [];
-            foreach ($phases as $phase) {
-                if ($phase->status === 'completed') {
-                    continue;
-                }
-                if ($phase->start_date) {
-                    $allDates[] = $phase->start_date;
-                }
-                if ($phase->end_date) {
-                    $allDates[] = $phase->end_date;
-                }
-            }
+            // Default to next 2 months starting today
+            $today = Carbon::today();
+            $timelineStart = $today->copy()->startOfWeek();
+            $timelineEnd = $today->copy()->addMonths(2)->endOfWeek();
             
-            // If no active phase dates, use all dates
-            if (empty($allDates)) {
-                foreach ($phases as $phase) {
-                    if ($phase->start_date) {
-                        $allDates[] = $phase->start_date;
-                    }
-                    if ($phase->end_date) {
-                        $allDates[] = $phase->end_date;
-                    }
-                }
-            }
-
-            $timelineStart = ($filterStart ?: min($allDates))->copy()->startOfWeek();
-            $timelineEnd = ($filterEnd ?: max($allDates))->copy()->endOfWeek();
+            // Set default filter values for form population
+            $filterStart = $today;
+            $filterEnd = $today->copy()->addMonths(2);
         }
         
         // Calculate number of weeks
@@ -199,11 +186,35 @@ class TimelineController extends Controller
             $weeks[$index]['due_count'] = $dueDateCount;
         }
 
-        // Group phases by project
-        $projects = $phases->groupBy('project_id')->map(function ($projectEpics) {
+        // Group phases by project and add task counts per phase
+        $projects = $phases->groupBy('project_id')->map(function ($projectPhases) use ($showCompleted) {
+            $project = $projectPhases->first()->project;
+            
+            // Add task counts to each phase
+            $phasesWithTaskCounts = $projectPhases->map(function ($phase) use ($showCompleted) {
+                $taskCounts = $phase->tasks()
+                    ->when(!$showCompleted, function ($q) {
+                        $q->where('status', '!=', 'completed');
+                    })
+                    ->selectRaw('status, COUNT(*) as count')
+                    ->groupBy('status')
+                    ->pluck('count', 'status')
+                    ->toArray();
+                
+                // Ensure all statuses are represented
+                $taskCounts = array_merge([
+                    'planned' => 0,
+                    'active' => 0,
+                    'completed' => 0,
+                ], $taskCounts);
+                
+                $phase->task_counts = $taskCounts;
+                return $phase;
+            });
+            
             return [
-                'project' => $projectEpics->first()->project,
-                'phases' => $projectEpics,
+                'project' => $project,
+                'phases' => $phasesWithTaskCounts,
             ];
         })->values();
 

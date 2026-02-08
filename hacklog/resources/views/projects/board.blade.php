@@ -76,6 +76,52 @@
     </div>
 </div>
 
+{{-- Phase Synopsis --}}
+@if($phaseSynopsis)
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5 class="card-title mb-2">{{ $phaseSynopsis->name }}</h5>
+                    <div class="text-muted small mb-2">
+                        @if($phaseSynopsis->start_date && $phaseSynopsis->end_date)
+                            {{ $phaseSynopsis->start_date->format('M j, Y') }} – {{ $phaseSynopsis->end_date->format('M j, Y') }}
+                        @elseif($phaseSynopsis->start_date)
+                            Starts: {{ $phaseSynopsis->start_date->format('M j, Y') }}
+                        @elseif($phaseSynopsis->end_date)
+                            Ends: {{ $phaseSynopsis->end_date->format('M j, Y') }}
+                        @else
+                            No dates set
+                        @endif
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-end">
+                        <div class="small text-muted mb-1">
+                            {{ $phaseSynopsis->completed_tasks_count }} of {{ $phaseSynopsis->tasks_count }} tasks completed
+                        </div>
+                        @php
+                            $completionPercentage = $phaseSynopsis->tasks_count > 0 
+                                ? round(($phaseSynopsis->completed_tasks_count / $phaseSynopsis->tasks_count) * 100) 
+                                : 0;
+                        @endphp
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar {{ $completionPercentage == 100 ? 'bg-success' : ($completionPercentage > 50 ? 'bg-info' : 'bg-warning') }}" 
+                                 role="progressbar" 
+                                 style="width: {{ $completionPercentage }}%" 
+                                 aria-valuenow="{{ $completionPercentage }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        <div class="small text-muted mt-1">{{ $completionPercentage }}% complete</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+
 @if($columns->isEmpty())
     <div class="alert alert-light border text-center">
         <h5 class="alert-heading">This project has no columns yet.</h5>

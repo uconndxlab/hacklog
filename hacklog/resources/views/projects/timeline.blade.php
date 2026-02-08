@@ -8,9 +8,33 @@
         @include('projects.partials.project-header')
         @include('projects.partials.project-nav', ['currentView' => 'timeline'])
 
-        {{-- Page Actions --}}
-        <div class="d-flex justify-content-end mb-4">
-
+        {{-- Filter Form --}}
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="GET" action="{{ route('projects.timeline', $project) }}" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="start" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start" name="start" value="{{ $filterStart }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="end" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end" name="end" value="{{ $filterEnd }}">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                        @if($showCompleted)
+                            <a href="{{ route('projects.timeline', array_merge(['project' => $project], array_filter(['start' => $filterStart, 'end' => $filterEnd]))) }}" class="btn btn-outline-secondary">Hide Completed</a>
+                        @else
+                            <button type="submit" name="show_completed" value="1" class="btn btn-outline-secondary">Show Completed</button>
+                        @endif
+                    </div>
+                    @if($filterStart || $filterEnd)
+                        <div class="col-12">
+                            <a href="{{ route('projects.timeline', array_merge(['project' => $project], ($showCompleted ? ['show_completed' => '1'] : []))) }}" class="btn btn-sm btn-outline-secondary">Clear Filters</a>
+                        </div>
+                    @endif
+                </form>
+            </div>
         </div>
 
         @if($phases->isEmpty())
@@ -88,6 +112,20 @@
                                                             {{ ucfirst($phase->status) }}
                                                         </span>
                                                     </div>
+                                                    {{-- Task Status Breakdown --}}
+                                                    @if($phase->task_counts['planned'] > 0 || $phase->task_counts['active'] > 0 || $phase->task_counts['completed'] > 0)
+                                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                                            @if($phase->task_counts['planned'] > 0)
+                                                                <small class="badge bg-secondary" style="font-size: 0.65rem;">{{ $phase->task_counts['planned'] }} Planned</small>
+                                                            @endif
+                                                            @if($phase->task_counts['active'] > 0)
+                                                                <small class="badge bg-success" style="font-size: 0.65rem;">{{ $phase->task_counts['active'] }} Active</small>
+                                                            @endif
+                                                            @if($phase->task_counts['completed'] > 0)
+                                                                <small class="badge bg-light text-dark" style="font-size: 0.65rem;">{{ $phase->task_counts['completed'] }} Completed</small>
+                                                            @endif
+                                                        </div>
+                                                    @endif
                                                     <div class="text-muted" style="font-size: 0.8125rem; line-height: 1.3;">
                                                         @if($phase->start_date && $phase->end_date)
                                                             {{ $phase->start_date->format('M j') }} – {{ $phase->end_date->format('M j, Y') }}

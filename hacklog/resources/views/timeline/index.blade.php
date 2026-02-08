@@ -148,6 +148,20 @@
                                                                 {{ ucfirst($phase->status) }}
                                                             </span>
                                                         </div>
+                                                        {{-- Task Status Breakdown --}}
+                                                        @if($phase->task_counts['planned'] > 0 || $phase->task_counts['active'] > 0 || $phase->task_counts['completed'] > 0)
+                                                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                                                @if($phase->task_counts['planned'] > 0)
+                                                                    <small class="badge bg-secondary" style="font-size: 0.65rem;">{{ $phase->task_counts['planned'] }} Planned</small>
+                                                                @endif
+                                                                @if($phase->task_counts['active'] > 0)
+                                                                    <small class="badge bg-success" style="font-size: 0.65rem;">{{ $phase->task_counts['active'] }} Active</small>
+                                                                @endif
+                                                                @if($phase->task_counts['completed'] > 0)
+                                                                    <small class="badge bg-light text-dark" style="font-size: 0.65rem;">{{ $phase->task_counts['completed'] }} Completed</small>
+                                                                @endif
+                                                            </div>
+                                                        @endif
                                                         <div class="text-muted" style="font-size: 0.8125rem; line-height: 1.3;">
                                                             @if($phase->start_date && $phase->end_date)
                                                                 {{ $phase->start_date->format('M j') }} – {{ $phase->end_date->format('M j, Y') }}

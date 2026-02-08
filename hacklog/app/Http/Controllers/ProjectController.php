@@ -345,8 +345,15 @@ class ProjectController extends Controller
         });
         
         // Apply phase filter if provided
+        $phaseSynopsis = null;
         if ($request->has('phase') && $request->phase) {
             $tasksQuery->where('phase_id', $request->phase);
+            // Load the filtered phase with task counts for synopsis
+            $phaseSynopsis = $project->phases()->find($request->phase);
+            if ($phaseSynopsis) {
+                $phaseSynopsis->tasks_count = $phaseSynopsis->tasks()->count();
+                $phaseSynopsis->completed_tasks_count = $phaseSynopsis->tasks()->where('status', 'completed')->count();
+            }
         }
 
         // Apply assignment filter if requested
@@ -370,7 +377,7 @@ class ProjectController extends Controller
         // Eager load phase and users relationships and order by position within each column
         $tasks = $tasksQuery->with(['phase', 'users'])->get()->groupBy('column_id');
         
-        return view('projects.board', compact('project', 'columns', 'tasks', 'phases'));
+        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis'));
     }
 
     /**
@@ -950,6 +957,10 @@ class ProjectController extends Controller
      */
     public function timeline(Request $request, Project $project)
     {
+        // Get optional date filters from query params
+        $filterStart = $request->has('start') ? \Carbon\Carbon::parse($request->input('start')) : null;
+        $filterEnd = $request->has('end') ? \Carbon\Carbon::parse($request->input('end')) : null;
+
         $showCompleted = $request->query('show_completed', '0') === '1';
 
         // Get phases that have at least one date
@@ -962,6 +973,40 @@ class ProjectController extends Controller
         if (!$showCompleted) {
             $phasesQuery->where('status', '!=', 'completed');
         }
+
+        // Apply date filters if provided
+        if ($filterStart || $filterEnd) {
+            $phasesQuery->where(function ($query) use ($filterStart, $filterEnd) {
+                if ($filterStart && $filterEnd) {
+                    // Phase overlaps with filter range
+                    $query->where(function ($q) use ($filterStart, $filterEnd) {
+                        $q->where(function ($q2) use ($filterStart, $filterEnd) {
+                            // start_date falls within range
+                            $q2->whereBetween('start_date', [$filterStart, $filterEnd]);
+                        })->orWhere(function ($q2) use ($filterStart, $filterEnd) {
+                            // end_date falls within range
+                            $q2->whereBetween('end_date', [$filterStart, $filterEnd]);
+                        })->orWhere(function ($q2) use ($filterStart, $filterEnd) {
+                            // phase spans entire range
+                            $q2->where('start_date', '<=', $filterStart)
+                               ->where('end_date', '>=', $filterEnd);
+                        });
+                    });
+                } elseif ($filterStart) {
+                    // At least one date is on or after filter start
+                    $query->where(function ($q) use ($filterStart) {
+                        $q->where('start_date', '>=', $filterStart)
+                          ->orWhere('end_date', '>=', $filterStart);
+                    });
+                } elseif ($filterEnd) {
+                    // At least one date is on or before filter end
+                    $query->where(function ($q) use ($filterEnd) {
+                        $q->where('start_date', '<=', $filterEnd)
+                          ->orWhere('end_date', '<=', $filterEnd);
+                    });
+                }
+            });
+        }
         
         $phases = $phasesQuery
             ->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
@@ -972,6 +1017,13 @@ class ProjectController extends Controller
 
         // If no phases with dates, return early
         if ($phases->isEmpty()) {
+            // Set default filter values for form population if not already set
+            if (!$filterStart && !$filterEnd) {
+                $today = \Carbon\Carbon::today();
+                $filterStart = $today;
+                $filterEnd = $today->copy()->addMonths(2);
+            }
+            
             return view('projects.timeline', [
                 'project' => $project,
                 'phases' => $phases,
@@ -979,57 +1031,27 @@ class ProjectController extends Controller
                 'timelineStart' => null,
                 'timelineEnd' => null,
                 'tooWide' => false,
+                'filterStart' => $filterStart ? $filterStart->format('Y-m-d') : null,
+                'filterEnd' => $filterEnd ? $filterEnd->format('Y-m-d') : null,
                 'showCompleted' => $showCompleted,
             ]);
         }
 
-        // Calculate timeline window - use a smart range that focuses on current/future work
-        // Only use non-completed phases for date range calculation
-        $allDates = [];
-        foreach ($phases as $phase) {
-            if ($phase->status === 'completed') {
-                continue;
-            }
-            if ($phase->start_date) {
-                $allDates[] = $phase->start_date;
-            }
-            if ($phase->end_date) {
-                $allDates[] = $phase->end_date;
-            }
-        }
-
-        // If no active phase dates, use all dates for calculation
-        if (empty($allDates)) {
-            foreach ($phases as $phase) {
-                if ($phase->start_date) {
-                    $allDates[] = $phase->start_date;
-                }
-                if ($phase->end_date) {
-                    $allDates[] = $phase->end_date;
-                }
-            }
-        }
-
-        $minDate = min($allDates);
-        $maxDate = max($allDates);
-        $today = \Carbon\Carbon::today();
-
-        // Smart timeline window: 
-        // - If all dates are in the future, start from earliest date
-        // - If all dates are in the past, start from earliest (historical view)
-        // - If mixed, start from 4 weeks ago or earliest date (whichever is later)
-        if ($minDate->isFuture()) {
-            $timelineStart = $minDate->copy()->startOfWeek();
-        } elseif ($maxDate->isPast()) {
-            $timelineStart = $minDate->copy()->startOfWeek();
+        // Calculate timeline window
+        if ($filterStart && $filterEnd) {
+            // Use filter range
+            $timelineStart = $filterStart->copy()->startOfWeek();
+            $timelineEnd = $filterEnd->copy()->endOfWeek();
         } else {
-            $fourWeeksAgo = $today->copy()->subWeeks(4)->startOfWeek();
-            $timelineStart = $minDate->isBefore($fourWeeksAgo) ? $fourWeeksAgo : $minDate->copy()->startOfWeek();
+            // Default to next 2 months starting today
+            $today = \Carbon\Carbon::today();
+            $timelineStart = $today->copy()->startOfWeek();
+            $timelineEnd = $today->copy()->addMonths(2)->endOfWeek();
+            
+            // Set default filter values for form population
+            $filterStart = $today;
+            $filterEnd = $today->copy()->addMonths(2);
         }
-
-        // End date: use max date or extend to 4 weeks in future, whichever is later
-        $fourWeeksFromNow = $today->copy()->addWeeks(4)->endOfWeek();
-        $timelineEnd = $maxDate->isAfter($fourWeeksFromNow) ? $maxDate->copy()->endOfWeek() : $fourWeeksFromNow;
         
         // Calculate number of weeks
         $weekCount = $timelineStart->diffInWeeks($timelineEnd) + 1;
@@ -1098,7 +1120,39 @@ class ProjectController extends Controller
             $weeks[$index]['due_count'] = $dueDateCount;
         }
 
-        return view('projects.timeline', compact('project', 'phases', 'weeks', 'timelineStart', 'timelineEnd', 'tooWide', 'showCompleted'));
+        // Add task counts to each phase
+        $phases = $phases->map(function ($phase) use ($showCompleted) {
+            $taskCounts = $phase->tasks()
+                ->when(!$showCompleted, function ($q) {
+                    $q->where('status', '!=', 'completed');
+                })
+                ->selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')
+                ->pluck('count', 'status')
+                ->toArray();
+            
+            // Ensure all statuses are represented
+            $taskCounts = array_merge([
+                'planned' => 0,
+                'active' => 0,
+                'completed' => 0,
+            ], $taskCounts);
+            
+            $phase->task_counts = $taskCounts;
+            return $phase;
+        });
+
+        return view('projects.timeline', [
+            'project' => $project,
+            'phases' => $phases,
+            'weeks' => $weeks,
+            'timelineStart' => $timelineStart,
+            'timelineEnd' => $timelineEnd,
+            'tooWide' => $tooWide,
+            'filterStart' => $filterStart ? $filterStart->format('Y-m-d') : null,
+            'filterEnd' => $filterEnd ? $filterEnd->format('Y-m-d') : null,
+            'showCompleted' => $showCompleted,
+        ]);
     }
 
     /**
