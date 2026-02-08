@@ -10,22 +10,7 @@
 
         {{-- Page Actions --}}
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <a href="{{ route('projects.phases.create', $project) }}" class="btn btn-sm btn-primary">
-                    Create Phase
-                </a>
-            </div>
-            <div>
-                @if($showCompleted)
-                    <a href="{{ route('projects.schedule', $project) }}" class="btn btn-sm btn-outline-secondary">
-                        Hide Completed
-                    </a>
-                @else
-                    <a href="{{ route('projects.schedule', ['project' => $project, 'show_completed' => '1']) }}" class="btn btn-sm btn-outline-secondary">
-                        Show Completed
-                    </a>
-                @endif
-            </div>
+
         </div>
 
         @if($project->phases->isEmpty() && (!isset($standaloneTasks) || $standaloneTasks->isEmpty()) && (!isset($standaloneTasksNoDates) || $standaloneTasksNoDates->isEmpty()))

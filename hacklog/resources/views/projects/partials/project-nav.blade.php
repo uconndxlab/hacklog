@@ -4,7 +4,8 @@
     @param \App\Models\Project $project
     @param string $currentView
 --}}
-<ul class="nav nav-tabs mb-4">
+<div class="overflow-x-auto">
+    <ul class="nav nav-tabs mb-4 flex-nowrap">
     <li class="nav-item">
         <a class="nav-link @if($currentView === 'home') active @endif" href="{{ route('projects.show', $project) }}">
             Home
@@ -41,3 +42,4 @@
         </a>
     </li>
 </ul>
+</div>

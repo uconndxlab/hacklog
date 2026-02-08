@@ -8,37 +8,18 @@
 
 {{-- Page Actions --}}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div class="d-flex align-items-center gap-2">
-        @if(request('phase'))
-            @php
-                $filteredPhase = $phases->firstWhere('id', request('phase'));
-            @endphp
-            @if($filteredPhase)
-                <span class="badge bg-primary">
-                    {{ $filteredPhase->name }}
-                    <a href="{{ route('projects.board', $project) }}" class="text-white text-decoration-none ms-1">×</a>
-                </span>
-                <button 
-                    type="button" 
-                    class="btn btn-sm btn-outline-secondary"
-                    data-bs-toggle="modal" 
-                    data-bs-target="#phaseInfoModal">
-                    View Details
-                </button>
-            @endif
-        @else
-            <span class="badge bg-secondary">
-                All Phases
-            </span>
-        @endif
-    </div>
+
     <div class="d-flex gap-2">
-        <a href="{{ route('projects.phases.create', $project) }}" class="btn btn-sm btn-primary">
-            Create Phase
-        </a>
         <div class="dropdown">
             <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Filter by Phase">
-                Filter by Phase
+                @php
+                    $filteredPhase = request('phase') ? $phases->firstWhere('id', request('phase')) : null;
+                @endphp
+                @if($filteredPhase)
+                    {{ $filteredPhase->name }}
+                @else
+                    All Phases
+                @endif
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item {{ !request('phase') ? 'active' : '' }}" href="{{ route('projects.board', $project) }}">All Phases</a></li>
@@ -57,7 +38,7 @@
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Filter by assignee">
                 @php
                     $assigned = request('assigned');
-                    $assignedLabel = 'All Tasks';
+                    $assignedLabel = 'All Assignments';
                     if ($assigned === 'me') {
                         $assignedLabel = 'Assigned to Me';
                     } elseif ($assigned === 'none') {
@@ -92,9 +73,6 @@
                 @endforeach
             </ul>
         </div>
-        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#manageColumnsModal">
-            Manage Columns
-        </button>
     </div>
 </div>
 

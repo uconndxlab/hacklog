@@ -75,7 +75,7 @@
                 <p class="text-muted mb-3">Organize work into major features or initiatives.</p>
                 <div class="d-flex gap-2">
                     <a href="{{ route('projects.phases.create', $project) }}" class="btn btn-outline-primary">Create Phase</a>
-                    <a href="{{ route('projects.phases.index', $project) }}" class="btn btn-outline-secondary">View All Phases</a>
+                    <a href="{{ route('projects.phases.index', $project) }}" class="btn btn-outline-secondary">Manage Phases</a>
                 </div>
             </div>
         </div>

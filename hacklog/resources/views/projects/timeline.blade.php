@@ -10,11 +10,7 @@
 
         {{-- Page Actions --}}
         <div class="d-flex justify-content-end mb-4">
-            @if($showCompleted)
-                <a href="{{ route('projects.timeline', $project) }}" class="btn btn-sm btn-outline-secondary">Hide Completed</a>
-            @else
-                <a href="{{ route('projects.timeline', ['project' => $project, 'show_completed' => '1']) }}" class="btn btn-sm btn-outline-secondary">Show Completed</a>
-            @endif
+
         </div>
 
         @if($phases->isEmpty())
