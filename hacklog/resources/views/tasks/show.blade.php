@@ -7,8 +7,12 @@
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ route('projects.index') }}">Projects</a></li>
         <li class="breadcrumb-item"><a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.phases.index', $project) }}">Phases</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}">{{ $phase->name }}</a></li>
+        @if($phase)
+            <li class="breadcrumb-item"><a href="{{ route('projects.phases.index', $project) }}">Phases</a></li>
+            <li class="breadcrumb-item"><a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}">{{ $phase->name }}</a></li>
+        @else
+            <li class="breadcrumb-item"><a href="{{ route('projects.board', $project) }}">Board</a></li>
+        @endif
         <li class="breadcrumb-item active" aria-current="page">{{ $task->title }}</li>
     </ol>
 </nav>
@@ -19,7 +23,7 @@
             <div>
                 <h1>{{ $task->title }}</h1>
                 <p class="text-muted mb-0">
-                    <span class="badge 
+                    <span class="badge
                         @if($task->status === 'planned') bg-secondary
                         @elseif($task->status === 'active') bg-success
                         @else bg-primary
@@ -28,7 +32,11 @@
                     </span>
                 </p>
             </div>
-            <a href="{{ route('projects.phases.tasks.edit', [$project, $phase, $task]) }}" class="btn btn-secondary">Edit Task</a>
+            @if($phase)
+                <a href="{{ route('projects.phases.tasks.edit', [$project, $phase, $task]) }}" class="btn btn-secondary">Edit Task</a>
+            @else
+                <a href="{{ route('projects.board.tasks.edit', [$project, $task]) }}" class="btn btn-secondary">Edit Task</a>
+            @endif
         </div>
 
         <h2 class="h4 mb-3">Description</h2>
@@ -51,10 +59,12 @@
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-3">Phase</dt>
-                    <dd class="col-sm-9">
-                        <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}">{{ $phase->name }}</a>
-                    </dd>
+                    @if($phase)
+                        <dt class="col-sm-3">Phase</dt>
+                        <dd class="col-sm-9">
+                            <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}">{{ $phase->name }}</a>
+                        </dd>
+                    @endif
 
                     <dt class="col-sm-3">Project</dt>
                     <dd class="col-sm-9">
@@ -89,7 +99,11 @@
         </div>
 
         <div class="mt-3">
-            <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" class="btn btn-outline-secondary">Back to Board</a>
+            @if($phase)
+                <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" class="btn btn-outline-secondary">Back to Board</a>
+            @else
+                <a href="{{ route('projects.board', $project) }}" class="btn btn-outline-secondary">Back to Board</a>
+            @endif
         </div>
     </div>
 </div>

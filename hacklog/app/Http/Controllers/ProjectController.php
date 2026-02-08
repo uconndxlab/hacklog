@@ -444,83 +444,9 @@ class ProjectController extends Controller
         }
 
         $task->load(['phase', 'column', 'users']);
-        
-        return view('projects.partials.board-task-details', compact('project', 'task'));
-    }
+        $phase = $task->phase;
 
-    /**
-     * Store a task from the board modal
-     */
-    public function storeTask(Request $request, Project $project)
-    {
-        $validated = $request->validate([
-            'phase_id' => 'nullable|exists:phases,id',
-            'column_id' => 'required|exists:columns,id',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => 'required|in:planned,active,completed',
-            'start_date' => 'nullable|date',
-            'due_date' => 'nullable|date|after_or_equal:start_date',
-            'assignees' => 'nullable|array',
-            'assignees.*' => 'exists:users,id',
-        ]);
-
-        // If phase_id provided, verify it belongs to this project
-        if (!empty($validated['phase_id'])) {
-            $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
-            if ($phase->project_id !== $project->id) {
-                abort(403, 'Phase does not belong to this project.');
-            }
-        }
-
-        // Set position to end of column
-        $validated['position'] = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
-
-        // Create the task
-        $task = \App\Models\Task::create($validated);
-
-        // Sync assignees
-        $task->users()->sync($validated['assignees'] ?? []);
-
-        // Check if this is from the modal with HTMX
-        $fromBoardModal = $request->input('from_board_modal');
-        $fromGlobalModal = $request->input('global_modal');
-        
-        if (request()->header('HX-Request') && ($fromBoardModal || $fromGlobalModal)) {
-            if ($fromGlobalModal) {
-                // For global modal, just return success response
-                return response()->json(['success' => true, 'message' => 'Task created successfully.']);
-            }
-            
-            // HTMX: Return updated column task list
-            $columns = $project->columns;
-            $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
-                $query->where('project_id', $project->id);
-            })
-            ->with(['phase', 'users'])
-            ->get()
-            ->groupBy('column_id');
-            
-            $column = $columns->firstWhere('id', $validated['column_id']);
-            
-            // Return the updated column with a script to close the modal
-            $html = view('projects.partials.board-column-tasks', [
-                'column' => $column,
-                'columnTasks' => $tasks->get($validated['column_id'], collect()),
-                'project' => $project,
-                'allColumns' => $columns,
-                'isProjectBoard' => true
-            ])->render();
-            
-            // Add Bootstrap modal close trigger
-            $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
-            
-            return response($html);
-        }
-
-        // Regular form submission: redirect to board
-        return redirect()->route('projects.board', $project)
-            ->with('success', 'Task created successfully.');
+        return view('tasks.show', compact('project', 'phase', 'task'));
     }
 
     /**
@@ -672,6 +598,48 @@ class ProjectController extends Controller
         // Regular form submission: redirect to board
         return redirect()->route('projects.board', $project)
             ->with('success', 'Task updated successfully.');
+    }
+
+    /**
+     * Move a task to a new position and/or column via drag & drop
+     */
+    public function moveTask(Request $request, Project $project, \App\Models\Task $task)
+    {
+        $validated = $request->validate([
+            'column_id' => 'required|exists:columns,id',
+            'position' => 'required|integer|min:0',
+        ]);
+
+        // Verify task belongs to this project
+        if ($task->phase && $task->phase->project_id !== $project->id) {
+            abort(403, 'Task does not belong to this project.');
+        }
+
+        // Verify column belongs to this project
+        $column = $project->columns()->findOrFail($validated['column_id']);
+
+        $oldColumnId = $task->column_id;
+        $oldPosition = $task->position;
+
+        // Update task
+        $task->column_id = $validated['column_id'];
+        $task->position = $validated['position'];
+        $task->save();
+
+        // Adjust positions in the old column (if changed)
+        if ($oldColumnId !== $validated['column_id']) {
+            \App\Models\Task::where('column_id', $oldColumnId)
+                ->where('position', '>', $oldPosition)
+                ->decrement('position');
+        }
+
+        // Adjust positions in the new column to make space for the moved task
+        \App\Models\Task::where('column_id', $validated['column_id'])
+            ->where('id', '!=', $task->id)
+            ->where('position', '>=', $validated['position'])
+            ->increment('position');
+
+        return response()->json(['success' => true]);
     }
 
     /**

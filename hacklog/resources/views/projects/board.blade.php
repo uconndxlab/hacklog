@@ -318,6 +318,22 @@ document.addEventListener('keydown', function(e) {
     max-width: none;
 }
 
+/* Drag & Drop Styles */
+.board-column.drop-target {
+    outline: 2px dashed #007bff;
+    outline-offset: -2px;
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.task-card.dragging {
+    transform: rotate(2deg);
+    z-index: 1000;
+}
+
+.insertion-indicator {
+    pointer-events: none;
+}
+
 /* Hide scrollbar on webkit browsers */
 .board-container::-webkit-scrollbar {
     height: 8px;
@@ -337,4 +353,208 @@ document.addEventListener('keydown', function(e) {
     background: #a8a8a8;
 }
 </style>
+
+<script>
+// Drag & Drop functionality for task reordering and moving
+(function() {
+    let draggedTask = null;
+    let placeholder = null;
+    let originalPosition = null;
+
+    // Create insertion indicator
+    function createInsertionIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'insertion-indicator';
+        indicator.style.cssText = `
+            height: 2px;
+            background-color: #007bff;
+            margin: 4px 0;
+            border-radius: 1px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        `;
+        return indicator;
+    }
+
+    // Show insertion indicator at position
+    function showInsertionIndicator(container, beforeElement) {
+        if (placeholder) {
+            placeholder.remove();
+        }
+        placeholder = createInsertionIndicator();
+        if (beforeElement) {
+            container.insertBefore(placeholder, beforeElement);
+        } else {
+            container.appendChild(placeholder);
+        }
+        setTimeout(() => placeholder.style.opacity = '1', 0);
+    }
+
+    // Hide insertion indicator
+    function hideInsertionIndicator() {
+        if (placeholder) {
+            placeholder.style.opacity = '0';
+            setTimeout(() => {
+                if (placeholder) placeholder.remove();
+                placeholder = null;
+            }, 200);
+        }
+    }
+
+    // Get drop position based on mouse Y coordinate
+    function getDropPosition(container, clientY) {
+        const taskCards = Array.from(container.querySelectorAll('.task-card:not(.dragging)'));
+        if (taskCards.length === 0) return 0;
+
+        for (let i = 0; i < taskCards.length; i++) {
+            const rect = taskCards[i].getBoundingClientRect();
+            if (clientY < rect.top + rect.height / 2) {
+                return i;
+            }
+        }
+        return taskCards.length;
+    }
+
+    // Drag start
+    document.addEventListener('dragstart', function(e) {
+        if (!e.target.classList.contains('task-card')) return;
+
+        draggedTask = e.target;
+        originalPosition = {
+            columnId: draggedTask.dataset.columnId,
+            position: parseInt(draggedTask.dataset.position)
+        };
+
+        // Reduce opacity
+        draggedTask.style.opacity = '0.5';
+        draggedTask.classList.add('dragging');
+
+        // Set drag data
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', draggedTask.dataset.taskId);
+    });
+
+    // Drag over
+    document.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        const column = e.target.closest('.board-column');
+        if (!column) return;
+
+        const taskContainer = column.querySelector('[id^="board-column-"][id$="-tasks"]');
+        if (!taskContainer) return;
+
+        // Highlight column
+        document.querySelectorAll('.board-column').forEach(col => col.classList.remove('drop-target'));
+        column.classList.add('drop-target');
+
+        // Show insertion indicator
+        const position = getDropPosition(taskContainer, e.clientY);
+        const taskCards = Array.from(taskContainer.querySelectorAll('.task-card:not(.dragging)'));
+        const beforeElement = taskCards[position] || null;
+        showInsertionIndicator(taskContainer, beforeElement);
+    });
+
+    // Drag leave
+    document.addEventListener('dragleave', function(e) {
+        // Only hide if leaving the column entirely
+        const column = e.target.closest('.board-column');
+        const relatedColumn = e.relatedTarget ? e.relatedTarget.closest('.board-column') : null;
+        if (column && !relatedColumn) {
+            column.classList.remove('drop-target');
+            hideInsertionIndicator();
+        }
+    });
+
+    // Drop
+    document.addEventListener('drop', function(e) {
+        e.preventDefault();
+
+        if (!draggedTask) return;
+
+        const column = e.target.closest('.board-column');
+        if (!column) return;
+
+        const taskContainer = column.querySelector('[id^="board-column-"][id$="-tasks"]');
+        if (!taskContainer) return;
+
+        const newColumnId = column.dataset.columnId;
+        const position = getDropPosition(taskContainer, e.clientY);
+
+        // If same column and same position, do nothing
+        if (newColumnId === originalPosition.columnId && position === originalPosition.position) {
+            resetDragState();
+            return;
+        }
+
+        // Move task in DOM
+        const taskCards = Array.from(taskContainer.querySelectorAll('.task-card:not(.dragging)'));
+        const beforeElement = taskCards[position] || null;
+        if (beforeElement) {
+            taskContainer.insertBefore(draggedTask, beforeElement);
+        } else {
+            taskContainer.appendChild(draggedTask);
+        }
+
+        // Remove empty state if it exists
+        const emptyState = taskContainer.querySelector('.text-muted.text-center');
+        if (emptyState) {
+            emptyState.remove();
+        }
+
+        // Update data attributes
+        draggedTask.dataset.columnId = newColumnId;
+        draggedTask.dataset.position = position;
+
+        // Send to server
+        fetch(`/projects/{{ $project->id }}/board/tasks/${draggedTask.dataset.taskId}/move`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                column_id: newColumnId,
+                position: position
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                // Revert on failure
+                revertTaskPosition();
+            }
+        })
+        .catch(() => {
+            // Revert on error
+            revertTaskPosition();
+        })
+        .finally(() => {
+            resetDragState();
+        });
+    });
+
+    // Drag end
+    document.addEventListener('dragend', function(e) {
+        resetDragState();
+    });
+
+    function resetDragState() {
+        if (draggedTask) {
+            draggedTask.style.opacity = '';
+            draggedTask.classList.remove('dragging');
+        }
+        document.querySelectorAll('.board-column').forEach(col => col.classList.remove('drop-target'));
+        hideInsertionIndicator();
+        draggedTask = null;
+        originalPosition = null;
+    }
+
+    function revertTaskPosition() {
+        // Simple revert: reload the board
+        window.location.reload();
+    }
+})();
+</script>
 @endsection

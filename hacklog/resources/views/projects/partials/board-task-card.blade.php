@@ -1,5 +1,9 @@
 {{-- Task card for project board view --}}
-<div class="card mb-2" id="board-task-{{ $task->id }}">
+<div class="card mb-2 task-card" 
+     data-task-id="{{ $task->id }}" 
+     data-column-id="{{ $task->column_id }}" 
+     data-position="{{ $task->position }}"
+     draggable="true">
     <div class="card-body p-2">
         <div class="d-flex justify-content-between align-items-start mb-1">
             <h6 class="card-title mb-0">

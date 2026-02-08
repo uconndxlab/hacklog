@@ -74,7 +74,7 @@
         @endif
         <div class="d-flex justify-content-between align-items-center gap-2">
             @if($isEdit)
-                <a href="{{ $task->phase ? route('projects.phases.tasks.show', [$project, $task->phase, $task]) : route('projects.board', ['project' => $project, 'task' => $task->id]) }}" 
+                <a href="{{ $task->phase ? route('projects.phases.tasks.show', [$project, $task->phase, $task]) : route('projects.board.tasks.show', [$project, $task]) }}" 
                    class="btn btn-sm btn-outline-secondary">
                     View Details
                 </a>

@@ -1,5 +1,5 @@
 {{-- Kanban column for project board view --}}
-<div class="card h-100">
+<div class="card h-100 board-column" data-column-id="{{ $column->id }}">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <div>
             <h5 class="mb-0">{{ $column->name }}</h5>
