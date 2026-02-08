@@ -106,6 +106,18 @@ class User extends Authenticatable
         return $this->active;
     }
 
+    /**
+     * Get the user's last activity timestamp from their most recent session.
+     */
+    public function getLastActivityAttribute()
+    {
+        $lastActivity = \DB::table('sessions')
+            ->where('user_id', $this->id)
+            ->max('last_activity');
+        
+        return $lastActivity ? \Carbon\Carbon::createFromTimestamp($lastActivity) : null;
+    }
+
     public function tasks(): BelongsToMany
     {
         return $this->belongsToMany(Task::class)->withTimestamps();

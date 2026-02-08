@@ -24,7 +24,7 @@
                                 <th>Email</th>
                                 <th>Role</th>
                                 <th>Status</th>
-                                <th>Last Login</th>
+                                <th>Last Activity</th>
                                 <th>Joined</th>
                                 <th class="text-end">Actions</th>
                             </tr>
@@ -52,9 +52,9 @@
                                         @endif
                                     </td>
                                     <td>
-                                        @if($user->last_login_at)
-                                            <span class="text-muted" title="{{ $user->last_login_at->format('M j, Y g:i A') }}">
-                                                {{ $user->last_login_at->diffForHumans() }}
+                                        @if($user->last_activity)
+                                            <span class="text-muted" title="{{ $user->last_activity->format('M j, Y g:i A') }}">
+                                                {{ $user->last_activity->diffForHumans() }}
                                             </span>
                                         @else
                                             <span class="text-muted fst-italic">Never</span>
