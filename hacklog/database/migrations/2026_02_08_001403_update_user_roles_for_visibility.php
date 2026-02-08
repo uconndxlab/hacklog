@@ -19,17 +19,41 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // First, update existing 'user' role to 'team'
-        DB::table('users')
-            ->where('role', 'user')
-            ->update(['role' => 'team']);
+        // SQLite-specific approach: We need to handle the case where
+        // the schema may have been partially migrated
         
-        // Now alter the column to support new roles
-        Schema::table('users', function (Blueprint $table) {
-            $table->enum('role', ['admin', 'team', 'client'])
-                ->default('team')
-                ->change();
+        // Temporarily disable foreign key constraints
+        DB::statement('PRAGMA foreign_keys = OFF;');
+        
+        // Create a new table with the correct schema
+        Schema::create('users_new', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->enum('role', ['admin', 'team', 'client'])->default('team');
+            $table->boolean('active')->default(true);
+            $table->string('netid')->unique()->nullable();
+            $table->rememberToken();
+            $table->timestamps();
         });
+        
+        // Copy data from old table, converting 'user' role to 'team'
+        DB::statement("
+            INSERT INTO users_new (id, name, email, email_verified_at, password, role, active, netid, remember_token, created_at, updated_at)
+            SELECT id, name, email, email_verified_at, password, 
+                   CASE WHEN role = 'user' THEN 'team' ELSE role END,
+                   active, netid, remember_token, created_at, updated_at
+            FROM users
+        ");
+        
+        // Drop old table and rename new one
+        Schema::dropIfExists('users');
+        Schema::rename('users_new', 'users');
+        
+        // Re-enable foreign key constraints
+        DB::statement('PRAGMA foreign_keys = ON;');
     }
 
     /**
