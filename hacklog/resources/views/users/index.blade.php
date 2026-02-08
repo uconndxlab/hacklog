@@ -24,6 +24,7 @@
                                 <th>Email</th>
                                 <th>Role</th>
                                 <th>Status</th>
+                                <th>Last Login</th>
                                 <th>Joined</th>
                                 <th class="text-end">Actions</th>
                             </tr>
@@ -51,6 +52,15 @@
                                         @endif
                                     </td>
                                     <td>
+                                        @if($user->last_login_at)
+                                            <span class="text-muted" title="{{ $user->last_login_at->format('M j, Y g:i A') }}">
+                                                {{ $user->last_login_at->diffForHumans() }}
+                                            </span>
+                                        @else
+                                            <span class="text-muted fst-italic">Never</span>
+                                        @endif
+                                    </td>
+                                    <td>
                                         <span class="text-muted">
                                             {{ $user->created_at->format('M j, Y') }}
                                         </span>
@@ -75,7 +85,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">
+                                    <td colspan="8" class="text-center text-muted py-4">
                                         No users found.
                                     </td>
                                 </tr>
