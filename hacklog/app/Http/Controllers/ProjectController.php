@@ -450,6 +450,76 @@ class ProjectController extends Controller
     }
 
     /**
+     * Store a task from the board modal
+     */
+    public function storeTask(Request $request, Project $project)
+    {
+        $validated = $request->validate([
+            'phase_id' => 'nullable|exists:phases,id',
+            'column_id' => 'required|exists:columns,id',
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'status' => 'required|in:planned,active,completed',
+            'start_date' => 'nullable|date',
+            'due_date' => 'nullable|date|after_or_equal:start_date',
+            'assignees' => 'nullable|array',
+            'assignees.*' => 'exists:users,id',
+        ]);
+
+        // If phase_id provided, verify it belongs to this project
+        if (!empty($validated['phase_id'])) {
+            $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
+            if ($phase->project_id !== $project->id) {
+                abort(403, 'Phase does not belong to this project.');
+            }
+        }
+
+        // Set position to end of column
+        $validated['position'] = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
+
+        // Create the task
+        $task = \App\Models\Task::create($validated);
+
+        // Sync assignees
+        $task->users()->sync($validated['assignees'] ?? []);
+
+        // Check if this is from the modal with HTMX
+        $fromBoardModal = $request->input('from_board_modal');
+        
+        if (request()->header('HX-Request') && $fromBoardModal) {
+            // HTMX: Return updated column task list
+            $column = $project->columns()->find($validated['column_id']);
+            $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
+                $query->where('project_id', $project->id);
+            })
+            ->with(['phase', 'users'])
+            ->get()
+            ->groupBy('column_id');
+            
+            $html = view('projects.partials.board-column-tasks', [
+                'column' => $column,
+                'columnTasks' => $tasks->get($validated['column_id'], collect()),
+                'project' => $project,
+                'allColumns' => $project->columns,
+                'isProjectBoard' => true
+            ])->render();
+            
+            $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
+            
+            return response($html);
+        }
+
+        // Redirect to task detail page if it has a phase, otherwise to board
+        if ($task->phase_id) {
+            return redirect()->route('projects.phases.tasks.show', [$project, $task->phase, $task])
+                ->with('success', 'Task created successfully.');
+        } else {
+            return redirect()->route('projects.board', $project)
+                ->with('success', 'Task created successfully.');
+        }
+    }
+
+    /**
      * Store a task from the task create form (with selectable phase)
      */
     public function storeProjectTask(Request $request, Project $project)

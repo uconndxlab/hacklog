@@ -165,6 +165,11 @@
                 loadProjects();
             });
 
+            // Focus search field when modal is fully shown
+            projectSelectionModal.addEventListener('shown.bs.modal', function() {
+                projectSearch.focus();
+            });
+
             // Handle search and sort changes
             projectSearch.addEventListener('input', loadProjects);
             projectSort.addEventListener('change', loadProjects);

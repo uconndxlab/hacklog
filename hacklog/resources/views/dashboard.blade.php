@@ -8,8 +8,8 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <h1>Welcome back, {{ Auth::user()->name }}</h1>
-                    <p class="lead text-muted mb-0">Here's what needs your attention</p>
+                    <h1>Dashboard</h1>
+                    <p class="text-muted mb-0">Here's what you've got on your plate.</p>
                 </div>
                 @if(Auth::user()->isClient())
                     <span class="badge bg-info" style="font-size: 0.875rem;">Client Access</span>
