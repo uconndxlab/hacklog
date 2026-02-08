@@ -101,6 +101,11 @@ class Task extends Model
         return $this->belongsToMany(User::class)->withTimestamps();
     }
 
+    public function comments()
+    {
+        return $this->hasMany(TaskComment::class)->orderBy('created_at', 'desc');
+    }
+
     /**
      * Get the project this task belongs to.
      * Uses the column relationship as the source of truth since tasks

@@ -248,7 +248,7 @@
 @endif
 
 <script>
-// Add current filter parameters to HTMX requests
+// Add current filter parameters and CSRF token to HTMX requests
 document.body.addEventListener('htmx:configRequest', function(evt) {
     const params = new URLSearchParams(window.location.search);
     
@@ -260,6 +260,12 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
     // Add assigned filter if present
     if (params.get('assigned')) {
         evt.detail.parameters['assigned'] = params.get('assigned');
+    }
+    
+    // Add CSRF token to all HTMX requests
+    const token = document.querySelector('meta[name="csrf-token"]');
+    if (token) {
+        evt.detail.headers['X-CSRF-TOKEN'] = token.getAttribute('content');
     }
 });
 

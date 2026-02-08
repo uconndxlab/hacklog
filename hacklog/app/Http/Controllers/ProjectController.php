@@ -415,7 +415,7 @@ class ProjectController extends Controller
     /**
      * Return task edit form for board modal
      */
-    public function editTask(Project $project, \App\Models\Task $task)
+    public function editTask(Project $project, \App\Models\Task $task, $activeTab = 'details')
     {
         // Verify task belongs to this project via column
         if ($task->column->project_id !== $project->id) {
@@ -428,9 +428,9 @@ class ProjectController extends Controller
             ->get();
         $columns = $project->columns;
         $users = \App\Models\User::orderBy('name')->get();
-        $task->load('users');
+        $task->load(['users', 'comments.user']);
         
-        return view('projects.partials.board-task-form', compact('project', 'task', 'phases', 'columns', 'users'));
+        return view('projects.partials.board-task-form', compact('project', 'task', 'phases', 'columns', 'users', 'activeTab'));
     }
 
     /**
@@ -640,6 +640,109 @@ class ProjectController extends Controller
             ->increment('position');
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Store a comment on a task
+     */
+    public function storeComment(Request $request, Project $project, \App\Models\Task $task)
+    {
+        \Log::info('storeComment called', [
+            'task_id' => $task->id,
+            'project_id' => $project->id,
+            'user_id' => auth()->id(),
+            'body' => $request->input('body'),
+        ]);
+        
+        // Verify task belongs to this project
+        if ($task->column->project_id !== $project->id) {
+            abort(403, 'Task does not belong to this project.');
+        }
+
+        $validated = $request->validate([
+            'body' => 'required|string|max:1000',
+        ]);
+
+        $comment = \App\Models\TaskComment::create([
+            'task_id' => $task->id,
+            'user_id' => auth()->id(),
+            'body' => $validated['body'],
+        ]);
+        
+        \Log::info('Comment created', ['comment_id' => $comment->id]);
+
+        // Load the user for display
+        $comment->load('user');
+
+        // Return the task edit form with comments tab active
+        return $this->editTask($project, $task, 'discussion');
+    }
+
+    /**
+     * Delete a comment from a task
+     */
+    public function deleteComment(Request $request, Project $project, \App\Models\Task $task, \App\Models\TaskComment $comment)
+    {
+        // Verify task belongs to this project
+        if ($task->column->project_id !== $project->id) {
+            abort(403, 'Task does not belong to this project.');
+        }
+
+        // Verify comment belongs to this task
+        if ($comment->task_id !== $task->id) {
+            abort(403, 'Comment does not belong to this task.');
+        }
+
+        // Check authorization: user owns comment or is admin
+        $user = auth()->user();
+        if ($comment->user_id !== $user->id && !$user->isAdmin()) {
+            abort(403, 'You are not authorized to delete this comment.');
+        }
+
+        $comment->delete();
+
+        // Return the task edit form with comments tab active
+        return $this->editTask($project, $task, 'discussion');
+    }
+
+    /**
+     * Delete a task from the board
+     */
+    public function deleteTask(Request $request, Project $project, \App\Models\Task $task)
+    {
+        // Verify task belongs to this project
+        if ($task->column->project_id !== $project->id) {
+            abort(403, 'Task does not belong to this project.');
+        }
+
+        // Check authorization: user owns task or is admin
+        $user = auth()->user();
+        if ($task->user_id !== $user->id && !$user->isAdmin()) {
+            abort(403, 'You are not authorized to delete this task.');
+        }
+
+        $task->delete();
+
+        // Return updated column HTML for HTMX
+        $column = $project->columns()->find($task->column_id);
+        $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
+            $query->where('project_id', $project->id);
+        })
+        ->with(['phase', 'users'])
+        ->get()
+        ->groupBy('column_id');
+
+        $html = view('projects.partials.board-column-tasks', [
+            'column' => $column,
+            'columnTasks' => $tasks->get($task->column_id, collect()),
+            'project' => $project,
+            'allColumns' => $project->columns,
+            'isProjectBoard' => true
+        ])->render();
+
+        $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
+
+        return response($html);
     }
 
     /**

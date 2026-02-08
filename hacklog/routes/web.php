@@ -49,7 +49,10 @@ Route::post('projects/{project}/board/create-default-columns', [ProjectControlle
 Route::get('projects/{project}/board/task-form', [ProjectController::class, 'taskForm'])->name('projects.board.task-form');
 Route::post('projects/{project}/board/tasks', [ProjectController::class, 'storeTask'])->name('projects.board.tasks.store');
 Route::get('projects/{project}/board/tasks/{task}/edit', [ProjectController::class, 'editTask'])->name('projects.board.tasks.edit');    Route::get('projects/{project}/board/tasks/{task}', [ProjectController::class, 'showTask'])->name('projects.board.tasks.show');Route::put('projects/{project}/board/tasks/{task}', [ProjectController::class, 'updateTask'])->name('projects.board.tasks.update');
+Route::delete('projects/{project}/board/tasks/{task}', [ProjectController::class, 'deleteTask'])->name('projects.board.tasks.destroy');
 Route::post('projects/{project}/board/tasks/{task}/move', [ProjectController::class, 'moveTask'])->name('projects.board.tasks.move');
+Route::post('projects/{project}/board/tasks/{task}/comments', [ProjectController::class, 'storeComment'])->name('projects.board.tasks.comments.store');
+Route::delete('projects/{project}/board/tasks/{task}/comments/{comment}', [ProjectController::class, 'deleteComment'])->name('projects.board.tasks.comments.destroy');
 Route::post('projects/{project}/tasks', [ProjectController::class, 'storeProjectTask'])->name('projects.tasks.store');
 Route::get('projects/{project}/schedule', [ProjectController::class, 'schedule'])->name('projects.schedule');
 Route::get('projects/{project}/timeline', [ProjectController::class, 'timeline'])->name('projects.timeline');

@@ -74,6 +74,8 @@
         @endif
         <div class="d-flex justify-content-between align-items-center gap-2">
             @if($isEdit)
+
+            
                 <a href="{{ $task->phase ? route('projects.phases.tasks.show', [$project, $task->phase, $task]) : route('projects.board.tasks.show', [$project, $task]) }}" 
                    class="btn btn-sm btn-outline-secondary">
                     View Details
@@ -82,6 +84,18 @@
                 <div></div>
             @endif
             <div class="d-flex gap-2">
+                @if($isEdit)
+                <button type="button" 
+                        class="btn btn-sm btn-outline-danger" 
+                        onclick="if(confirm('Are you sure you want to delete this task? This action cannot be undone.')) { 
+                            htmx.ajax('DELETE', '{{ route('projects.board.tasks.destroy', [$project, $task]) }}', {
+                                target: '#board-column-{{ $task->column_id }}-tasks',
+                                swap: 'outerHTML'
+                            });
+                        }">
+                    <i class="bi bi-trash"></i> Delete Task
+                </button>
+                @endif
                 <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" class="btn btn-sm btn-primary">
                     {{ $isEdit ? 'Update Task' : 'Create Task' }}
@@ -90,8 +104,51 @@
         </div>
     </div>
     
+    {{-- Tabs - sticky at top --}}
+    @if($isEdit)
+    <div class="border-bottom px-3" style="position: sticky; top: 0; background: white; z-index: 10; flex-shrink: 0;">
+        <ul class="nav nav-tabs" id="taskModalTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {{ ($activeTab ?? 'details') === 'details' ? 'active' : '' }}" 
+                        id="details-tab" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#details" 
+                        type="button" 
+                        role="tab" 
+                        aria-controls="details" 
+                        aria-selected="{{ ($activeTab ?? 'details') === 'details' ? 'true' : 'false' }}">
+                    Details
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {{ ($activeTab ?? 'details') === 'discussion' ? 'active' : '' }}" 
+                        id="discussion-tab" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#discussion" 
+                        type="button" 
+                        role="tab" 
+                        aria-controls="discussion" 
+                        aria-selected="{{ ($activeTab ?? 'details') === 'discussion' ? 'true' : 'false' }}">
+                    Discussion
+                </button>
+            </li>
+        </ul>
+    </div>
+    @endif
+    
     {{-- Scrollable body --}}
-    <div style="flex: 1; overflow-y: auto; padding: 1rem 1.5rem;">
+    <div style="flex: 1; min-height: 0; overflow-y: auto;">
+        @if($isEdit)
+        <div class="tab-content" id="taskModalTabContent" style="height: 100%;">
+            {{-- Details Tab --}}
+            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'details' ? 'show active' : '' }}" 
+                 id="details" 
+                 role="tabpanel" 
+                 aria-labelledby="details-tab"
+                 style="padding: 1rem 1.5rem; height: 100%; overflow-y: auto;">
+        @else
+        <div style="padding: 1rem 1.5rem; height: 100%; overflow-y: auto;">
+        @endif
         
         {{-- Phase selector --}}
         <div class="mb-3">
@@ -264,9 +321,77 @@
             @enderror
         </div>
 
-
-
-
+        @if($isEdit)
+            </div>
+            
+            {{-- Discussion Tab --}}
+            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'discussion' ? 'show active' : '' }}" 
+                 id="discussion" 
+                 role="tabpanel" 
+                 aria-labelledby="discussion-tab"
+                 style="height: 100%; overflow-y: auto;">
+                
+                {{-- Comment form - sticky at top --}}
+                <div class="border-bottom" style="position: sticky; top: 0; background: white; z-index: 10; padding: 1rem 1.5rem; padding-bottom: 1rem;">
+                    <div id="commentFormContainer">
+                        <div class="mb-2">
+                            <textarea 
+                                id="commentBody"
+                                name="body" 
+                                class="form-control" 
+                                rows="1" 
+                                placeholder="Add a comment... (Ctrl+Enter to submit)"
+                                style="resize: none; min-height: 36px;"
+                                required></textarea>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Press Ctrl+Enter to submit</small>
+                            <button type="button" 
+                                    id="postCommentBtn"
+                                    class="btn btn-sm btn-outline-primary"
+                                    data-comment-url="{{ route('projects.board.tasks.comments.store', [$project, $task]) }}"
+                                    >Post comment</button>
+                        </div>
+                    </div>
+                </div>
+                
+                {{-- Comments list - scrollable --}}
+                <div style="padding: 1rem 1.5rem;">
+                    @forelse($task->comments as $comment)
+                        <div class="mb-3">
+                            <div class="d-flex align-items-start justify-content-between gap-2">
+                                <div class="d-flex align-items-start gap-2">
+                                    <strong class="text-sm">{{ $comment->user->name }}</strong>
+                                    <small class="text-muted">{{ $comment->created_at->diffForHumans() }}</small>
+                                </div>
+                                @php
+                                    $canDelete = auth()->id() === $comment->user_id || (auth()->user() && auth()->user()->isAdmin());
+                                @endphp
+                                @if($canDelete)
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            hx-delete="{{ route('projects.board.tasks.comments.destroy', [$project, $task, $comment]) }}"
+                                            hx-target="#taskModalContent"
+                                            hx-swap="innerHTML"
+                                            hx-confirm="Are you sure you want to delete this comment?"
+                                            title="Delete comment">
+                                        x
+                                    </button>
+                                @endif
+                            </div>
+                            <div class="text-sm mt-1">{!! nl2br(e($comment->body)) !!}</div>
+                        </div>
+                    @empty
+                        <div class="text-muted text-center py-3">
+                            <small>No comments yet. Start the discussion!</small>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+        @else
+        </div>
+        @endif
     </div>
 </form>
 
@@ -391,6 +516,57 @@
     
     // Initialize pills on page load
     updatePills();
+})();
+
+// Comment form handling
+(function() {
+    const commentBtn = document.getElementById('postCommentBtn');
+    const textarea = document.getElementById('commentBody');
+    
+    if (!commentBtn || !textarea) return;
+    
+    // Expand textarea on focus
+    textarea.addEventListener('focus', function() {
+        this.rows = 3;
+    });
+    
+    // Auto-resize textarea
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+    });
+    
+    // Keyboard shortcuts
+    textarea.addEventListener('keydown', function(e) {
+        // Cmd/Ctrl + Enter to submit
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (textarea.value.trim()) {
+                commentBtn.click();
+            }
+        }
+        // Esc to blur (don't close modal)
+        else if (e.key === 'Escape') {
+            e.preventDefault();
+            this.blur();
+        }
+    });
+    
+    // Handle comment submission manually
+    commentBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const body = textarea.value.trim();
+        if (!body) return;
+        
+        const url = commentBtn.getAttribute('data-comment-url');
+        
+        htmx.ajax('POST', url, {
+            target: '#taskModalContent',
+            swap: 'innerHTML',
+            values: { body: body }
+        });
+    });
 })();
 
 // Update modal title for global modal
