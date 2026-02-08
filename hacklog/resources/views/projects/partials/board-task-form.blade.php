@@ -22,16 +22,13 @@
     // Determine current phase from request or task
     $currentPhaseId = old('phase_id', $isEdit ? $task->phase_id : request()->query('phase'));
     
-    // If no phase selected, pick first active or first available
-    if (!$currentPhaseId) {
+    // If no phase selected and creating new task, pick first active or first available
+    if (!$currentPhaseId && !$isEdit) {
         $currentPhaseId = $phases->where('status', 'active')->first()?->id ?? $phases->first()?->id;
     }
     
     // Get current phase for date display
     $currentPhase = $phases->firstWhere('id', $currentPhaseId);
-    
-    // Determine if we should hide phase selector (only one phase exists)
-    $singlePhase = $phases->count() === 1;
     
     // Determine default status from column name
     $defaultStatus = 'planned';
@@ -96,43 +93,39 @@
     {{-- Scrollable body --}}
     <div style="flex: 1; overflow-y: auto; padding: 1rem 1.5rem;">
         
-        {{-- Phase selector (hidden if only one phase) --}}
-        @if($singlePhase)
-            <input type="hidden" name="phase_id" value="{{ $phases->first()->id }}">
-        @else
-            <div class="mb-3">
-                <label for="phase_id" class="form-label fw-semibold">Phase <span class="text-muted fw-normal">(optional)</span></label>
-                <select
-                    class="form-select @error('phase_id') is-invalid @enderror"
-                    id="phase_id"
-                    name="phase_id">
-                    <option value="">None</option>
-                    @foreach($phases as $phase)
-                        <option value="{{ $phase->id }}"
-                            data-start="{{ $phase->start_date?->format('M j, Y') }}"
-                            data-end="{{ $phase->end_date?->format('M j, Y') }}"
-                            {{ $currentPhaseId == $phase->id ? 'selected' : '' }}>
-                            {{ $phase->name }}
-                            @if($phase->status === 'active') • Active @endif
-                        </option>
-                    @endforeach
-                </select>
-                @if($currentPhase && ($currentPhase->start_date || $currentPhase->end_date))
-                    <div class="text-muted small mt-1" id="phaseDateRange">
-                        @if($currentPhase->start_date && $currentPhase->end_date)
-                            {{ $currentPhase->start_date->format('M j') }} – {{ $currentPhase->end_date->format('M j, Y') }}
-                        @elseif($currentPhase->start_date)
-                            Starts {{ $currentPhase->start_date->format('M j, Y') }}
-                        @elseif($currentPhase->end_date)
-                            Due {{ $currentPhase->end_date->format('M j, Y') }}
-                        @endif
-                    </div>
-                @endif
-                @error('phase_id')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-            </div>
-        @endif
+        {{-- Phase selector --}}
+        <div class="mb-3">
+            <label for="phase_id" class="form-label fw-semibold">Phase <span class="text-muted fw-normal">(optional)</span></label>
+            <select
+                class="form-select @error('phase_id') is-invalid @enderror"
+                id="phase_id"
+                name="phase_id">
+                <option value="">None</option>
+                @foreach($phases as $phase)
+                    <option value="{{ $phase->id }}"
+                        data-start="{{ $phase->start_date?->format('M j, Y') }}"
+                        data-end="{{ $phase->end_date?->format('M j, Y') }}"
+                        {{ $currentPhaseId == $phase->id ? 'selected' : '' }}>
+                        {{ $phase->name }}
+                        @if($phase->status === 'active') • Active @endif
+                    </option>
+                @endforeach
+            </select>
+            @if($currentPhase && ($currentPhase->start_date || $currentPhase->end_date))
+                <div class="text-muted small mt-1" id="phaseDateRange">
+                    @if($currentPhase->start_date && $currentPhase->end_date)
+                        {{ $currentPhase->start_date->format('M j') }} – {{ $currentPhase->end_date->format('M j, Y') }}
+                    @elseif($currentPhase->start_date)
+                        Starts {{ $currentPhase->start_date->format('M j, Y') }}
+                    @elseif($currentPhase->end_date)
+                        Due {{ $currentPhase->end_date->format('M j, Y') }}
+                    @endif
+                </div>
+            @endif
+            @error('phase_id')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+        </div>
         
         {{-- Task title --}}
         <div class="mb-3">
