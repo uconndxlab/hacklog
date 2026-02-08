@@ -75,11 +75,21 @@
                 <small class="text-muted">Project: <strong>{{ $project->name }}</strong></small>
             </div>
         @endif
-        <div class="d-flex justify-content-end gap-2">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-sm btn-primary">
-                {{ $isEdit ? 'Update Task' : 'Create Task' }}
-            </button>
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            @if($isEdit)
+                <a href="{{ $task->phase ? route('projects.phases.tasks.show', [$project, $task->phase, $task]) : route('projects.board', ['project' => $project, 'task' => $task->id]) }}" 
+                   class="btn btn-sm btn-outline-secondary">
+                    View Details
+                </a>
+            @else
+                <div></div>
+            @endif
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    {{ $isEdit ? 'Update Task' : 'Create Task' }}
+                </button>
+            </div>
         </div>
     </div>
     
@@ -140,67 +150,52 @@
             @enderror
         </div>
 
-                {{-- Status (less prominent) --}}
-        <div class="mb-3">
-            <label for="status" class="form-label text-muted small">Status</label>
-            <select 
-                class="form-select form-select-sm @error('status') is-invalid @enderror" 
-                id="status" 
-                name="status" 
-                required>
-                <option value="planned" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'planned' ? 'selected' : '' }}>Planned</option>
-                <option value="active" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'active' ? 'selected' : '' }}>Active</option>
-                <option value="completed" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'completed' ? 'selected' : '' }}>Completed</option>
-            </select>
-            @error('status')
-                <div class="invalid-feedback">{{ $message }}</div>
-            @enderror
-        </div>
-
-                @if($isEdit)
-            <div class="mb-3">
-                <label for="column_id_select" class="form-label text-muted small">Column</label>
+        {{-- Status and Column in columnar layout --}}
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="status" class="form-label">Status</label>
                 <select 
-                    class="form-select form-select-sm @error('column_id') is-invalid @enderror" 
-                    id="column_id_select" 
-                    name="column_id" 
+                    class="form-select @error('status') is-invalid @enderror" 
+                    id="status" 
+                    name="status" 
                     required>
-                    @foreach($columns as $col)
-                        <option value="{{ $col->id }}" {{ $task->column_id == $col->id ? 'selected' : '' }}>
-                            {{ $col->name }}
-                        </option>
-                    @endforeach
+                    <option value="planned" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'planned' ? 'selected' : '' }}>Planned</option>
+                    <option value="active" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'active' ? 'selected' : '' }}>Active</option>
+                    <option value="completed" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'completed' ? 'selected' : '' }}>Completed</option>
                 </select>
-                @error('column_id')
+                @error('status')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
-        @endif
-
-        {{-- Description editor --}}
-        <div class="mb-3">
-            <label for="description" class="form-label">Description</label>
-            <input 
-                id="description" 
-                type="hidden" 
-                name="description" 
-                value="{{ old('description', $isEdit ? $task->description : '') }}">
-            <trix-editor 
-                input="description" 
-                class="@error('description') is-invalid @enderror"
-                style="min-height: 120px;"></trix-editor>
-            @error('description')
-                <div class="invalid-feedback d-block">{{ $message }}</div>
-            @enderror
+            
+            @if($isEdit)
+                <div class="col-md-6">
+                    <label for="column_id_select" class="form-label">Column</label>
+                    <select 
+                        class="form-select @error('column_id') is-invalid @enderror" 
+                        id="column_id_select" 
+                        name="column_id" 
+                        required>
+                        @foreach($columns as $col)
+                            <option value="{{ $col->id }}" {{ $task->column_id == $col->id ? 'selected' : '' }}>
+                                {{ $col->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('column_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            @endif
         </div>
 
-        {{-- Dates --}}
-        <div class="row">
-            <div class="col-md-6 mb-3">
+        {{-- Dates in columnar layout --}}
+        <div class="row mb-3">
+            <div class="col-md-6">
                 <label for="start_date" class="form-label">Start Date</label>
                 <input 
                     type="date" 
-                    class="form-control form-control-sm @error('start_date') is-invalid @enderror" 
+                    class="form-control @error('start_date') is-invalid @enderror" 
                     id="start_date" 
                     name="start_date" 
                     value="{{ old('start_date', $isEdit && $task->start_date ? $task->start_date->format('Y-m-d') : '') }}">
@@ -209,11 +204,11 @@
                 @enderror
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 <label for="due_date" class="form-label">Due Date</label>
                 <input 
                     type="date" 
-                    class="form-control form-control-sm @error('due_date') is-invalid @enderror" 
+                    class="form-control @error('due_date') is-invalid @enderror" 
                     id="due_date" 
                     name="due_date" 
                     value="{{ old('due_date', $isEdit && $task->due_date ? $task->due_date->format('Y-m-d') : '') }}">
@@ -224,7 +219,7 @@
         </div>
         
         @if(!$isEdit || (!$task->start_date && !$task->due_date))
-            <div class="text-muted small mb-3" style="margin-top: -0.5rem;">
+            <div class="text-muted small mb-3" style="margin-top: -0.75rem;">
                 If no dates are set, this task will inherit the phase's date range.
             </div>
         @endif
@@ -255,6 +250,23 @@
                 'inputName' => 'assignees[]'
             ])
             @error('assignees')
+                <div class="invalid-feedback d-block">{{ $message }}</div>
+            @enderror
+        </div>
+
+        {{-- Description editor --}}
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <input 
+                id="description" 
+                type="hidden" 
+                name="description" 
+                value="{{ old('description', $isEdit ? $task->description : '') }}">
+            <trix-editor 
+                input="description" 
+                class="@error('description') is-invalid @enderror"
+                style="min-height: 120px;"></trix-editor>
+            @error('description')
                 <div class="invalid-feedback d-block">{{ $message }}</div>
             @enderror
         </div>

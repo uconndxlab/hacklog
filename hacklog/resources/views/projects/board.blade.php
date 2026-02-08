@@ -109,7 +109,7 @@
 
 {{-- Task Creation/Edit Modal --}}
 <div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
             <div class="modal-header" style="flex-shrink: 0;">
                 <h5 class="modal-title" id="taskModalLabel">Task</h5>
@@ -129,7 +129,7 @@
 
 {{-- Task Details Modal --}}
 <div class="modal fade" id="taskDetailsModal" tabindex="-1" aria-labelledby="taskDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
             <div class="modal-header" style="flex-shrink: 0;">
                 <h5 class="modal-title" id="taskDetailsModalLabel">Task Details</h5>

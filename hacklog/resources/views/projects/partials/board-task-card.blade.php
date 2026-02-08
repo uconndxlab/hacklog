@@ -3,12 +3,12 @@
     <div class="card-body p-2">
         <div class="d-flex justify-content-between align-items-start mb-1">
             <h6 class="card-title mb-0">
-                <a href="{{ $task->phase ? route('projects.phases.tasks.show', [$project, $task->phase, $task]) : route('projects.board', ['project' => $project, 'task' => $task->id]) }}" 
+                <a href="{{ route('projects.board.tasks.edit', [$project, $task]) }}" 
                    class="text-decoration-none"
                    data-bs-toggle="modal" 
-                   data-bs-target="#taskDetailsModal"
-                   hx-get="{{ route('projects.board.tasks.show', [$project, $task]) }}"
-                   hx-target="#taskDetailsModalContent">
+                   data-bs-target="#taskModal"
+                   hx-get="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
+                   hx-target="#taskModalContent">
                     {{ $task->title }}
                 </a>
             </h6>
@@ -87,7 +87,7 @@
         </p>
         
         {{-- Edit button --}}
-        <div class="mb-2">
+        <div class="mb-2 d-none">
             <button 
                 type="button" 
                 class="btn btn-sm btn-outline-secondary w-100"

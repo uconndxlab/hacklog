@@ -127,7 +127,7 @@
 
     {{-- Task Creation Modal --}}
     <div class="modal fade" id="taskCreationModal" tabindex="-1" aria-labelledby="taskCreationModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
                 <div class="modal-header" style="flex-shrink: 0;">
                     <h5 class="modal-title" id="taskCreationModalLabel">Create Task</h5>
