@@ -79,7 +79,11 @@
                                                     </a>
                                                 </div>
                                                 <div class="small text-muted">
-                                                    {{ $task->phase->name }}
+                                                    @if($task->phase)
+                                                        {{ $task->phase->name }}
+                                                    @else
+                                                        <em>No Phase</em>
+                                                    @endif
                                                     <span class="mx-1">•</span>
                                                     <span class="@if($task->isOverdue()) text-danger @endif">
                                                         {{ $task->due_date->format('M j, Y') }}
