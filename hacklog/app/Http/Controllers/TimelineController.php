@@ -177,9 +177,10 @@ class TimelineController extends Controller
             
             // Count task effective due dates in this week
             // Includes tasks with explicit due_date OR tasks inheriting from phase end_date
-            $tasks = \App\Models\Task::with('phase')
-                ->whereHas('phase', function ($q) use ($phases) {
-                    $q->whereIn('id', $phases->pluck('id'));
+            // Include tasks from visible projects, whether they have phases or not
+            $tasks = \App\Models\Task::with(['phase', 'column.project'])
+                ->whereHas('column.project', function ($q) use ($user) {
+                    $q->whereIn('id', Project::visibleTo($user)->pluck('id'));
                 })
                 ->when(!$showCompleted, function ($q) {
                     $q->where('status', '!=', 'completed');

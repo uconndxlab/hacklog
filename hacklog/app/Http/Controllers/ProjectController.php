@@ -263,42 +263,7 @@ class ProjectController extends Controller
      */
     public function board(Request $request, Project $project)
     {
-        // If no phase filter is specified, redirect to first active phase
-        if (!$request->has('phase') || !$request->phase) {
-            $firstActivePhase = $project->phases()
-                ->where('status', 'active')
-                ->orderBy('name')
-                ->first();
-            
-            // If there's an active phase, redirect to it
-            if ($firstActivePhase) {
-                return redirect()->route('projects.board', array_merge(
-                    [
-                        'project' => $project,
-                        'phase' => $firstActivePhase->id
-                    ],
-                    $request->only(['task', 'assigned'])
-                ));
-            }
-            
-            // Otherwise, try to find the first planned phase
-            $firstPlannedEpic = $project->phases()
-                ->where('status', 'planned')
-                ->orderBy('name')
-                ->first();
-            
-            if ($firstPlannedEpic) {
-                return redirect()->route('projects.board', array_merge(
-                    [
-                        'project' => $project,
-                        'phase' => $firstPlannedEpic->id
-                    ],
-                    $request->only(['task', 'assigned'])
-                ));
-            }
-            
-            // If no active or planned phases, fall through to show all
-        }
+        // No longer auto-redirect to a phase - allow viewing all tasks when no phase filter is applied
         
         // Load columns ordered by position
         $columns = $project->columns()->orderBy('position')->get();
@@ -675,7 +640,7 @@ class ProjectController extends Controller
         $showCompleted = $request->query('show_completed', '0') === '1';
 
         // Load phases with their tasks, eager loading columns for task display
-        // Tasks are sorted by effective due date (explicit due_date or inherited from phase)
+        // Include all tasks, we'll filter by due dates in the view
         $project->load(['phases' => function ($query) use ($showCompleted, $request) {
             if (!$showCompleted) {
                 $query->where('status', '!=', 'completed');
@@ -684,28 +649,63 @@ class ProjectController extends Controller
                   ->orderBy('start_date', 'asc')
                   ->with(['tasks' => function ($taskQuery) use ($request, $showCompleted) {
                       $taskQuery->with('column', 'users');
-                      
-                      // Only show tasks with effective due dates (explicit or inherited)
-                      // This will be handled by eager loading, we'll filter in the view
-                      
+
                       // Filter by assigned user
                       if ($request->input('assigned') === 'me') {
                           $taskQuery->whereHas('users', function ($query) use ($request) {
                               $query->where('users.id', $request->user()->id);
                           });
                       }
-                      
+
                       if (!$showCompleted) {
                           $taskQuery->where('status', '!=', 'completed');
                       }
-                      
-                      // Sort by explicit due_date first, then position
+
                       $taskQuery->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
                                 ->orderBy('due_date', 'asc');
                   }]);
         }]);
 
-        return view('projects.schedule', compact('project', 'showCompleted'));
+        // Load standalone tasks (tasks without phases) that have due dates
+        $standaloneTasks = \App\Models\Task::with('column', 'users')
+            ->whereHas('column', function ($q) use ($project) {
+                $q->where('project_id', $project->id);
+            })
+            ->whereNull('phase_id')
+            ->where(function ($query) {
+                // Tasks with explicit due_date
+                $query->whereNotNull('due_date');
+            })
+            ->when($request->input('assigned') === 'me', function ($q) use ($request) {
+                $q->whereHas('users', function ($query) use ($request) {
+                    $query->where('users.id', $request->user()->id);
+                });
+            })
+            ->when(!$showCompleted, function ($q) {
+                $q->where('status', '!=', 'completed');
+            })
+            ->orderBy('due_date', 'asc')
+            ->get();
+
+        // Load standalone tasks without due dates
+        $standaloneTasksNoDates = \App\Models\Task::with('column', 'users')
+            ->whereHas('column', function ($q) use ($project) {
+                $q->where('project_id', $project->id);
+            })
+            ->whereNull('phase_id')
+            ->whereNull('due_date')
+            ->when($request->input('assigned') === 'me', function ($q) use ($request) {
+                $q->whereHas('users', function ($query) use ($request) {
+                    $query->where('users.id', $request->user()->id);
+                });
+            })
+            ->when(!$showCompleted, function ($q) {
+                $q->where('status', '!=', 'completed');
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('projects.schedule', compact('project', 'showCompleted', 'standaloneTasks', 'standaloneTasksNoDates'));
     }
 
     /**
@@ -840,9 +840,9 @@ class ProjectController extends Controller
             
             // Count task effective due dates in this week
             // Includes tasks with explicit due_date OR tasks inheriting from phase end_date
-            $tasks = \App\Models\Task::with('phase')
-                ->whereHas('phase', function ($q) use ($phases) {
-                    $q->whereIn('id', $phases->pluck('id'));
+            $tasks = \App\Models\Task::with(['phase', 'column'])
+                ->whereHas('column', function ($q) use ($project) {
+                    $q->where('project_id', $project->id);
                 })
                 ->when(!$showCompleted, function ($q) {
                     $q->where('status', '!=', 'completed');

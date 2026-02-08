@@ -26,6 +26,10 @@
                     View Details
                 </button>
             @endif
+        @else
+            <span class="badge bg-secondary">
+                All Phases
+            </span>
         @endif
     </div>
     <div class="d-flex gap-2">
@@ -37,7 +41,7 @@
                 Filter by Phase
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="{{ route('projects.board', $project) }}">All Phases</a></li>
+                <li><a class="dropdown-item {{ !request('phase') ? 'active' : '' }}" href="{{ route('projects.board', $project) }}">All Phases</a></li>
                 <li><hr class="dropdown-divider"></li>
                 @foreach($phases as $phase)
                     <li>

@@ -132,13 +132,20 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
                                                 <h4 class="h6 mb-1 @if($task->status === 'completed') text-muted @endif">
-                                                    <a href="{{ route('projects.phases.tasks.show', [$task->phase->project, $task->phase, $task]) }}" 
-                                                       class="@if($task->status === 'completed') text-muted @else text-body @endif text-decoration-none">
-                                                        {{ $task->title }}
-                                                    </a>
+                                                    @if($task->phase)
+                                                        <a href="{{ route('projects.phases.tasks.show', [$task->phase->project, $task->phase, $task]) }}" 
+                                                           class="@if($task->status === 'completed') text-muted @else text-body @endif text-decoration-none">
+                                                            {{ $task->title }}
+                                                        </a>
+                                                    @else
+                                                        <a href="{{ route('projects.board', ['project' => $task->getProject(), 'task' => $task->id]) }}" 
+                                                           class="@if($task->status === 'completed') text-muted @else text-body @endif text-decoration-none">
+                                                            {{ $task->title }}
+                                                        </a>
+                                                    @endif
                                                 </h4>
                                                 <div class="small @if($task->status === 'completed') text-muted @else text-muted @endif">
-                                                    <span class="fw-medium">{{ $task->phase->project->name }}</span>
+                                                    <span class="fw-medium">{{ $task->getProject()->name }}</span>
                                                     @if($task->phase)
                                                         <span class="mx-1">→</span>
                                                         <span>{{ $task->phase->name }}</span>

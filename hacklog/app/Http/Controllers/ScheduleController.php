@@ -38,7 +38,7 @@ class ScheduleController extends Controller
         // Include tasks with explicit due_date OR tasks that can inherit from phase end_date
         $tasksQuery = Task::query()
             ->with(['phase.project', 'column', 'users'])
-            ->whereHas('phase', function ($q) use ($visibleProjectIds) {
+            ->whereHas('column.project', function ($q) use ($visibleProjectIds) {
                 // Only show tasks from visible projects
                 $q->whereIn('project_id', $visibleProjectIds);
             })
