@@ -29,8 +29,10 @@
     </div>
     <div class="card-body">
         <dl class="row mb-0">
-            <dt class="col-sm-4">Phase</dt>
-            <dd class="col-sm-8">{{ $task->phase->name }}</dd>
+            @if($task->phase)
+                <dt class="col-sm-4">Phase</dt>
+                <dd class="col-sm-8">{{ $task->phase->name }}</dd>
+            @endif
 
             <dt class="col-sm-4">Column</dt>
             <dd class="col-sm-8">{{ $task->column->name }}</dd>
@@ -60,9 +62,11 @@
 </div>
 
 <div class="mt-3 d-flex gap-2">
-    <a href="{{ route('projects.phases.tasks.show', [$project, $task->phase, $task]) }}" class="btn btn-outline-secondary">
-        View Full Page
-    </a>
+    @if($task->phase)
+        <a href="{{ route('projects.phases.tasks.show', [$project, $task->phase, $task]) }}" class="btn btn-outline-secondary">
+            View Full Page
+        </a>
+    @endif
     <button 
         type="button" 
         class="btn btn-primary"

@@ -3,7 +3,7 @@
     <div class="card-body p-2">
         <div class="d-flex justify-content-between align-items-start mb-1">
             <h6 class="card-title mb-0">
-                <a href="{{ route('projects.phases.tasks.show', [$project, $task->phase, $task]) }}" 
+                <a href="{{ $task->phase ? route('projects.phases.tasks.show', [$project, $task->phase, $task]) : route('projects.board', ['project' => $project, 'task' => $task->id]) }}" 
                    class="text-decoration-none"
                    data-bs-toggle="modal" 
                    data-bs-target="#taskDetailsModal"
@@ -18,10 +18,10 @@
                 <div class="btn-group btn-group-sm" role="group">
                     @if($task->canMoveUp())
                         <form 
-                            action="{{ route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) }}" 
+                            action="{{ $task->phase ? route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) : '#' }}" 
                             method="POST" 
                             class="d-inline"
-                            hx-post="{{ route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) }}"
+                            hx-post="{{ $task->phase ? route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) : '#' }}"
                             hx-target="#board-column-{{ $task->column_id }}-tasks"
                             hx-swap="outerHTML">
                             @csrf
@@ -34,10 +34,10 @@
                     
                     @if($task->canMoveDown())
                         <form 
-                            action="{{ route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) }}" 
+                            action="{{ $task->phase ? route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) : '#' }}" 
                             method="POST" 
                             class="d-inline"
-                            hx-post="{{ route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) }}"
+                            hx-post="{{ $task->phase ? route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) : '#' }}"
                             hx-target="#board-column-{{ $task->column_id }}-tasks"
                             hx-swap="outerHTML">
                             @csrf
@@ -45,15 +45,17 @@
                             <button type="submit" class="btn btn-outline-secondary">↓</button>
                         </form>
                     @else
-                        <button type="button" class="btn btn-outline-secondary" disabled>↓</button>
+                        <button type="button" class="btn btn-outline-secondary" disabled>↑</button>
                     @endif
                 </div>
             @endif
         </div>
         
-        <p class="card-text mb-2">
-            <small class="text-muted">Phase: {{ $task->phase->name }}</small>
-        </p>
+        @if($task->phase)
+            <p class="card-text mb-2">
+                <small class="text-muted">Phase: {{ $task->phase->name }}</small>
+            </p>
+        @endif
         
         @if($task->due_date)
             <p class="card-text mb-2">
@@ -99,7 +101,7 @@
         
         {{-- Column selector with HTMX enhancement --}}
         <form 
-            action="{{ route('projects.phases.tasks.update', [$project, $task->phase, $task]) }}" 
+            action="{{ route('projects.board.tasks.update', [$project, $task]) }}" 
             method="POST"
             class="mt-2">
             @csrf
@@ -109,7 +111,8 @@
             <input type="hidden" name="title" value="{{ $task->title }}">
             <input type="hidden" name="description" value="{{ $task->description }}">
             <input type="hidden" name="status" value="{{ $task->status }}">
-            <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
+            <input type="hidden" name="phase_id" value="{{ $task->phase_id }}">
+            <input type="hidden" name="from_board_modal" value="1">
             <input type="hidden" name="old_column_id" value="{{ $task->column_id }}">
             <input type="hidden" name="column_change_only" value="1">
             @foreach($task->users as $user)
@@ -121,7 +124,7 @@
                     name="column_id" 
                     class="form-select form-select-sm"
                     hx-trigger="change"
-                    hx-put="{{ route('projects.phases.tasks.update', [$project, $task->phase, $task]) }}"
+                    hx-put="{{ route('projects.board.tasks.update', [$project, $task]) }}"
                     hx-target="#board-column-{{ $task->column_id }}-tasks"
                     hx-swap="outerHTML"
                     hx-include="closest form">

@@ -20,7 +20,7 @@ class DashboardController extends Controller
             $query->where('users.id', $user->id);
         })
         ->where('status', '!=', 'completed')
-        ->with(['phase.project', 'column'])
+        ->with(['phase.project', 'column.project'])
         ->get();
 
         // Group assigned tasks by priority

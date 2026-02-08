@@ -3,42 +3,38 @@
 @section('title', $project->name . ' - Board')
 
 @section('content')
+@include('projects.partials.project-header')
 @include('projects.partials.project-nav', ['currentView' => 'board'])
 
-<div class="board-header mb-4">
-    <div class="board-header-title">
-        <h1 class="mb-2 mb-md-0">{{ $project->name }}</h1>
+{{-- Page Actions --}}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
         @if(request('phase'))
             @php
                 $filteredPhase = $phases->firstWhere('id', request('phase'));
             @endphp
             @if($filteredPhase)
-                <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
-                    <span class="badge bg-primary">
-                        {{ $filteredPhase->name }}
-                        <a href="{{ route('projects.board', $project) }}" class="text-white text-decoration-none ms-1">×</a>
-                    </span>
-                    <button 
-                        type="button" 
-                        class="btn btn-sm btn-outline-secondary"
-                        data-bs-toggle="modal" 
-                        data-bs-target="#phaseInfoModal">
-                        <span class="d-none d-sm-inline">View Details</span>
-                        <span class="d-inline d-sm-none">Details</span>
-                    </button>
-                </div>
+                <span class="badge bg-primary">
+                    {{ $filteredPhase->name }}
+                    <a href="{{ route('projects.board', $project) }}" class="text-white text-decoration-none ms-1">×</a>
+                </span>
+                <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-secondary"
+                    data-bs-toggle="modal" 
+                    data-bs-target="#phaseInfoModal">
+                    View Details
+                </button>
             @endif
         @endif
     </div>
-    <div class="board-header-actions">
+    <div class="d-flex gap-2">
         <a href="{{ route('projects.phases.create', $project) }}" class="btn btn-sm btn-primary">
-            <span class="d-none d-md-inline">Create Phase</span>
-            <span class="d-inline d-md-none">New Phase</span>
+            Create Phase
         </a>
         <div class="dropdown">
             <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Filter by Phase">
-                <span class="d-none d-lg-inline">Filter by Phase</span>
-                <span class="d-inline d-lg-none">Phase</span>
+                Filter by Phase
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="{{ route('projects.board', $project) }}">All Phases</a></li>
@@ -57,24 +53,19 @@
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Filter by assignee">
                 @php
                     $assigned = request('assigned');
-                    $assignedLabel = 'All';
-                    $assignedLabelFull = 'All Tasks';
+                    $assignedLabel = 'All Tasks';
                     if ($assigned === 'me') {
-                        $assignedLabel = 'Me';
-                        $assignedLabelFull = 'Assigned to Me';
+                        $assignedLabel = 'Assigned to Me';
                     } elseif ($assigned === 'none') {
-                        $assignedLabel = 'None';
-                        $assignedLabelFull = 'Unassigned';
+                        $assignedLabel = 'Unassigned';
                     } elseif ($assigned && is_numeric($assigned)) {
                         $assignedUser = \App\Models\User::find($assigned);
                         if ($assignedUser) {
-                            $assignedLabel = $assignedUser->name;
-                            $assignedLabelFull = 'Assigned to ' . $assignedUser->name;
+                            $assignedLabel = 'Assigned to ' . $assignedUser->name;
                         }
                     }
                 @endphp
-                <span class="d-none d-lg-inline">{{ $assignedLabelFull }}</span>
-                <span class="d-inline d-lg-none">{{ $assignedLabel }}</span>
+                {{ $assignedLabel }}
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item {{ !request('assigned') ? 'active' : '' }}" 
@@ -97,15 +88,27 @@
                 @endforeach
             </ul>
         </div>
+        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#manageColumnsModal">
+            Manage Columns
+        </button>
     </div>
 </div>
 
 @if($columns->isEmpty())
-    @include('partials.empty-state', [
-        'message' => 'No columns configured yet. Set up your kanban workflow by creating columns like "To Do", "In Progress", and "Done".',
-        'actionUrl' => route('projects.columns.create', $project),
-        'actionText' => 'Create your first column'
-    ])
+    <div class="alert alert-light border text-center">
+        <h5 class="alert-heading">This project has no columns yet.</h5>
+        <p class="mb-3">Get started quickly with a standard kanban workflow or create custom columns.</p>
+        <div class="d-flex justify-content-center gap-2">
+            <form method="POST" action="{{ route('projects.board.create-default-columns', $project) }}" class="d-inline">
+                @csrf
+                <button type="submit" class="btn btn-primary">Use default columns</button>
+            </form>
+            <a href="{{ route('projects.columns.create', $project) }}" class="btn btn-outline-secondary">Create custom column</a>
+        </div>
+        <div class="mt-2 text-muted small">
+            Default columns: Backlog → In Progress → Ready for Testing → Completed
+        </div>
+    </div>
 @else
     <div class="board-container" id="board-container">
         @foreach($columns as $column)
@@ -125,14 +128,14 @@
 {{-- Task Creation/Edit Modal --}}
 <div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+        <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="flex-shrink: 0;">
                 <h5 class="modal-title" id="taskModalLabel">Task</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="taskModalContent">
+            <div class="modal-body p-0" id="taskModalContent" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
                 {{-- Content loaded via HTMX --}}
-                <div class="text-center py-4">
+                <div class="text-center py-4" style="flex: 1; display: flex; align-items: center; justify-content: center;">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
@@ -293,6 +296,20 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
                 modal.removeEventListener('shown.bs.modal', handleShown);
             };
             modal.addEventListener('shown.bs.modal', handleShown);
+        }
+    }
+});
+
+// Esc key closes modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const taskModal = bootstrap.Modal.getInstance(document.getElementById('taskModal'));
+        if (taskModal) {
+            taskModal.hide();
+        }
+        const detailsModal = bootstrap.Modal.getInstance(document.getElementById('taskDetailsModal'));
+        if (detailsModal) {
+            detailsModal.hide();
         }
     }
 });

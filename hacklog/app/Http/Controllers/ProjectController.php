@@ -158,12 +158,40 @@ class ProjectController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'status' => 'required|in:active,paused,archived',
+            'use_default_columns' => 'boolean',
         ]);
 
         $project = Project::create($validated);
 
+        // Create default columns if requested
+        if ($request->boolean('use_default_columns')) {
+            $this->createDefaultColumnsForProject($project);
+        }
+
         return redirect()->route('projects.show', $project)
             ->with('success', 'Project created successfully.');
+    }
+
+    /**
+     * Create default columns for a project
+     */
+    protected function createDefaultColumnsForProject(Project $project)
+    {
+        // Only create if project has no columns
+        if ($project->columns()->exists()) {
+            return;
+        }
+
+        $defaultColumns = [
+            ['name' => 'Backlog', 'position' => 1],
+            ['name' => 'In Progress', 'position' => 2],
+            ['name' => 'Ready for Testing', 'position' => 3],
+            ['name' => 'Completed', 'position' => 4],
+        ];
+
+        foreach ($defaultColumns as $columnData) {
+            $project->columns()->create($columnData);
+        }
     }
 
     /**
@@ -179,7 +207,7 @@ class ProjectController extends Controller
         }, 'columns']);
 
         // Get upcoming tasks (next 5, ordered by due date)
-        $upcomingTasks = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
+        $upcomingTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         })
         ->where('status', '!=', 'completed')
@@ -193,7 +221,7 @@ class ProjectController extends Controller
         // Calculate project health metrics
         $activePhasesCount = $project->phases()->where('status', '!=', 'completed')->count();
         
-        $overdueTasks = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
+        $overdueTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         })
         ->where('status', '!=', 'completed')
@@ -202,7 +230,7 @@ class ProjectController extends Controller
         ->count();
 
         // Find nearest upcoming due date (task or phase)
-        $nearestTaskDate = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
+        $nearestTaskDate = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         })
         ->where('status', '!=', 'completed')
@@ -281,8 +309,8 @@ class ProjectController extends Controller
             ->orderBy('name')
             ->get();
         
-        // Build task query
-        $tasksQuery = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
+        // Build task query (include tasks with or without phases)
+        $tasksQuery = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         });
         
@@ -316,6 +344,23 @@ class ProjectController extends Controller
     }
 
     /**
+     * Create default columns for a project and redirect to board
+     */
+    public function createDefaultColumns(Request $request, Project $project)
+    {
+        // Only create if project has no columns
+        if ($project->columns()->exists()) {
+            return redirect()->route('projects.board', $project)
+                ->with('error', 'Default columns can only be created for projects with no existing columns.');
+        }
+
+        $this->createDefaultColumnsForProject($project);
+
+        return redirect()->route('projects.board', $project)
+            ->with('success', 'Default columns created successfully.');
+    }
+
+    /**
      * Return task creation form for board modal
      */
     public function taskForm(Request $request, Project $project)
@@ -335,8 +380,8 @@ class ProjectController extends Controller
      */
     public function editTask(Project $project, \App\Models\Task $task)
     {
-        // Verify task belongs to this project
-        if ($task->phase->project_id !== $project->id) {
+        // Verify task belongs to this project via column
+        if ($task->column->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
         }
 
@@ -356,8 +401,8 @@ class ProjectController extends Controller
      */
     public function showTask(Project $project, \App\Models\Task $task)
     {
-        // Verify task belongs to this project
-        if ($task->phase->project_id !== $project->id) {
+        // Verify task belongs to this project via column
+        if ($task->column->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
         }
 
@@ -372,7 +417,7 @@ class ProjectController extends Controller
     public function storeTask(Request $request, Project $project)
     {
         $validated = $request->validate([
-            'phase_id' => 'required|exists:phases,id',
+            'phase_id' => 'nullable|exists:phases,id',
             'column_id' => 'required|exists:columns,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -383,17 +428,19 @@ class ProjectController extends Controller
             'assignees.*' => 'exists:users,id',
         ]);
 
-        // Find the phase and verify it belongs to this project
-        $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
-        if ($phase->project_id !== $project->id) {
-            abort(403, 'Phase does not belong to this project.');
+        // If phase_id provided, verify it belongs to this project
+        if (!empty($validated['phase_id'])) {
+            $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
+            if ($phase->project_id !== $project->id) {
+                abort(403, 'Phase does not belong to this project.');
+            }
         }
 
         // Set position to end of column
         $validated['position'] = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
 
         // Create the task
-        $task = $phase->tasks()->create($validated);
+        $task = \App\Models\Task::create($validated);
 
         // Sync assignees
         $task->users()->sync($validated['assignees'] ?? []);
@@ -404,7 +451,7 @@ class ProjectController extends Controller
         if (request()->header('HX-Request') && $fromBoardModal) {
             // HTMX: Return updated column task list
             $columns = $project->columns;
-            $tasks = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
+            $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
                 $query->where('project_id', $project->id);
             })
             ->with(['phase', 'users'])
@@ -439,7 +486,7 @@ class ProjectController extends Controller
     public function storeProjectTask(Request $request, Project $project)
     {
         $validated = $request->validate([
-            'phase_id' => 'required|exists:phases,id',
+            'phase_id' => 'nullable|exists:phases,id',
             'column_id' => 'required|exists:columns,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -450,23 +497,31 @@ class ProjectController extends Controller
             'assignees.*' => 'exists:users,id',
         ]);
 
-        // Find the phase and verify it belongs to this project
-        $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
-        if ($phase->project_id !== $project->id) {
-            abort(403, 'Phase does not belong to this project.');
+        // If phase_id provided, verify it belongs to this project
+        if (!empty($validated['phase_id'])) {
+            $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
+            if ($phase->project_id !== $project->id) {
+                abort(403, 'Phase does not belong to this project.');
+            }
         }
 
         // Set position to end of column
         $validated['position'] = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
 
         // Create the task
-        $task = $phase->tasks()->create($validated);
+        $task = \App\Models\Task::create($validated);
 
         // Sync assignees
         $task->users()->sync($validated['assignees'] ?? []);
 
-        return redirect()->route('projects.phases.tasks.show', [$project, $phase, $task])
-            ->with('success', 'Task created successfully.');
+        // Redirect to task detail page if it has a phase, otherwise to board
+        if ($task->phase_id) {
+            return redirect()->route('projects.phases.tasks.show', [$project, $task->phase, $task])
+                ->with('success', 'Task created successfully.');
+        } else {
+            return redirect()->route('projects.board', $project)
+                ->with('success', 'Task created successfully.');
+        }
     }
 
     /**
@@ -475,12 +530,12 @@ class ProjectController extends Controller
     public function updateTask(Request $request, Project $project, \App\Models\Task $task)
     {
         // Verify task belongs to this project
-        if ($task->phase->project_id !== $project->id) {
+        if ($task->phase && $task->phase->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
         }
 
         $validated = $request->validate([
-            'phase_id' => 'required|exists:phases,id',
+            'phase_id' => 'nullable|exists:phases,id',
             'column_id' => 'required|exists:columns,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -491,10 +546,12 @@ class ProjectController extends Controller
             'assignees.*' => 'exists:users,id',
         ]);
 
-        // Verify the new phase belongs to this project
-        $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
-        if ($phase->project_id !== $project->id) {
-            abort(403, 'Phase does not belong to this project.');
+        // If phase_id provided, verify it belongs to this project
+        if (!empty($validated['phase_id'])) {
+            $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
+            if ($phase->project_id !== $project->id) {
+                abort(403, 'Phase does not belong to this project.');
+            }
         }
 
         $oldColumnId = $task->column_id;
@@ -517,7 +574,7 @@ class ProjectController extends Controller
         if (request()->header('HX-Request') && $fromBoardModal) {
             // HTMX: Return updated column task lists
             $columns = $project->columns;
-            $tasks = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
+            $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
                 $query->where('project_id', $project->id);
             })
             ->with(['phase', 'users'])
@@ -685,6 +742,7 @@ class ProjectController extends Controller
                 'timelineStart' => null,
                 'timelineEnd' => null,
                 'tooWide' => false,
+                'showCompleted' => $showCompleted,
             ]);
         }
 

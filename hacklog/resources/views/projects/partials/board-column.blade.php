@@ -11,7 +11,7 @@
                 class="btn btn-sm btn-outline-primary"
                 data-bs-toggle="modal" 
                 data-bs-target="#taskModal"
-                hx-get="{{ route('projects.board.task-form', ['project' => $project, 'column' => $column->id]) }}"
+                hx-get="{{ route('projects.board.task-form', array_merge(['project' => $project, 'column' => $column->id], request()->has('phase') ? ['phase' => request('phase')] : [])) }}"
                 hx-target="#taskModalContent"
                 hx-swap="innerHTML">
                 Add task

@@ -5,10 +5,11 @@
 @section('content')
 <div class="row">
     <div class="col-lg-12">
+        @include('projects.partials.project-header')
         @include('projects.partials.project-nav', ['currentView' => 'resources'])
 
-        <div class="d-flex justify-content-between align-items-start mb-4">
-            <h1 class="mb-0">{{ $project->name }}</h1>
+        {{-- Page Actions --}}
+        <div class="d-flex justify-content-end mb-4">
             <a href="{{ route('projects.resources.create', $project) }}" class="btn btn-primary">Add Resource</a>
         </div>
 

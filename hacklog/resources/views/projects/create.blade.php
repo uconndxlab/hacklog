@@ -55,6 +55,24 @@
                 @enderror
             </div>
 
+            <div class="mb-3">
+                <div class="form-check">
+                    <input 
+                        class="form-check-input" 
+                        type="checkbox" 
+                        id="use_default_columns" 
+                        name="use_default_columns" 
+                        value="1"
+                        {{ old('use_default_columns', true) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="use_default_columns">
+                        Use default columns
+                    </label>
+                    <div class="form-text">
+                        Creates standard columns: Backlog, In Progress, Ready for Testing, Completed
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">Create Project</button>
                 <a href="{{ route('projects.index') }}" class="btn btn-outline-secondary">Cancel</a>

@@ -5,17 +5,8 @@
 @section('content')
 <div class="row">
     <div class="col-lg-12">
+        @include('projects.partials.project-header')
         @include('projects.partials.project-nav', ['currentView' => 'settings'])
-
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('projects.index') }}">Projects</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Settings</li>
-            </ol>
-        </nav>
-
-        <h1 class="mb-4">{{ $project->name }} Settings</h1>
 
         {{-- Project Details Section --}}
         <div class="card mb-4">
@@ -78,12 +69,12 @@
         {{-- Phases Management Section --}}
         <div class="card mb-4">
             <div class="card-header bg-light">
-                <h2 class="h5 mb-0">Phases Management</h2>
+                <h2 class="h5 mb-0">Phases</h2>
             </div>
             <div class="card-body">
-                <p class="text-muted mb-3">Phases organize your work into major features or initiatives. Create and manage phases for this project.</p>
+                <p class="text-muted mb-3">Organize work into major features or initiatives.</p>
                 <div class="d-flex gap-2">
-                    <a href="{{ route('projects.phases.create', $project) }}" class="btn btn-outline-primary">Create New Phase</a>
+                    <a href="{{ route('projects.phases.create', $project) }}" class="btn btn-outline-primary">Create Phase</a>
                     <a href="{{ route('projects.phases.index', $project) }}" class="btn btn-outline-secondary">View All Phases</a>
                 </div>
             </div>
@@ -95,7 +86,7 @@
                 <h2 class="h5 mb-0">Board Columns</h2>
             </div>
             <div class="card-body">
-                <p class="text-muted mb-3">Configure the columns that appear on your kanban board. Columns represent workflow stages for tasks.</p>
+                <p class="text-muted mb-3">Configure workflow stages for your kanban board.</p>
                 <a href="{{ route('projects.columns.index', $project) }}" class="btn btn-outline-secondary">Manage Columns</a>
             </div>
         </div>

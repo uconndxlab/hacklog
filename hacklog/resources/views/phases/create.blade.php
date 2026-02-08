@@ -3,21 +3,13 @@
 @section('title', 'Create Phase - ' . $project->name)
 
 @section('content')
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ route('projects.index') }}">Projects</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.show', $project) }}">{{ $project->name }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.edit', $project) }}">Settings</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('projects.phases.index', $project) }}">Manage Phases</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Create Phase</li>
-    </ol>
-</nav>
+@include('projects.partials.project-header')
+@include('projects.partials.project-nav', ['currentView' => 'settings'])
 
 <div class="row">
     <div class="col-lg-8">
         <div class="mb-4">
-            <h1 class="mb-1">Create Phase</h1>
-            <p class="text-muted mb-0">{{ $project->name }}</p>
+            <h2 class="h4">Create Phase</h2>
         </div>
 
         <form action="{{ route('projects.phases.store', $project) }}" method="POST">

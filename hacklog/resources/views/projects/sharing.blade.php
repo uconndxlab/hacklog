@@ -3,16 +3,12 @@
 @section('title', $project->name . ' - Sharing & Access')
 
 @section('content')
+@include('projects.partials.project-header')
 @include('projects.partials.project-nav', ['currentView' => 'sharing'])
 
 <div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1>{{ $project->name }}</h1>
-                <p class="lead text-muted mb-0">Control who can see this project</p>
-            </div>
-        </div>
+    <div class="col-12 mb-3">
+        <p class="lead text-muted mb-0">Control who can see this project</p>
     </div>
 </div>
 

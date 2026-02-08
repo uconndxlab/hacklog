@@ -5,22 +5,24 @@
 @section('content')
 <div class="row">
     <div class="col-lg-12">
+        @include('projects.partials.project-header')
         @include('projects.partials.project-nav', ['currentView' => 'schedule'])
 
-        <div class="board-header mb-4">
-            <div class="board-header-title">
-                <h1 class="mb-0">{{ $project->name }}</h1>
+        {{-- Page Actions --}}
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a href="{{ route('projects.phases.create', $project) }}" class="btn btn-sm btn-primary">
+                    Create Phase
+                </a>
             </div>
-            <div class="board-header-actions">
+            <div>
                 @if($showCompleted)
                     <a href="{{ route('projects.schedule', $project) }}" class="btn btn-sm btn-outline-secondary">
-                        <span class="d-none d-md-inline">Hide Completed</span>
-                        <span class="d-inline d-md-none">Hide Done</span>
+                        Hide Completed
                     </a>
                 @else
                     <a href="{{ route('projects.schedule', ['project' => $project, 'show_completed' => '1']) }}" class="btn btn-sm btn-outline-secondary">
-                        <span class="d-none d-md-inline">Show Completed</span>
-                        <span class="d-inline d-md-none">Show Done</span>
+                        Show Completed
                     </a>
                 @endif
             </div>

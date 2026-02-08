@@ -5,17 +5,16 @@
 @section('content')
 <div class="row">
     <div class="col-12">
+        @include('projects.partials.project-header')
         @include('projects.partials.project-nav', ['currentView' => 'timeline'])
 
-        <div class="d-flex justify-content-between align-items-start mb-4">
-            <h1 class="mb-0">{{ $project->name }}</h1>
-            <div class="d-flex gap-2">
-                @if($showCompleted)
-                    <a href="{{ route('projects.timeline', $project) }}" class="btn btn-sm btn-outline-secondary">Hide Completed</a>
-                @else
-                    <a href="{{ route('projects.timeline', ['project' => $project, 'show_completed' => '1']) }}" class="btn btn-sm btn-outline-secondary">Show Completed</a>
-                @endif
-            </div>
+        {{-- Page Actions --}}
+        <div class="d-flex justify-content-end mb-4">
+            @if($showCompleted)
+                <a href="{{ route('projects.timeline', $project) }}" class="btn btn-sm btn-outline-secondary">Hide Completed</a>
+            @else
+                <a href="{{ route('projects.timeline', ['project' => $project, 'show_completed' => '1']) }}" class="btn btn-sm btn-outline-secondary">Show Completed</a>
+            @endif
         </div>
 
         @if($phases->isEmpty())

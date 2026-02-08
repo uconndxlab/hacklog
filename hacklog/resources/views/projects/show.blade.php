@@ -5,34 +5,16 @@
 @section('content')
 <div class="row">
     <div class="col-lg-12">
+        @include('projects.partials.project-header')
         @include('projects.partials.project-nav', ['currentView' => 'home'])
 
-        {{-- Project Header --}}
-        <div class="mb-4">
-            <div class="mb-2">
-                <h1 class="mb-2">{{ $project->name }}</h1>
-                <div>
-                    <span class="badge 
-                        @if($project->status === 'active') bg-success
-                        @elseif($project->status === 'paused') bg-warning text-dark
-                        @else bg-secondary
-                        @endif">
-                        {{ ucfirst($project->status) }}
-                    </span>
-                    <span class="text-muted small ms-2">
-                        Created {{ $project->created_at->format('M j, Y') }}
-                    </span>
+        @if($project->description)
+            <div class="mb-4">
+                <div class="trix-content text-muted">
+                    {!! $project->description !!}
                 </div>
             </div>
-            
-            @if($project->description)
-                <div class="mt-3">
-                    <div class="trix-content text-muted">
-                        {!! $project->description !!}
-                    </div>
-                </div>
-            @endif
-        </div>
+        @endif
 
         {{-- Project Health Summary --}}
         <h2 class="h4 mb-3">Project Health</h2>

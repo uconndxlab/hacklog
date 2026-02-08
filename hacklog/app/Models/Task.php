@@ -95,6 +95,16 @@ class Task extends Model
     }
 
     /**
+     * Get the project this task belongs to.
+     * Uses the column relationship as the source of truth since tasks
+     * can exist without a phase but must have a column.
+     */
+    public function getProject()
+    {
+        return $this->column->project;
+    }
+
+    /**
      * Get the next position for a new task in a column
      */
     public static function getNextPositionInColumn(int $columnId): int

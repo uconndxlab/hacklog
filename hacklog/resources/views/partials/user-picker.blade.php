@@ -11,34 +11,19 @@
 @endphp
 
 <div class="user-picker" id="{{ $pickerId }}">
-    {{-- Selected users summary --}}
-    <div class="mb-3">
-        @if(!empty($selectedUserIds))
-            <div class="text-muted small">
-                <strong>Assigned:</strong>
-                @php
-                    $selectedUsers = $users->whereIn('id', $selectedUserIds);
-                @endphp
-                {{ $selectedUsers->pluck('name')->join(', ') }}
-            </div>
-        @else
-            <div class="text-muted small">Unassigned</div>
-        @endif
-    </div>
-
     {{-- Search input --}}
     <div class="mb-2">
         <input
             type="text"
             class="form-control form-control-sm user-picker-search"
-            placeholder="Search users..."
+            placeholder="Search to assign..."
             autocomplete="off">
     </div>
 
     {{-- User list --}}
-    <div class="border rounded p-3 user-picker-list" style="max-height: 300px; overflow-y: auto;">
+    <div class="border rounded p-2 user-picker-list" style="max-height: 200px; overflow-y: auto;">
         @foreach($users as $user)
-            <div class="form-check mb-2 user-picker-item" data-user-name="{{ strtolower($user->name) }}">
+            <div class="form-check mb-1 user-picker-item" data-user-name="{{ strtolower($user->name) }}">
                 <input
                     class="form-check-input"
                     type="checkbox"
@@ -46,7 +31,7 @@
                     name="{{ $inputName }}"
                     value="{{ $user->id }}"
                     {{ in_array($user->id, $selectedUserIds) ? 'checked' : '' }}>
-                <label class="form-check-label w-100" for="{{ $inputName }}_{{ $user->id }}">
+                <label class="form-check-label w-100 small" for="{{ $inputName }}_{{ $user->id }}">
                     {{ $user->name }}
                 </label>
             </div>
