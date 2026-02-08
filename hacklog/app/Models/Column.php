@@ -20,6 +20,12 @@ class Column extends Model
         'is_default' => 'boolean',
     ];
 
+    /**
+     * Relationships to touch when this column or its tasks are updated.
+     * This will update the project's updated_at timestamp.
+     */
+    protected $touches = ['project'];
+
     protected static function booted()
     {
         static::addGlobalScope('ordered', function ($builder) {

@@ -17,9 +17,7 @@ class ProjectController extends Controller
         
         // Start with visibility-filtered projects
         $query = Project::visibleTo($user)
-            ->with(['phases' => function($q) {
-                $q->where('status', '!=', 'completed');
-            }]);
+            ->with(['phases.tasks.users', 'columns.tasks.users']); // Eager load tasks in phases and standalone tasks
 
         // Default filters for non-admin users
         // Clients default to 'all' (they only see shared projects anyway)
@@ -138,28 +136,66 @@ class ProjectController extends Controller
             $query = $query->limit($limit);
         }
 
-        $projects = $query->orderBy('updated_at', 'desc')->get();
-
         // Apply sorting
         $sort = $request->input('sort', 'recent_activity');
         if ($sort === 'alphabetical') {
-            $projects = $projects->sortBy('name');
+            $projects = $query->orderBy('name', 'asc')->get();
         } elseif ($sort === 'recent_activity') {
-            // Default: 6 most recent by updated_at, then rest alphabetically
-            $recent = $projects->take(6);
-            $rest = $projects->skip(6)->sortBy('name');
-            $projects = $recent->merge($rest);
+            // Sort by: 1) Projects with user's tasks first, 2) Recent activity
+            $projects = $query->orderBy('updated_at', 'desc')->get();
+            
+            // Partition projects: user has tasks vs. doesn't have tasks
+            $userHasTasks = $projects->filter(function($project) use ($user) {
+                // Check tasks in phases
+                $hasPhaseTask = $project->phases->some(function($phase) use ($user) {
+                    return $phase->tasks->some(function($task) use ($user) {
+                        return $task->users->contains($user->id);
+                    });
+                });
+                
+                // Check standalone tasks (tasks without phases)
+                $hasStandaloneTask = $project->columns->some(function($column) use ($user) {
+                    return $column->tasks->where('phase_id', null)->some(function($task) use ($user) {
+                        return $task->users->contains($user->id);
+                    });
+                });
+                
+                return $hasPhaseTask || $hasStandaloneTask;
+            })->sortByDesc('updated_at')->values();
+            
+            $userNoTasks = $projects->reject(function($project) use ($user) {
+                // Check tasks in phases
+                $hasPhaseTask = $project->phases->some(function($phase) use ($user) {
+                    return $phase->tasks->some(function($task) use ($user) {
+                        return $task->users->contains($user->id);
+                    });
+                });
+                
+                // Check standalone tasks (tasks without phases)
+                $hasStandaloneTask = $project->columns->some(function($column) use ($user) {
+                    return $column->tasks->where('phase_id', null)->some(function($task) use ($user) {
+                        return $task->users->contains($user->id);
+                    });
+                });
+                
+                return $hasPhaseTask || $hasStandaloneTask;
+            })->sortByDesc('updated_at')->values();
+            
+            $projects = $userHasTasks->merge($userNoTasks);
         } elseif ($sort === 'status') {
-            $projects = $projects->sortBy(function($project) {
-                return match($project->status) {
-                    'active' => 1,
-                    'planned' => 2,
-                    'paused' => 3,
-                    'completed' => 4,
-                    'archived' => 5,
-                    default => 6
-                };
-            });
+            $projects = $query->orderByRaw("
+                CASE 
+                    WHEN status = 'active' THEN 1 
+                    WHEN status = 'planned' THEN 2 
+                    WHEN status = 'paused' THEN 3 
+                    WHEN status = 'completed' THEN 4 
+                    WHEN status = 'archived' THEN 5 
+                    ELSE 6 
+                END
+            ")->orderBy('name', 'asc')->get();
+        } else {
+            // Default fallback
+            $projects = $query->orderBy('updated_at', 'desc')->get();
         }
 
         // If this is an HTMX request, return only the projects list partial

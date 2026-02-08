@@ -27,6 +27,13 @@ class Task extends Model
     ];
 
     /**
+     * Relationships to touch when this task is updated.
+     * This will update the updated_at timestamp on the parent column,
+     * which in turn will update the project's timestamp.
+     */
+    protected $touches = ['column'];
+
+    /**
      * Determine if the task is overdue.
      * 
      * A task is overdue if:
