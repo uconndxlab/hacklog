@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class ProjectController extends Controller
@@ -131,7 +132,35 @@ class ProjectController extends Controller
             });
         }
 
-        $projects = $query->orderBy('created_at', 'desc')->get();
+        // Limit for modal
+        $limit = $request->input('limit');
+        if ($limit && is_numeric($limit)) {
+            $query = $query->limit($limit);
+        }
+
+        $projects = $query->orderBy('updated_at', 'desc')->get();
+
+        // Apply sorting
+        $sort = $request->input('sort', 'recent_activity');
+        if ($sort === 'alphabetical') {
+            $projects = $projects->sortBy('name');
+        } elseif ($sort === 'recent_activity') {
+            // Default: 6 most recent by updated_at, then rest alphabetically
+            $recent = $projects->take(6);
+            $rest = $projects->skip(6)->sortBy('name');
+            $projects = $recent->merge($rest);
+        } elseif ($sort === 'status') {
+            $projects = $projects->sortBy(function($project) {
+                return match($project->status) {
+                    'active' => 1,
+                    'planned' => 2,
+                    'paused' => 3,
+                    'completed' => 4,
+                    'archived' => 5,
+                    default => 6
+                };
+            });
+        }
 
         // If this is an HTMX request, return only the projects list partial
         if ($request->header('HX-Request')) {
@@ -331,6 +360,13 @@ class ProjectController extends Controller
     public function taskForm(Request $request, Project $project)
     {
         $columnId = $request->query('column');
+        $isGlobalModal = $request->query('global_modal') === '1';
+        
+        // For global modal, pick the first column if none specified
+        if ($isGlobalModal && !$columnId) {
+            $columnId = $project->columns->first()?->id;
+        }
+        
         $phases = $project->phases()
             ->orderByRaw('CASE WHEN status = "active" THEN 1 WHEN status = "planned" THEN 2 ELSE 3 END')
             ->orderBy('name')
@@ -412,8 +448,14 @@ class ProjectController extends Controller
 
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
+        $fromGlobalModal = $request->input('global_modal');
         
-        if (request()->header('HX-Request') && $fromBoardModal) {
+        if (request()->header('HX-Request') && ($fromBoardModal || $fromGlobalModal)) {
+            if ($fromGlobalModal) {
+                // For global modal, just return success response
+                return response()->json(['success' => true, 'message' => 'Task created successfully.']);
+            }
+            
             // HTMX: Return updated column task list
             $columns = $project->columns;
             $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
@@ -639,6 +681,9 @@ class ProjectController extends Controller
     {
         $showCompleted = $request->query('show_completed', '0') === '1';
 
+        // Get all active users for assignee filter
+        $users = User::where('active', true)->orderBy('name')->get();
+
         // Load phases with their tasks, eager loading columns for task display
         // Include all tasks, we'll filter by due dates in the view
         $project->load(['phases' => function ($query) use ($showCompleted, $request) {
@@ -650,11 +695,16 @@ class ProjectController extends Controller
                   ->with(['tasks' => function ($taskQuery) use ($request, $showCompleted) {
                       $taskQuery->with('column', 'users');
 
-                      // Filter by assigned user
-                      if ($request->input('assigned') === 'me') {
-                          $taskQuery->whereHas('users', function ($query) use ($request) {
-                              $query->where('users.id', $request->user()->id);
-                          });
+                      // Filter by assignee
+                      if ($request->filled('assignee')) {
+                          $assignee = $request->input('assignee');
+                          if ($assignee === 'unassigned') {
+                              $taskQuery->whereDoesntHave('users');
+                          } else {
+                              $taskQuery->whereHas('users', function ($query) use ($assignee) {
+                                  $query->where('users.id', $assignee);
+                              });
+                          }
                       }
 
                       if (!$showCompleted) {
@@ -676,10 +726,15 @@ class ProjectController extends Controller
                 // Tasks with explicit due_date
                 $query->whereNotNull('due_date');
             })
-            ->when($request->input('assigned') === 'me', function ($q) use ($request) {
-                $q->whereHas('users', function ($query) use ($request) {
-                    $query->where('users.id', $request->user()->id);
-                });
+            ->when($request->filled('assignee'), function ($q) use ($request) {
+                $assignee = $request->input('assignee');
+                if ($assignee === 'unassigned') {
+                    $q->whereDoesntHave('users');
+                } else {
+                    $q->whereHas('users', function ($query) use ($assignee) {
+                        $query->where('users.id', $assignee);
+                    });
+                }
             })
             ->when(!$showCompleted, function ($q) {
                 $q->where('status', '!=', 'completed');
@@ -694,10 +749,15 @@ class ProjectController extends Controller
             })
             ->whereNull('phase_id')
             ->whereNull('due_date')
-            ->when($request->input('assigned') === 'me', function ($q) use ($request) {
-                $q->whereHas('users', function ($query) use ($request) {
-                    $query->where('users.id', $request->user()->id);
-                });
+            ->when($request->filled('assignee'), function ($q) use ($request) {
+                $assignee = $request->input('assignee');
+                if ($assignee === 'unassigned') {
+                    $q->whereDoesntHave('users');
+                } else {
+                    $q->whereHas('users', function ($query) use ($assignee) {
+                        $query->where('users.id', $assignee);
+                    });
+                }
             })
             ->when(!$showCompleted, function ($q) {
                 $q->where('status', '!=', 'completed');
@@ -705,7 +765,7 @@ class ProjectController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('projects.schedule', compact('project', 'showCompleted', 'standaloneTasks', 'standaloneTasksNoDates'));
+        return view('projects.schedule', compact('project', 'showCompleted', 'standaloneTasks', 'standaloneTasksNoDates', 'users'));
     }
 
     /**

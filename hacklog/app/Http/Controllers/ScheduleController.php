@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Task;
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -34,6 +35,12 @@ class ScheduleController extends Controller
         // Get visible project IDs for this user
         $visibleProjectIds = Project::visibleTo($user)->pluck('id');
 
+        // Get all visible projects for filter dropdown
+        $projects = Project::visibleTo($user)->orderBy('name')->get();
+
+        // Get all active users for assignee filter
+        $users = User::where('active', true)->orderBy('name')->get();
+
         // Build task query with eager loading to avoid N+1
         // Include tasks with explicit due_date OR tasks that can inherit from phase end_date
         $tasksQuery = Task::query()
@@ -56,11 +63,23 @@ class ScheduleController extends Controller
             $tasksQuery->where('status', '!=', 'completed');
         }
 
-        // Filter by assigned user
-        if ($request->input('assigned') === 'me') {
-            $tasksQuery->whereHas('users', function ($query) use ($request) {
-                $query->where('users.id', $request->user()->id);
+        // Filter by project
+        if ($request->filled('project_id')) {
+            $tasksQuery->whereHas('column.project', function ($q) use ($request) {
+                $q->where('id', $request->input('project_id'));
             });
+        }
+
+        // Filter by assignee
+        if ($request->filled('assignee')) {
+            $assignee = $request->input('assignee');
+            if ($assignee === 'unassigned') {
+                $tasksQuery->whereDoesntHave('users');
+            } else {
+                $tasksQuery->whereHas('users', function ($query) use ($assignee) {
+                    $query->where('users.id', $assignee);
+                });
+            }
         }
 
         // Get all tasks (we'll separate overdue vs. in-range in PHP)
@@ -105,7 +124,9 @@ class ScheduleController extends Controller
             'rangeGrouped',
             'filterStart',
             'filterEnd',
-            'showCompleted'
+            'showCompleted',
+            'projects',
+            'users'
         ));
     }
 }

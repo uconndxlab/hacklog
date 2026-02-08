@@ -1,12 +1,23 @@
 {{-- Task creation/edit form for board modal --}}
 @php
     $isEdit = isset($task);
+    $isGlobalModal = request()->query('global_modal') === '1';
     $formAction = $isEdit 
         ? route('projects.board.tasks.update', [$project, $task])
         : route('projects.board.tasks.store', $project);
     $formMethod = $isEdit ? 'PUT' : 'POST';
     $htmxMethod = $isEdit ? 'hx-put' : 'hx-post';
-    $targetColumnId = $isEdit ? $task->column_id : $columnId;
+    
+    if ($isGlobalModal) {
+        $htmxTarget = '#taskCreationModalContent';
+        $htmxSwap = 'innerHTML';
+        $htmxSuccess = 'closeModal';
+    } else {
+        $targetColumnId = $isEdit ? $task->column_id : $columnId;
+        $htmxTarget = "#board-column-{$targetColumnId}-tasks";
+        $htmxSwap = 'outerHTML';
+        $htmxSuccess = '';
+    }
     
     // Determine current phase from request or task
     $currentPhaseId = old('phase_id', $isEdit ? $task->phase_id : request()->query('phase'));
@@ -41,8 +52,9 @@
     action="{{ $formAction }}" 
     method="POST"
     {{ $htmxMethod }}="{{ $formAction }}"
-    hx-target="#board-column-{{ $targetColumnId }}-tasks"
-    hx-swap="outerHTML"
+    hx-target="{{ $htmxTarget }}"
+    hx-swap="{{ $htmxSwap }}"
+    @if($htmxSuccess) hx-on:htmx:after-request="{{ $htmxSuccess }}" @endif
     id="taskForm"
     style="display: flex; flex-direction: column; height: 100%;">
     @csrf
@@ -52,9 +64,17 @@
     
     <input type="hidden" name="column_id" value="{{ $isEdit ? $task->column_id : $columnId }}">
     <input type="hidden" name="from_board_modal" value="1">
+    @if($isGlobalModal)
+        <input type="hidden" name="global_modal" value="1">
+    @endif
     
     {{-- Sticky header with actions --}}
     <div class="border-bottom bg-light px-3 py-2" style="position: sticky; top: 0; z-index: 10; flex-shrink: 0;">
+        @if($isGlobalModal)
+            <div class="mb-2">
+                <small class="text-muted">Project: <strong>{{ $project->name }}</strong></small>
+            </div>
+        @endif
         <div class="d-flex justify-content-end gap-2">
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-sm btn-primary">
@@ -367,4 +387,15 @@
     // Initialize pills on page load
     updatePills();
 })();
+
+// Update modal title for global modal
+@if($isGlobalModal)
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const modalTitle = document.getElementById('taskCreationModalLabel');
+        if (modalTitle) {
+            modalTitle.textContent = '{{ $isEdit ? "Edit Task" : "Create Task" }} in {{ $project->name }}';
+        }
+    });
 </script>
+@endif

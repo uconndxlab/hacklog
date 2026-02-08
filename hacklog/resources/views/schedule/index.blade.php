@@ -16,28 +16,39 @@
         <div class="card mb-4">
             <div class="card-body">
                 <form method="GET" action="{{ route('schedule.index') }}" class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="start" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="start" name="start" value="{{ $filterStart->format('Y-m-d') }}">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="end" class="form-label">End Date</label>
                         <input type="date" class="form-control" id="end" name="end" value="{{ $filterEnd->format('Y-m-d') }}">
                     </div>
-                    <div class="col-md-4 d-flex align-items-end gap-2">
-                        <div class="form-check me-3">
-                            <input class="form-check-input" type="checkbox" id="assignedFilter" name="assigned" value="me"
-                                   {{ request('assigned') === 'me' ? 'checked' : '' }}>
-                            <label class="form-check-label" for="assignedFilter">
-                                Assigned to Me
-                            </label>
-                        </div>
+                    <div class="col-md-3">
+                        <label for="project_id" class="form-label">Project</label>
+                        <select class="form-select" id="project_id" name="project_id">
+                            <option value="">All Projects</option>
+                            @foreach($projects as $project)
+                                <option value="{{ $project->id }}" {{ request('project_id') == $project->id ? 'selected' : '' }}>
+                                    {{ $project->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="assignee" class="form-label">Assignee</label>
+                        <select class="form-select" id="assignee" name="assignee">
+                            <option value="">All Assignees</option>
+                            <option value="unassigned" {{ request('assignee') === 'unassigned' ? 'selected' : '' }}>Unassigned</option>
+                            @foreach($users as $user)
+                                <option value="{{ $user->id }}" {{ request('assignee') == $user->id ? 'selected' : '' }}>
+                                    {{ $user->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
                         <button type="submit" class="btn btn-primary">Apply Filters</button>
-                        @if($showCompleted)
-                            <a href="{{ route('schedule.index', array_merge(request()->query(), ['show_completed' => null])) }}" class="btn btn-outline-secondary">Hide Completed</a>
-                        @else
-                            <a href="{{ route('schedule.index', array_merge(request()->query(), ['show_completed' => '1'])) }}" class="btn btn-outline-secondary">Show Completed</a>
-                        @endif
                     </div>
                     <div class="col-12">
                         <a href="{{ route('schedule.index') }}" class="btn btn-sm btn-outline-secondary">Reset to Defaults</a>

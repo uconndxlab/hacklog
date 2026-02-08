@@ -13,6 +13,37 @@
 
         </div>
 
+        {{-- Filter Form --}}
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="GET" action="{{ route('projects.schedule', $project) }}" class="row g-3">
+                    <div class="col-md-6">
+                        <label for="assignee" class="form-label">Assignee</label>
+                        <select class="form-select" id="assignee" name="assignee">
+                            <option value="">All Assignees</option>
+                            <option value="unassigned" {{ request('assignee') === 'unassigned' ? 'selected' : '' }}>Unassigned</option>
+                            @foreach($users as $user)
+                                <option value="{{ $user->id }}" {{ request('assignee') == $user->id ? 'selected' : '' }}>
+                                    {{ $user->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                        @if($showCompleted)
+                            <a href="{{ route('projects.schedule', $project, array_merge(request()->query(), ['show_completed' => null])) }}" class="btn btn-outline-secondary">Hide Completed</a>
+                        @else
+                            <a href="{{ route('projects.schedule', $project, array_merge(request()->query(), ['show_completed' => '1'])) }}" class="btn btn-outline-secondary">Show Completed</a>
+                        @endif
+                    </div>
+                    <div class="col-12">
+                        <a href="{{ route('projects.schedule', $project) }}" class="btn btn-sm btn-outline-secondary">Reset to Defaults</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         @if($project->phases->isEmpty() && (!isset($standaloneTasks) || $standaloneTasks->isEmpty()) && (!isset($standaloneTasksNoDates) || $standaloneTasksNoDates->isEmpty()))
             @include('partials.empty-state', [
                 'message' => 'No phases or tasks yet. Create a phase to organize your work, or add tasks to see them on the schedule.',
