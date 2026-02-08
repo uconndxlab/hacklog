@@ -56,6 +56,8 @@
                                             <span class="text-muted" title="{{ $user->last_activity->format('M j, Y g:i A') }}">
                                                 {{ $user->last_activity->diffForHumans() }}
                                             </span>
+                                        @elseif($user->updated_at && $user->updated_at > $user->created_at)
+                                            <span class="text-muted">2+ hours ago</span>
                                         @else
                                             <span class="text-muted fst-italic">Never</span>
                                         @endif
