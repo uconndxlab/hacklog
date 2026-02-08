@@ -115,7 +115,7 @@
                 <h5 class="modal-title" id="taskModalLabel">Task</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0" id="taskModalContent" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+            <div class="modal-body p-0" id="taskModalContent" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
                 {{-- Content loaded via HTMX --}}
                 <div class="text-center py-4" style="flex: 1; display: flex; align-items: center; justify-content: center;">
                     <div class="spinner-border text-primary" role="status">
@@ -130,12 +130,12 @@
 {{-- Task Details Modal --}}
 <div class="modal fade" id="taskDetailsModal" tabindex="-1" aria-labelledby="taskDetailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+        <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="flex-shrink: 0;">
                 <h5 class="modal-title" id="taskDetailsModalLabel">Task Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="taskDetailsModalContent">
+            <div class="modal-body" id="taskDetailsModalContent" style="flex: 1; overflow-y: auto;">
                 {{-- Content loaded via HTMX --}}
                 <div class="text-center py-4">
                     <div class="spinner-border text-primary" role="status">

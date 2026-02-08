@@ -120,6 +120,43 @@
             @enderror
         </div>
 
+                {{-- Status (less prominent) --}}
+        <div class="mb-3">
+            <label for="status" class="form-label text-muted small">Status</label>
+            <select 
+                class="form-select form-select-sm @error('status') is-invalid @enderror" 
+                id="status" 
+                name="status" 
+                required>
+                <option value="planned" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'planned' ? 'selected' : '' }}>Planned</option>
+                <option value="active" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'active' ? 'selected' : '' }}>Active</option>
+                <option value="completed" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'completed' ? 'selected' : '' }}>Completed</option>
+            </select>
+            @error('status')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+        </div>
+
+                @if($isEdit)
+            <div class="mb-3">
+                <label for="column_id_select" class="form-label text-muted small">Column</label>
+                <select 
+                    class="form-select form-select-sm @error('column_id') is-invalid @enderror" 
+                    id="column_id_select" 
+                    name="column_id" 
+                    required>
+                    @foreach($columns as $col)
+                        <option value="{{ $col->id }}" {{ $task->column_id == $col->id ? 'selected' : '' }}>
+                            {{ $col->name }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('column_id')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+        @endif
+
         {{-- Description editor --}}
         <div class="mb-3">
             <label for="description" class="form-label">Description</label>
@@ -202,42 +239,9 @@
             @enderror
         </div>
 
-        {{-- Status (less prominent) --}}
-        <div class="mb-3">
-            <label for="status" class="form-label text-muted small">Status</label>
-            <select 
-                class="form-select form-select-sm @error('status') is-invalid @enderror" 
-                id="status" 
-                name="status" 
-                required>
-                <option value="planned" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'planned' ? 'selected' : '' }}>Planned</option>
-                <option value="active" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'active' ? 'selected' : '' }}>Active</option>
-                <option value="completed" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'completed' ? 'selected' : '' }}>Completed</option>
-            </select>
-            @error('status')
-                <div class="invalid-feedback">{{ $message }}</div>
-            @enderror
-        </div>
 
-        @if($isEdit)
-            <div class="mb-3">
-                <label for="column_id_select" class="form-label text-muted small">Column</label>
-                <select 
-                    class="form-select form-select-sm @error('column_id') is-invalid @enderror" 
-                    id="column_id_select" 
-                    name="column_id" 
-                    required>
-                    @foreach($columns as $col)
-                        <option value="{{ $col->id }}" {{ $task->column_id == $col->id ? 'selected' : '' }}>
-                            {{ $col->name }}
-                        </option>
-                    @endforeach
-                </select>
-                @error('column_id')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-            </div>
-        @endif
+
+
     </div>
 </form>
 

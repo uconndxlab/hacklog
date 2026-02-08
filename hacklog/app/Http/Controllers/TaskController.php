@@ -319,42 +319,14 @@ class TaskController extends Controller
     protected function returnBoardColumnTasks(Project $project, int $columnId)
     {
         $columns = $project->columns;
-        
-        // Build task query with same filtering logic as board view
-        $tasksQuery = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
-            $query->where('project_id', $project->id);
-        });
-
-        // Apply phase filter if provided in request
-        if (request('phase')) {
-            $tasksQuery->where('phase_id', request('phase'));
-        }
-
-        // Apply assignment filter if provided in request
-        $assigned = request('assigned');
-        if ($assigned === 'me') {
-            // Filter to tasks assigned to current user
-            $tasksQuery->whereHas('users', function ($query) {
-                $query->where('users.id', auth()->id());
-            });
-        } elseif ($assigned === 'none') {
-            // Filter to unassigned tasks
-            $tasksQuery->whereDoesntHave('users');
-        } elseif ($assigned && is_numeric($assigned)) {
-            // Filter to tasks assigned to specific user
-            $tasksQuery->whereHas('users', function ($query) use ($assigned) {
-                $query->where('users.id', $assigned);
-            });
-        }
-        
-        // Load tasks with filtering applied
-        $tasks = $tasksQuery->with(['phase', 'users'])->get()->groupBy('column_id');
-        
         $column = $columns->firstWhere('id', $columnId);
+        
+        // Simple query: get all tasks in this column
+        $columnTasks = \App\Models\Task::where('column_id', $columnId)->with(['phase', 'users'])->get();
         
         return view('projects.partials.board-column-tasks', [
             'column' => $column,
-            'columnTasks' => $tasks->get($columnId, collect()),
+            'columnTasks' => $columnTasks,
             'project' => $project,
             'allColumns' => $columns,
             'isProjectBoard' => true
