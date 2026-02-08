@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
+use App\Models\Project;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -17,6 +18,8 @@ class ScheduleController extends Controller
      */
     public function index(Request $request)
     {
+        $user = $request->user();
+        
         // Parse date filters with defaults
         $filterStart = $request->has('start') 
             ? Carbon::parse($request->input('start')) 
@@ -28,10 +31,17 @@ class ScheduleController extends Controller
         
         $showCompleted = $request->has('show_completed') && $request->input('show_completed') === '1';
 
+        // Get visible project IDs for this user
+        $visibleProjectIds = Project::visibleTo($user)->pluck('id');
+
         // Build task query with eager loading to avoid N+1
         // Include tasks with explicit due_date OR tasks that can inherit from epic end_date
         $tasksQuery = Task::query()
             ->with(['epic.project', 'column', 'users'])
+            ->whereHas('epic', function ($q) use ($visibleProjectIds) {
+                // Only show tasks from visible projects
+                $q->whereIn('project_id', $visibleProjectIds);
+            })
             ->where(function ($query) {
                 // Tasks with explicit due_date
                 $query->whereNotNull('due_date')

@@ -48,7 +48,7 @@ class UsersController extends Controller
 
         $validated = $request->validate([
             'netid' => 'required|string|max:255|unique:users',
-            'role' => 'required|in:admin,user',
+            'role' => 'required|in:admin,team,client',
             'active' => 'nullable|boolean',
         ]);
 
@@ -108,7 +108,7 @@ class UsersController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'role' => 'required|in:admin,user',
+            'role' => 'required|in:admin,team,client',
             'refresh_ldap' => 'boolean',
         ]);
 

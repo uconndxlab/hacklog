@@ -277,6 +277,25 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
         evt.detail.parameters['assigned'] = params.get('assigned');
     }
 });
+
+// Auto-focus title input when task form loads in modal
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    // Check if we're swapping into the task modal
+    if (evt.detail.target.id === 'taskModalContent') {
+        // Wait for modal to be fully shown before focusing
+        const modal = document.getElementById('taskModal');
+        if (modal) {
+            const handleShown = function() {
+                const titleInput = document.getElementById('title');
+                if (titleInput) {
+                    titleInput.focus();
+                }
+                modal.removeEventListener('shown.bs.modal', handleShown);
+            };
+            modal.addEventListener('shown.bs.modal', handleShown);
+        }
+    }
+});
 </script>
 
 <style>

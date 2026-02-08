@@ -6,24 +6,34 @@
     <!-- Welcome Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <h1>Welcome back, {{ Auth::user()->name }}</h1>
-            <p class="lead text-muted">Here's what you need to focus on right now.</p>
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1>Welcome back, {{ Auth::user()->name }}</h1>
+                    <p class="lead text-muted mb-0">Here's what needs your attention</p>
+                </div>
+                @if(Auth::user()->isClient())
+                    <span class="badge bg-info" style="font-size: 0.875rem;">Client Access</span>
+                @endif
+            </div>
         </div>
     </div>
 
     <div class="row">
-        <!-- Assigned Work -->
+        <!-- Main Content -->
         <div class="col-lg-8">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h2 class="h4 mb-0">Your Assigned Work</h2>
-                </div>
-                <div class="card-body">
-                    @if($assignedTasks->isEmpty())
-                        <p class="text-muted mb-0">You don't have any tasks assigned to you. Tasks will appear here once you're assigned to them.</p>
-                    @else
+            {{-- Needs Attention Section (conditional) --}}
+            @if($overdueTasks->isNotEmpty())
+                <div class="card mb-4 border-warning">
+                    <div class="card-header bg-warning bg-opacity-10">
+                        <h2 class="h5 mb-0">Needs Attention</h2>
+                    </div>
+                    <div class="card-body">
                         <div class="list-group list-group-flush">
-                            @foreach($assignedTasks as $task)
+                            @foreach($overdueTasks as $task)
+                                @php
+                                    $effectiveDueDate = $task->getEffectiveDueDate();
+                                    $isInherited = !$task->due_date && $effectiveDueDate;
+                                @endphp
                                 <div class="list-group-item px-0">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div class="flex-grow-1">
@@ -35,86 +45,258 @@
                                             <p class="mb-1 text-muted small">
                                                 {{ $task->epic->project->name }} › {{ $task->epic->name }}
                                             </p>
-                                            @if($task->due_date)
-                                                <span class="badge {{ $task->isOverdue() ? 'bg-danger' : 'bg-secondary' }}">
-                                                    Due {{ $task->due_date->format('M j, Y') }}
-                                                </span>
-                                            @endif
+                                            <span class="badge bg-danger">
+                                                Overdue: {{ $effectiveDueDate->format('M j, Y') }}
+                                                @if($isInherited)
+                                                    (from epic)
+                                                @endif
+                                            </span>
                                         </div>
                                         <div class="ms-3">
-                                            <span class="badge bg-light text-dark">{{ ucfirst($task->status) }}</span>
+                                            <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ ucfirst($task->status) }}</span>
                                         </div>
                                     </div>
                                 </div>
                             @endforeach
                         </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- Your Assigned Work - Prioritized Groups --}}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Your Assigned Work</h2>
+                </div>
+                <div class="card-body">
+                    {{-- Due This Week --}}
+                    @if($dueThisWeek->isNotEmpty())
+                        <div class="mb-4">
+                            <h3 class="h6 text-muted mb-3">Due this week</h3>
+                            <div class="list-group list-group-flush">
+                                @foreach($dueThisWeek as $task)
+                                    @php
+                                        $effectiveDueDate = $task->getEffectiveDueDate();
+                                        $isInherited = !$task->due_date && $effectiveDueDate;
+                                    @endphp
+                                    <div class="list-group-item px-0">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">
+                                                    <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                                        {{ $task->title }}
+                                                    </a>
+                                                </h6>
+                                                <p class="mb-1 text-muted small">
+                                                    {{ $task->epic->project->name }} › {{ $task->epic->name }}
+                                                </p>
+                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">
+                                                    Due {{ $effectiveDueDate->format('M j') }}
+                                                    @if($isInherited)
+                                                        (from epic)
+                                                    @endif
+                                                </span>
+                                            </div>
+                                            <div class="ms-3">
+                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ ucfirst($task->status) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        <div class="mb-4">
+                            <h3 class="h6 text-muted mb-3">Due this week</h3>
+                            <p class="text-muted mb-0 small">No tasks due this week</p>
+                        </div>
+                    @endif
+
+                    {{-- Due Next --}}
+                    @if($dueNext->isNotEmpty())
+                        <div class="mb-4">
+                            <h3 class="h6 text-muted mb-3">Coming up</h3>
+                            <div class="list-group list-group-flush">
+                                @foreach($dueNext as $task)
+                                    @php
+                                        $effectiveDueDate = $task->getEffectiveDueDate();
+                                        $isInherited = !$task->due_date && $effectiveDueDate;
+                                    @endphp
+                                    <div class="list-group-item px-0">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">
+                                                    <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                                        {{ $task->title }}
+                                                    </a>
+                                                </h6>
+                                                <p class="mb-1 text-muted small">
+                                                    {{ $task->epic->project->name }} › {{ $task->epic->name }}
+                                                </p>
+                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">
+                                                    Due {{ $effectiveDueDate->format('M j, Y') }}
+                                                    @if($isInherited)
+                                                        (from epic)
+                                                    @endif
+                                                </span>
+                                            </div>
+                                            <div class="ms-3">
+                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ ucfirst($task->status) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- No Due Date --}}
+                    @if($noDueDate->isNotEmpty())
+                        <div>
+                            <h3 class="h6 text-muted mb-3">No due date</h3>
+                            <div class="list-group list-group-flush">
+                                @foreach($noDueDate as $task)
+                                    <div class="list-group-item px-0">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">
+                                                    <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                                        {{ $task->title }}
+                                                    </a>
+                                                </h6>
+                                                <p class="mb-1 text-muted small">
+                                                    {{ $task->epic->project->name }} › {{ $task->epic->name }}
+                                                </p>
+                                            </div>
+                                            <div class="ms-3">
+                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ ucfirst($task->status) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Empty State --}}
+                    @if($dueThisWeek->isEmpty() && $dueNext->isEmpty() && $noDueDate->isEmpty())
+                        <p class="text-muted mb-0">You don't have any tasks assigned to you right now. Tasks will appear here once you're assigned to them.</p>
                     @endif
                 </div>
             </div>
+
+            {{-- Recently Active --}}
+            @if($recentlyActive->isNotEmpty())
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Recently Active</h2>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">Tasks you've worked on in the last 7 days</p>
+                        <div class="list-group list-group-flush">
+                            @foreach($recentlyActive as $task)
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                                    {{ $task->title }}
+                                                </a>
+                                            </h6>
+                                            <p class="mb-1 text-muted small">
+                                                {{ $task->epic->project->name }} › {{ $task->epic->name }}
+                                            </p>
+                                            <small class="text-muted">Updated {{ $task->updated_at->diffForHumans() }}</small>
+                                        </div>
+                                        <div class="ms-3">
+                                            <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ ucfirst($task->status) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endif
         </div>
 
         <!-- Sidebar -->
         <div class="col-lg-4">
-            <!-- Upcoming Deadlines -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h3 class="h5 mb-0">Upcoming Deadlines</h3>
-                </div>
-                <div class="card-body">
-                    @if($upcomingDeadlineTasks->isEmpty())
-                        <p class="text-muted mb-0">No upcoming deadlines. Tasks with due dates will appear here.</p>
-                    @else
-                        @foreach($upcomingDeadlineTasks as $date => $tasks)
-                            <div class="mb-3">
-                                <h6 class="mb-2 text-primary">{{ \Carbon\Carbon::parse($date)->format('M j, Y') }}</h6>
-                                <ul class="list-unstyled ms-3">
-                                    @foreach($tasks as $task)
-                                        <li class="mb-1">
-                                            <small>
-                                                <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
-                                                    {{ $task->title }}
-                                                </a>
-                                                <span class="text-muted">in {{ $task->epic->project->name }}</span>
-                                            </small>
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            </div>
-                        @endforeach
-                    @endif
-                </div>
-            </div>
-            
-            <!-- Projects with Unassigned Tasks -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h3 class="h5 mb-0">Available Work</h3>
-                </div>
-                <div class="card-body">
-                    @if($projectsWithUnassignedTasks->isEmpty())
-                        <p class="text-muted mb-0">No unassigned tasks available right now.</p>
-                    @else
-                        <p class="text-muted mb-3 small">Projects with tasks that need someone to work on them:</p>
+            {{-- Unassigned Tasks Section --}}
+            @if($unassignedTasks->isNotEmpty())
+                <div class="card mb-4 border-info">
+                    <div class="card-header bg-info bg-opacity-10">
+                        <h3 class="h5 mb-0">Tasks Without Anyone Assigned</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">Available tasks that need someone to work on them</p>
                         <div class="list-group list-group-flush">
-                            @foreach($projectsWithUnassignedTasks as $project)
+                            @foreach($unassignedTasks as $task)
                                 @php
-                                    $unassignedCount = $project->epics->sum(function($epic) {
-                                        return $epic->tasks()->whereDoesntHave('users')
-                                            ->where('status', '!=', 'completed')
-                                            ->count();
-                                    });
+                                    $effectiveDueDate = $task->getEffectiveDueDate();
+                                    $isInherited = !$task->due_date && $effectiveDueDate;
                                 @endphp
                                 <div class="list-group-item px-0 py-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1">
+                                    <div class="d-flex flex-column">
+                                        <h6 class="mb-1">
+                                            <a href="{{ route('projects.board', ['project' => $task->epic->project, 'task' => $task->id]) }}" class="text-decoration-none">
+                                                {{ $task->title }}
+                                            </a>
+                                        </h6>
+                                        <small class="text-muted mb-1">
+                                            {{ $task->epic->project->name }}
+                                        </small>
+                                        @if($effectiveDueDate)
+                                            <small class="text-muted">
+                                                Due {{ $effectiveDueDate->format('M j') }}
+                                                @if($isInherited)
+                                                    (from epic)
+                                                @endif
+                                            </small>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <!-- Projects You're On -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="h5 mb-0">Projects You're On</h3>
+                </div>
+                <div class="card-body">
+                    @if($activeProjects->isEmpty())
+                        <p class="text-muted mb-0 small">No active projects where you're involved.</p>
+                    @else
+                        <div class="list-group list-group-flush">
+                            @foreach($activeProjects as $project)
+                                <div class="list-group-item px-0 py-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-2">
                                                 <a href="{{ route('projects.board', $project) }}" class="text-decoration-none">
                                                     {{ $project->name }}
                                                 </a>
                                             </h6>
-                                            <small class="text-muted">{{ $unassignedCount }} unassigned task{{ $unassignedCount === 1 ? '' : 's' }}</small>
+                                            <div class="d-flex gap-2 flex-wrap">
+                                                <small class="text-muted">{{ $project->user_task_count }} task{{ $project->user_task_count === 1 ? '' : 's' }}</small>
+                                                @if($project->next_epic_date)
+                                                    <small class="text-muted">
+                                                        @if($project->next_epic_date->isPast())
+                                                            <span class="text-danger">· Overdue</span>
+                                                        @elseif($project->next_epic_date->isToday())
+                                                            <span class="text-warning">· Due today</span>
+                                                        @elseif($project->next_epic_date->diffInDays() <= 7)
+                                                            <span class="text-warning">· Due soon</span>
+                                                        @endif
+                                                    </small>
+                                                @endif
+                                            </div>
                                         </div>
-                                        <a href="{{ route('projects.board', $project) }}" class="btn btn-sm btn-outline-primary">View Tasks</a>
+                                        <a href="{{ route('projects.board', $project) }}" class="btn btn-sm btn-outline-primary">View</a>
                                     </div>
                                 </div>
                             @endforeach
@@ -132,6 +314,7 @@
                     <div class="d-grid gap-2">
                         <a href="{{ route('projects.index') }}" class="btn btn-outline-primary">Browse All Projects</a>
                         <a href="{{ route('schedule.index') }}" class="btn btn-outline-primary">View Organization Schedule</a>
+                        <a href="{{ route('timeline.index') }}" class="btn btn-outline-primary">View Organization Timeline</a>
                     </div>
                 </div>
             </div>

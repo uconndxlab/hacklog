@@ -38,14 +38,66 @@ class AuthController extends Controller
 
     /**
      * Initiate CAS login - redirect user to CAS server.
+     * When CAS_MASQUERADE is set, skip actual CAS and use masquerade NetID.
      */
     public function login()
     {
+        $masqueradeNetid = config('cas.cas_masquerade');
+        
+        \Log::info('Login attempt', [
+            'masquerade_enabled' => !empty($masqueradeNetid),
+            'masquerade_netid' => $masqueradeNetid
+        ]);
+        
+        // Check if masquerade is enabled (dev environment only)
+        if ($masqueradeNetid) {
+            // In masquerade mode, skip CAS and use the configured NetID
+            \Log::info('Using CAS masquerade mode', ['netid' => $masqueradeNetid]);
+            
+            return $this->handleMasqueradeLogin($masqueradeNetid);
+        }
+        
+        \Log::info('Proceeding with real CAS authentication');
+        
         // Force authentication with CAS server
         Cas::authenticate();
         
         // After CAS authentication, handle the callback
         return $this->handleCasCallback();
+    }
+
+    /**
+     * Handle masquerade login (development only).
+     */
+    protected function handleMasqueradeLogin($netid)
+    {
+        // Look up local user by NetID
+        $user = User::where('netid', $netid)->first();
+
+        // Check if user exists locally
+        if (!$user) {
+            \Log::warning('Masquerade login denied - no local user found', ['netid' => $netid]);
+            return redirect()->route('login')->with('error', 
+                'Access denied. NetID "' . $netid . '" is not authorized for this application. Please create this user first.');
+        }
+
+        // Check if user account is active
+        if (!$user->isActive()) {
+            \Log::warning('Masquerade login denied - inactive user', ['netid' => $netid, 'user_id' => $user->id]);
+            return redirect()->route('login')->with('error', 
+                'Your account is inactive. Please contact an administrator.');
+        }
+
+        // Optionally refresh user details from LDAP on login
+        $this->refreshUserFromLdap($user);
+
+        // Log user in with Laravel Auth
+        Auth::login($user, true); // true = remember user
+
+        \Log::info('Successful masquerade login', ['netid' => $netid, 'user_id' => $user->id]);
+
+        // Redirect to dashboard
+        return redirect()->route('dashboard');
     }
 
     /**

@@ -35,7 +35,11 @@
                                     <td class="font-monospace">{{ $user->netid }}</td>
                                     <td>{{ $user->email }}</td>
                                     <td>
-                                        <span class="badge {{ $user->isAdmin() ? 'bg-danger' : 'bg-secondary' }}">
+                                        <span class="badge 
+                                            @if($user->isAdmin()) bg-danger
+                                            @elseif($user->isClient()) bg-info
+                                            @else bg-secondary
+                                            @endif">
                                             {{ ucfirst($user->role) }}
                                         </span>
                                     </td>

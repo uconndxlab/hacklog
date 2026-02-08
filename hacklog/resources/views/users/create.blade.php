@@ -87,12 +87,14 @@
                             name="role" 
                             required>
                             <option value="">Select Role</option>
-                            <option value="user" {{ old('role') == 'user' ? 'selected' : '' }}>User</option>
-                            <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin</option>
+                            <option value="team" {{ old('role') == 'team' ? 'selected' : '' }}>Team (Internal staff, sees all projects)</option>
+                            <option value="client" {{ old('role') == 'client' ? 'selected' : '' }}>Client (External user, sees only shared projects)</option>
+                            <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin (Full system access)</option>
                         </select>
                         @error('role')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
+                        <div class="form-text">Role determines default project visibility</div>
                     </div>
 
                     <div class="mb-3 form-check">

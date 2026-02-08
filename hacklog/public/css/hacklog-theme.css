@@ -173,6 +173,15 @@ a:hover {
     font-weight: 500;
 }
 
+/**
+ * Secondary badge - improved contrast for readability
+ * Uses darker gray background with white text
+ */
+.badge.bg-secondary {
+    background-color: #495057 !important;
+    color: #ffffff !important;
+}
+
 
 /* ============================================
    NAVIGATION
@@ -327,6 +336,14 @@ thead th {
  */
 .text-muted {
     color: #6C757D !important;
+}
+
+/**
+ * Warning text - improved contrast for readability on white backgrounds
+ * Uses darker amber tone that meets WCAG AA standards
+ */
+.text-warning {
+    color: #996900 !important;
 }
 
 /**

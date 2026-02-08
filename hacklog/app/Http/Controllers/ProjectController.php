@@ -12,54 +12,122 @@ class ProjectController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Project::query();
+        $user = $request->user();
+        
+        // Start with visibility-filtered projects
+        $query = Project::visibleTo($user)
+            ->with(['epics' => function($q) {
+                $q->where('status', '!=', 'completed');
+            }]);
 
-        // Default to "My Projects" if user has assignments and no filter is explicitly set
-        $assignedFilter = $request->input('assigned');
-        if ($assignedFilter === null && !$request->has('assigned')) {
-            // Check if user has any non-completed tasks assigned
-            $userHasTasks = $request->user()->tasks()
-                ->where('status', '!=', 'completed')
-                ->exists();
+        // Default filters for non-admin users
+        // Clients default to 'all' (they only see shared projects anyway)
+        // Team members default to 'assigned' to reduce noise
+        $defaultScope = $user->isClient() ? 'all' : ($user->isAdmin() ? 'all' : 'assigned');
+        $scope = $request->input('scope', $defaultScope);
+        $status = $request->input('status', 'active');
+        $timeFilter = $request->input('time');
+        $search = $request->input('search');
+        $ownerFilter = $request->input('owner'); // Admin only
+
+        // Scope filter: All / Assigned to me / I'm a contributor / Projects I'm on
+        if ($scope === 'assigned') {
+            // Projects where user has assigned tasks (not completed)
+            $query->whereHas('epics.tasks', function ($q) use ($user) {
+                $q->where('status', '!=', 'completed')
+                  ->whereHas('users', function ($userQuery) use ($user) {
+                      $userQuery->where('users.id', $user->id);
+                  });
+            });
+        } elseif ($scope === 'contributor') {
+            // Projects where user has ANY tasks (completed or not)
+            $query->whereHas('epics.tasks.users', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            });
+        } elseif ($scope === 'member') {
+            // Projects where user has tasks OR is a project resource OR directly shared
+            $query->where(function($q) use ($user) {
+                // Has tasks assigned
+                $q->whereHas('epics.tasks.users', function ($taskQuery) use ($user) {
+                    $taskQuery->where('users.id', $user->id);
+                })
+                // OR is a project resource (contributor, manager, viewer)
+                ->orWhereHas('resources', function ($resourceQuery) use ($user) {
+                    $resourceQuery->where('user_id', $user->id);
+                })
+                // OR project is directly shared with this user (not via role)
+                ->orWhereHas('shares', function ($shareQuery) use ($user) {
+                    $shareQuery->where('shareable_type', 'user')
+                               ->where('shareable_id', (string)$user->id);
+                });
+            });
+        }
+        // 'all' scope - no filtering (but still respects visibility)
+
+        // Status filter: active (default), paused, completed, etc.
+        if ($status && in_array($status, ['planned', 'active', 'paused', 'completed', 'archived'])) {
+            $query->where('status', $status);
+        }
+
+        // Time-based filter: Due in 7/14/30 days, Overdue
+        if ($timeFilter) {
+            $today = \Carbon\Carbon::today();
             
-            if ($userHasTasks) {
-                $assignedFilter = 'me';
+            if ($timeFilter === 'overdue') {
+                // Projects with overdue tasks or epics
+                $query->where(function($q) use ($today) {
+                    $q->whereHas('epics', function($epicQuery) use ($today) {
+                        $epicQuery->where('end_date', '<', $today)
+                                  ->where('status', '!=', 'completed');
+                    })->orWhereHas('epics.tasks', function($taskQuery) use ($today) {
+                        $taskQuery->where('status', '!=', 'completed')
+                                  ->where(function($dateQuery) use ($today) {
+                                      // Task explicit due_date or inherited from epic
+                                      $dateQuery->where('due_date', '<', $today)
+                                                ->orWhereHas('epic', function($epicQ) use ($today) {
+                                                    $epicQ->where('end_date', '<', $today)
+                                                          ->whereNull('tasks.due_date');
+                                                });
+                                  });
+                    });
+                });
+            } elseif (in_array($timeFilter, ['7', '14', '30'])) {
+                $daysAhead = (int) $timeFilter;
+                $futureDate = $today->copy()->addDays($daysAhead);
+                
+                // Projects with tasks/epics due within timeframe
+                $query->where(function($q) use ($today, $futureDate) {
+                    $q->whereHas('epics', function($epicQuery) use ($today, $futureDate) {
+                        $epicQuery->whereBetween('end_date', [$today, $futureDate])
+                                  ->where('status', '!=', 'completed');
+                    })->orWhereHas('epics.tasks', function($taskQuery) use ($today, $futureDate) {
+                        $taskQuery->where('status', '!=', 'completed')
+                                  ->where(function($dateQuery) use ($today, $futureDate) {
+                                      // Task explicit due_date or inherited from epic
+                                      $dateQuery->whereBetween('due_date', [$today, $futureDate])
+                                                ->orWhereHas('epic', function($epicQ) use ($today, $futureDate) {
+                                                    $epicQ->whereBetween('end_date', [$today, $futureDate])
+                                                          ->whereNull('tasks.due_date');
+                                                });
+                                  });
+                    });
+                });
             }
         }
 
-        // Filter: User Assignment
-        // Show only projects containing non-completed tasks assigned to a specific user
-        if ($assignedFilter === 'me') {
-            // Projects with non-completed tasks assigned to the authenticated user
-            $query->whereHas('epics.tasks', function ($q) use ($request) {
-                $q->where('status', '!=', 'completed')
-                  ->whereHas('users', function ($userQuery) use ($request) {
-                      $userQuery->where('users.id', $request->user()->id);
-                  });
-            });
-        } elseif ($assignedFilter && is_numeric($assignedFilter)) {
-            // Projects with non-completed tasks assigned to a specific user (admin only)
-            $query->whereHas('epics.tasks', function ($q) use ($assignedFilter) {
-                $q->where('status', '!=', 'completed')
-                  ->whereHas('users', function ($userQuery) use ($assignedFilter) {
-                      $userQuery->where('users.id', $assignedFilter);
-                  });
+        // Admin-only: Filter by project owner/manager
+        if ($ownerFilter && $user->isAdmin() && is_numeric($ownerFilter)) {
+            $query->whereHas('resources', function($q) use ($ownerFilter) {
+                $q->where('user_id', $ownerFilter)
+                  ->where('role', 'manager');
             });
         }
 
-        // Filter: Project Status
-        // Allow filtering by specific status (planned, active, completed, etc.)
-        $statusFilter = $request->input('status');
-        if ($statusFilter && in_array($statusFilter, ['planned', 'active', 'paused', 'completed', 'archived'])) {
-            $query->where('status', $statusFilter);
-        }
-
-        // Filter: Has Upcoming Work
-        // Show only projects with non-completed tasks that have a future due date
-        if ($request->boolean('upcoming')) {
-            $query->whereHas('epics.tasks', function ($q) {
-                $q->where('status', '!=', 'completed')
-                  ->where('due_date', '>', now());
+        // Search filter: name and description
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%');
             });
         }
 
@@ -737,4 +805,83 @@ class ProjectController extends Controller
 
         return view('projects.timeline', compact('project', 'epics', 'weeks', 'timelineStart', 'timelineEnd', 'tooWide', 'showCompleted'));
     }
-}
+
+    /**
+     * Show project sharing settings.
+     * Displays who can see the project and allows managing shares.
+     */
+    public function sharing(Project $project)
+    {
+        // Get all shares with related users
+        $shares = $project->shares()->get()->map(function ($share) {
+            if ($share->isUserShare()) {
+                $share->user = $share->getUser();
+            }
+            return $share;
+        });
+
+        // Get all users for sharing UI (excluding already shared users)
+        $sharedUserIds = $shares->where('shareable_type', 'user')
+            ->pluck('shareable_id')
+            ->toArray();
+        
+        $availableUsers = \App\Models\User::where('active', true)
+            ->whereNotIn('id', $sharedUserIds)
+            ->orderBy('name')
+            ->get();
+
+        // Check which roles are already shared
+        $sharedRoles = $shares->where('shareable_type', 'role')
+            ->pluck('shareable_id')
+            ->toArray();
+
+        return view('projects.sharing', compact('project', 'shares', 'availableUsers', 'sharedRoles'));
+    }
+
+    /**
+     * Add a share to the project.
+     */
+    public function shareStore(Request $request, Project $project)
+    {
+        $validated = $request->validate([
+            'shareable_type' => 'required|in:user,role',
+            'shareable_id' => 'required|string',
+        ]);
+
+        // Validate shareable_id based on type
+        if ($validated['shareable_type'] === 'user') {
+            $user = \App\Models\User::find($validated['shareable_id']);
+            if (!$user) {
+                return back()->withErrors(['shareable_id' => 'User not found']);
+            }
+        } elseif ($validated['shareable_type'] === 'role') {
+            if (!in_array($validated['shareable_id'], ['team', 'client'])) {
+                return back()->withErrors(['shareable_id' => 'Invalid role']);
+            }
+        }
+
+        // Create share (will be ignored if duplicate due to unique constraint)
+        try {
+            $project->shares()->create($validated);
+            $message = $validated['shareable_type'] === 'user' 
+                ? 'Project shared with user successfully.'
+                : 'Project shared with role successfully.';
+            return back()->with('success', $message);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->errorInfo[1] == 1062 || $e->errorInfo[1] == 19) { // MySQL or SQLite duplicate error
+                return back()->with('info', 'Already shared with this user or role.');
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Remove a share from the project.
+     */
+    public function shareDestroy(Project $project, $shareId)
+    {
+        $share = $project->shares()->findOrFail($shareId);
+        $share->delete();
+
+        return back()->with('success', 'Share removed successfully.');
+    }}

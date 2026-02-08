@@ -27,6 +27,11 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link @if($currentView === 'sharing') active @endif" href="{{ route('projects.sharing', $project) }}">
+                Sharing
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link @if($currentView === 'settings') active @endif" href="{{ route('projects.edit', $project) }}">
                 Settings
             </a>

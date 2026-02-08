@@ -14,15 +14,20 @@ class TimelineController extends Controller
      */
     public function index(Request $request)
     {
+        $user = $request->user();
+        
         // Get optional date filters from query params
         $filterStart = $request->has('start') ? Carbon::parse($request->input('start')) : null;
         $filterEnd = $request->has('end') ? Carbon::parse($request->input('end')) : null;
 
         $showCompleted = $request->has('show_completed') && $request->input('show_completed') === '1';
 
-        // Build query for epics with dates
+        // Build query for epics with dates, respecting project visibility
         $epicsQuery = Epic::query()
-            ->whereHas('project') // Ensure project exists
+            ->whereHas('project', function ($q) use ($user) {
+                // Only show epics from projects user can see
+                $q->whereIn('id', Project::visibleTo($user)->pluck('id'));
+            })
             ->where(function ($query) {
                 $query->whereNotNull('start_date')
                       ->orWhereNotNull('end_date');

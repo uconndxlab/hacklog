@@ -41,6 +41,9 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::resource('projects', ProjectController::class);
+Route::get('projects/{project}/sharing', [ProjectController::class, 'sharing'])->name('projects.sharing');
+Route::post('projects/{project}/shares', [ProjectController::class, 'shareStore'])->name('projects.shares.store');
+Route::delete('projects/{project}/shares/{share}', [ProjectController::class, 'shareDestroy'])->name('projects.shares.destroy');
 Route::get('projects/{project}/board', [ProjectController::class, 'board'])->name('projects.board');
 Route::get('projects/{project}/board/task-form', [ProjectController::class, 'taskForm'])->name('projects.board.task-form');
 Route::post('projects/{project}/board/tasks', [ProjectController::class, 'storeTask'])->name('projects.board.tasks.store');
