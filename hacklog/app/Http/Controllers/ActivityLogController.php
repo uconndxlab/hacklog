@@ -1,0 +1,122 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Project;
+use App\Models\ProjectActivity;
+use App\Models\TaskActivity;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class ActivityLogController extends Controller
+{
+    /**
+     * Display the organization-wide activity log
+     */
+    public function index(Request $request)
+    {
+        // Ensure user is admin
+        if (!$request->user()->isAdmin()) {
+            abort(403, 'Only administrators can view the activity log.');
+        }
+
+        // Parse date filters with defaults
+        $filterStart = $request->has('start') 
+            ? Carbon::parse($request->input('start')) 
+            : Carbon::today()->subDays(7);
+        
+        $filterEnd = $request->has('end') 
+            ? Carbon::parse($request->input('end')) 
+            : Carbon::today()->endOfDay();
+
+        // Get all projects for filter dropdown
+        $projects = Project::orderBy('name')->get();
+
+        // Get all users for filter dropdown
+        $users = User::orderBy('name')->get();
+
+        // Build project activities query
+        $projectActivitiesQuery = ProjectActivity::with(['project', 'user'])
+            ->select('id', 'project_id', 'user_id', 'action', 'metadata', 'created_at', DB::raw("'project' as type"))
+            ->whereBetween('created_at', [$filterStart, $filterEnd])
+            ->orderBy('created_at', 'desc');
+
+        // Build task activities query
+        $taskActivitiesQuery = TaskActivity::with(['task.phase', 'task.column.project', 'user'])
+            ->select('id', 'task_id', 'user_id', 'action', 'metadata', 'created_at', DB::raw("'task' as type"))
+            ->whereBetween('created_at', [$filterStart, $filterEnd])
+            ->orderBy('created_at', 'desc');
+
+        // Filter by project (only if a valid project ID is provided)
+        if ($request->filled('project_id') && $request->input('project_id') != '') {
+            $projectId = $request->input('project_id');
+            $projectActivitiesQuery->where('project_id', $projectId);
+            $taskActivitiesQuery->whereHas('task.column', function ($q) use ($projectId) {
+                $q->where('project_id', $projectId);
+            });
+        }
+
+        // Filter by user (only if a valid user ID is provided)
+        if ($request->filled('user_id') && $request->input('user_id') != '') {
+            $userId = $request->input('user_id');
+            $projectActivitiesQuery->where('user_id', $userId);
+            $taskActivitiesQuery->where('user_id', $userId);
+        }
+
+        // Filter by activity type (only if a valid type is provided)
+        if ($request->filled('type') && $request->input('type') != '') {
+            $type = $request->input('type');
+            if ($type === 'project') {
+                $taskActivitiesQuery->whereRaw('1 = 0'); // Exclude all task activities
+            } elseif ($type === 'task') {
+                $projectActivitiesQuery->whereRaw('1 = 0'); // Exclude all project activities
+            }
+        }
+
+        // Get activities
+        $projectActivities = $projectActivitiesQuery->get();
+        $taskActivities = $taskActivitiesQuery->get();
+
+        // Get project IDs that already have a "created" activity logged
+        $projectIdsWithCreatedActivity = ProjectActivity::where('action', 'created')
+            ->whereBetween('created_at', [$filterStart, $filterEnd])
+            ->pluck('project_id')
+            ->toArray();
+
+        // Also get projects created during this date range (even if no activities logged yet)
+        // Exclude projects that already have a creation activity logged
+        $newProjectsQuery = Project::whereBetween('created_at', [$filterStart, $filterEnd])
+            ->whereNotIn('id', $projectIdsWithCreatedActivity);
+
+        // Apply same project filter
+        if ($request->filled('project_id') && $request->input('project_id') != '') {
+            $newProjectsQuery->where('id', $request->input('project_id'));
+        }
+
+        // Convert new projects to activity-like objects
+        $newProjectActivities = $newProjectsQuery->get()->map(function($project) {
+            return (object)[
+                'id' => 'project_created_' . $project->id,
+                'project_id' => $project->id,
+                'project' => $project,
+                'user_id' => null,
+                'user' => null,
+                'action' => 'created',
+                'metadata' => null,
+                'created_at' => $project->created_at,
+                'type' => 'project',
+            ];
+        });
+
+        // Combine and sort by created_at
+        $allActivities = $projectActivities
+            ->concat($taskActivities)
+            ->concat($newProjectActivities)
+            ->sortByDesc('created_at')
+            ->take(200); // Show most recent 200 activities
+
+        return view('activity-log.index', compact('allActivities', 'filterStart', 'filterEnd', 'projects', 'users'));
+    }
+}

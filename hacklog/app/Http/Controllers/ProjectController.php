@@ -228,6 +228,9 @@ class ProjectController extends Controller
 
         $project = Project::create($validated);
 
+        // Log project creation
+        \App\Models\ProjectActivity::log($project->id, auth()->id(), 'created', null);
+
         // Create default columns if requested
         if ($request->boolean('use_default_columns')) {
             $this->createDefaultColumnsForProject($project);
@@ -997,7 +1000,18 @@ class ProjectController extends Controller
             'status' => 'required|in:active,paused,archived',
         ]);
 
+        $oldStatus = $project->status;
         $project->update($validated);
+
+        // Log project update
+        if ($oldStatus !== $validated['status']) {
+            \App\Models\ProjectActivity::log($project->id, auth()->id(), 'status_changed', [
+                'from' => $oldStatus,
+                'to' => $validated['status'],
+            ]);
+        } else {
+            \App\Models\ProjectActivity::log($project->id, auth()->id(), 'updated', null);
+        }
 
         return redirect()->route('projects.show', $project)
             ->with('success', 'Project updated successfully.');

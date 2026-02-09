@@ -45,6 +45,9 @@
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">Users</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('activity-log.*') ? 'active' : '' }}" href="{{ route('activity-log.index') }}">Activity Log</a>
+                        </li>
                     @endif
                 </ul>
                 <ul class="navbar-nav ms-auto">

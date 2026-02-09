@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\ColumnController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PhaseController;
@@ -38,6 +39,7 @@ Route::middleware('auth')->group(function () {
         Route::post('users/lookup-netid', [UsersController::class, 'lookupNetid'])->name('users.lookup-netid');
         Route::get('admin/projects/{project}/phases/{phase}/tasks', [TaskController::class, 'adminIndex'])->name('admin.phases.tasks.index');
         Route::delete('admin/projects/{project}/phases/{phase}/tasks/bulk', [TaskController::class, 'bulkDelete'])->name('admin.phases.tasks.bulk-delete');
+        Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
     });
 
     Route::resource('projects', ProjectController::class);

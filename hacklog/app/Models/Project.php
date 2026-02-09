@@ -38,6 +38,11 @@ class Project extends Model
         return $this->hasMany(ProjectShare::class);
     }
 
+    public function activities(): HasMany
+    {
+        return $this->hasMany(ProjectActivity::class)->orderBy('created_at', 'desc');
+    }
+
     /**
      * Visibility scope: filters projects based on user's role and sharing.
      * 
