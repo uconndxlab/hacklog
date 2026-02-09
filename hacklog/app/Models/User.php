@@ -118,6 +118,44 @@ class User extends Authenticatable
         return $lastActivity ? \Carbon\Carbon::createFromTimestamp($lastActivity) : null;
     }
 
+    /**
+     * Get the user's latest activity log entry timestamp.
+     */
+    public function getLatestActivityLogAttribute()
+    {
+        // Get the latest from project activities
+        $projectActivity = \DB::table('project_activities')
+            ->where('user_id', $this->id)
+            ->max('created_at');
+        
+        // Get the latest from task activities
+        $taskActivity = \DB::table('task_activities')
+            ->where('user_id', $this->id)
+            ->max('created_at');
+        
+        // Return the most recent one
+        $latest = $projectActivity && $taskActivity 
+            ? max($projectActivity, $taskActivity)
+            : ($projectActivity ?: $taskActivity);
+        
+        return $latest ? \Carbon\Carbon::parse($latest) : null;
+    }
+
+    /**
+     * Get the most recent activity timestamp (activity log or session).
+     */
+    public function getMostRecentActivityAttribute()
+    {
+        $activityLog = $this->latest_activity_log;
+        $sessionActivity = $this->last_activity;
+        
+        if ($activityLog && $sessionActivity) {
+            return $activityLog->gt($sessionActivity) ? $activityLog : $sessionActivity;
+        }
+        
+        return $activityLog ?: $sessionActivity;
+    }
+
     public function tasks(): BelongsToMany
     {
         return $this->belongsToMany(Task::class)->withTimestamps();
