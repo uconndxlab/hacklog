@@ -60,14 +60,11 @@
                 <li><a class="dropdown-item {{ request('assigned') === 'none' ? 'active' : '' }}" 
                        href="{{ request()->fullUrlWithQuery(['assigned' => 'none']) }}">Unassigned</a></li>
                 <li><hr class="dropdown-divider"></li>
-                @php
-                    $users = \App\Models\User::orderBy('name')->get();
-                @endphp
-                @foreach($users as $user)
+                @foreach($usersWithTasks as $user)
                     <li>
                         <a class="dropdown-item {{ request('assigned') == $user->id ? 'active' : '' }}" 
                            href="{{ request()->fullUrlWithQuery(['assigned' => $user->id]) }}">
-                            {{ $user->name }}
+                            {{ $user->name }} ({{ $user->tasks_count }})
                         </a>
                     </li>
                 @endforeach

@@ -24,7 +24,7 @@
                             <option value="unassigned" {{ request('assignee') === 'unassigned' ? 'selected' : '' }}>Unassigned</option>
                             @foreach($users as $user)
                                 <option value="{{ $user->id }}" {{ request('assignee') == $user->id ? 'selected' : '' }}>
-                                    {{ $user->name }}
+                                    {{ $user->name }} ({{ $user->tasks_count }})
                                 </option>
                             @endforeach
                         </select>

@@ -377,7 +377,18 @@ class ProjectController extends Controller
         // Eager load phase and users relationships and order by position within each column
         $tasks = $tasksQuery->with(['phase', 'users'])->get()->groupBy('column_id');
         
-        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis'));
+        // Get users who have tasks assigned in this project with counts
+        $usersWithTasks = \App\Models\User::whereHas('tasks', function ($query) use ($project) {
+            $query->whereHas('column', function ($q) use ($project) {
+                $q->where('project_id', $project->id);
+            });
+        })->withCount(['tasks' => function ($query) use ($project) {
+            $query->whereHas('column', function ($q) use ($project) {
+                $q->where('project_id', $project->id);
+            });
+        }])->orderBy('name')->get();
+        
+        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks'));
     }
 
     /**
@@ -1010,8 +1021,16 @@ class ProjectController extends Controller
     {
         $showCompleted = $request->query('show_completed', '0') === '1';
 
-        // Get all active users for assignee filter
-        $users = User::where('active', true)->orderBy('name')->get();
+        // Get users who have tasks assigned in this project with counts
+        $users = User::whereHas('tasks', function ($query) use ($project) {
+            $query->whereHas('column', function ($q) use ($project) {
+                $q->where('project_id', $project->id);
+            });
+        })->withCount(['tasks' => function ($query) use ($project) {
+            $query->whereHas('column', function ($q) use ($project) {
+                $q->where('project_id', $project->id);
+            });
+        }])->orderBy('name')->get();
 
         // Load phases with their tasks, eager loading columns for task display
         // Include all tasks, we'll filter by due dates in the view
