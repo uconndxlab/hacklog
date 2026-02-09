@@ -121,6 +121,18 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link {{ ($activeTab ?? 'details') === 'description' ? 'active' : '' }}" 
+                        id="description-tab" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#description-tab-content" 
+                        type="button" 
+                        role="tab" 
+                        aria-controls="description-tab-content" 
+                        aria-selected="{{ ($activeTab ?? 'details') === 'description' ? 'true' : 'false' }}">
+                    Description
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link {{ ($activeTab ?? 'details') === 'discussion' ? 'active' : '' }}" 
                         id="discussion-tab" 
                         data-bs-toggle="tab" 
@@ -304,14 +316,15 @@
             @enderror
         </div>
 
-        {{-- Description editor --}}
+        {{-- Description editor (only for create mode, in edit mode it's in its own tab) --}}
+        @if(!$isEdit)
         <div class="mb-3">
             <label for="description" class="form-label">Description</label>
             <input 
                 id="description" 
                 type="hidden" 
                 name="description" 
-                value="{{ old('description', $isEdit ? $task->description : '') }}">
+                value="{{ old('description', '') }}">
             <trix-editor 
                 input="description" 
                 class="@error('description') is-invalid @enderror"
@@ -320,6 +333,7 @@
                 <div class="invalid-feedback d-block">{{ $message }}</div>
             @enderror
         </div>
+        @endif
 
         {{-- Task Metadata (only for edit mode) --}}
         @if($isEdit)
@@ -351,6 +365,31 @@
         @endif
 
         @if($isEdit)
+            </div>
+            
+            {{-- Description Tab --}}
+            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'description' ? 'show active' : '' }}" 
+                 id="description-tab-content" 
+                 role="tabpanel" 
+                 aria-labelledby="description-tab"
+                 style="padding: 1rem 1.5rem; height: 100%; overflow-y: auto;">
+                
+                {{-- Description editor --}}
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <input 
+                        id="description" 
+                        type="hidden" 
+                        name="description" 
+                        value="{{ old('description', $task->description) }}">
+                    <trix-editor 
+                        input="description" 
+                        class="@error('description') is-invalid @enderror"
+                        style="min-height: 120px;"></trix-editor>
+                    @error('description')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
+                </div>
             </div>
             
             {{-- Discussion Tab --}}

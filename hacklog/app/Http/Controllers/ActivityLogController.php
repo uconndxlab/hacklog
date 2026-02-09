@@ -23,12 +23,12 @@ class ActivityLogController extends Controller
         }
 
         // Parse date filters with defaults
-        $filterStart = $request->has('start') 
-            ? Carbon::parse($request->input('start')) 
+        $filterStart = $request->has('start') && !empty($request->input('start'))
+            ? Carbon::parse($request->input('start'))->startOfDay()
             : Carbon::today()->subDays(7);
-        
-        $filterEnd = $request->has('end') 
-            ? Carbon::parse($request->input('end')) 
+
+        $filterEnd = $request->has('end') && !empty($request->input('end'))
+            ? Carbon::parse($request->input('end'))->endOfDay()
             : Carbon::today()->endOfDay();
 
         // Get all projects for filter dropdown
@@ -38,14 +38,12 @@ class ActivityLogController extends Controller
         $users = User::orderBy('name')->get();
 
         // Build project activities query
-        $projectActivitiesQuery = ProjectActivity::with(['project', 'user'])
-            ->select('id', 'project_id', 'user_id', 'action', 'metadata', 'created_at', DB::raw("'project' as type"))
+        $projectActivitiesQuery = ProjectActivity::select('id', 'project_id', 'user_id', 'action', 'metadata', 'created_at', DB::raw("'project' as type"))
             ->whereBetween('created_at', [$filterStart, $filterEnd])
             ->orderBy('created_at', 'desc');
 
         // Build task activities query
-        $taskActivitiesQuery = TaskActivity::with(['task.phase', 'task.column.project', 'user'])
-            ->select('id', 'task_id', 'user_id', 'action', 'metadata', 'created_at', DB::raw("'task' as type"))
+        $taskActivitiesQuery = TaskActivity::select('id', 'task_id', 'user_id', 'action', 'metadata', 'created_at', DB::raw("'task' as type"))
             ->whereBetween('created_at', [$filterStart, $filterEnd])
             ->orderBy('created_at', 'desc');
 
@@ -59,10 +57,13 @@ class ActivityLogController extends Controller
         }
 
         // Filter by user (only if a valid user ID is provided)
-        if ($request->filled('user_id') && $request->input('user_id') != '') {
-            $userId = $request->input('user_id');
+        $userFilterApplied = false;
+        $userId = $request->input('user_id');
+        if ($userId && $userId !== '') {
+            $userId = $userId; // Keep as string for comparison
             $projectActivitiesQuery->where('user_id', $userId);
             $taskActivitiesQuery->where('user_id', $userId);
+            $userFilterApplied = true;
         }
 
         // Filter by activity type (only if a valid type is provided)
@@ -76,8 +77,48 @@ class ActivityLogController extends Controller
         }
 
         // Get activities
-        $projectActivities = $projectActivitiesQuery->get();
-        $taskActivities = $taskActivitiesQuery->get();
+        $projectActivities = $projectActivitiesQuery->get()->load(['project', 'user']);
+        $taskActivities = $taskActivitiesQuery->get()->load(['task.column.project', 'user']);
+
+        // Debug activities
+        \Log::info('Activities query results', [
+            'project_activities_count' => $projectActivities->count(),
+            'task_activities_count' => $taskActivities->count(),
+            'total_activities' => $projectActivities->count() + $taskActivities->count(),
+            'project_activities_sample' => $projectActivities->take(2)->map(function($a) {
+                return [
+                    'id' => $a->id,
+                    'user_id' => $a->user_id,
+                    'action' => $a->action,
+                    'created_at' => $a->created_at->format('Y-m-d H:i:s')
+                ];
+            }),
+            'task_activities_sample' => $taskActivities->take(2)->map(function($a) {
+                return [
+                    'id' => $a->id,
+                    'user_id' => $a->user_id,
+                    'action' => $a->action,
+                    'created_at' => $a->created_at->format('Y-m-d H:i:s')
+                ];
+            })
+        ]);
+
+        // Debug: Check if task activities exist
+        if ($userFilterApplied && $taskActivities->isEmpty()) {
+            // Check if there are any task activities at all for this date range
+            $allTaskActivities = TaskActivity::whereBetween('created_at', [$filterStart, $filterEnd])->get();
+            \Log::info('Task Activities Debug', [
+                'user_filter_applied' => true,
+                'user_id' => $request->input('user_id'),
+                'filtered_task_activities_count' => $taskActivities->count(),
+                'all_task_activities_count' => $allTaskActivities->count(),
+                'sample_task_activity' => $allTaskActivities->first() ? [
+                    'id' => $allTaskActivities->first()->id,
+                    'user_id' => $allTaskActivities->first()->user_id,
+                    'action' => $allTaskActivities->first()->action,
+                ] : null
+            ]);
+        }
 
         // Get project IDs that already have a "created" activity logged
         $projectIdsWithCreatedActivity = ProjectActivity::where('action', 'created')
@@ -86,29 +127,33 @@ class ActivityLogController extends Controller
             ->toArray();
 
         // Also get projects created during this date range (even if no activities logged yet)
-        // Exclude projects that already have a creation activity logged
-        $newProjectsQuery = Project::whereBetween('created_at', [$filterStart, $filterEnd])
-            ->whereNotIn('id', $projectIdsWithCreatedActivity);
+        // Only show these when NOT filtering by user (since they have no user_id)
+        $newProjectActivities = collect([]);
+        
+        if (!$request->filled('user_id') || $request->input('user_id') == '') {
+            $newProjectsQuery = Project::whereBetween('created_at', [$filterStart, $filterEnd])
+                ->whereNotIn('id', $projectIdsWithCreatedActivity);
 
-        // Apply same project filter
-        if ($request->filled('project_id') && $request->input('project_id') != '') {
-            $newProjectsQuery->where('id', $request->input('project_id'));
+            // Apply same project filter
+            if ($request->filled('project_id') && $request->input('project_id') != '') {
+                $newProjectsQuery->where('id', $request->input('project_id'));
+            }
+
+            // Convert new projects to activity-like objects
+            $newProjectActivities = $newProjectsQuery->get()->map(function($project) {
+                return (object)[
+                    'id' => 'project_created_' . $project->id,
+                    'project_id' => $project->id,
+                    'project' => $project,
+                    'user_id' => null,
+                    'user' => null,
+                    'action' => 'created',
+                    'metadata' => null,
+                    'created_at' => $project->created_at,
+                    'type' => 'project',
+                ];
+            });
         }
-
-        // Convert new projects to activity-like objects
-        $newProjectActivities = $newProjectsQuery->get()->map(function($project) {
-            return (object)[
-                'id' => 'project_created_' . $project->id,
-                'project_id' => $project->id,
-                'project' => $project,
-                'user_id' => null,
-                'user' => null,
-                'action' => 'created',
-                'metadata' => null,
-                'created_at' => $project->created_at,
-                'type' => 'project',
-            ];
-        });
 
         // Combine and sort by created_at
         $allActivities = $projectActivities
