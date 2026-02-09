@@ -32,23 +32,46 @@ class ProjectController extends Controller
         // Scope filter: All / Assigned to me / I'm a contributor / Projects I'm on
         if ($scope === 'assigned') {
             // Projects where user has assigned tasks (not completed)
-            $query->whereHas('phases.tasks', function ($q) use ($user) {
-                $q->where('status', '!=', 'completed')
-                  ->whereHas('users', function ($userQuery) use ($user) {
-                      $userQuery->where('users.id', $user->id);
-                  });
+            // Include both phase tasks and standalone tasks
+            $query->where(function($q) use ($user) {
+                $q->whereHas('phases.tasks', function ($taskQuery) use ($user) {
+                    $taskQuery->where('status', '!=', 'completed')
+                      ->whereHas('users', function ($userQuery) use ($user) {
+                          $userQuery->where('users.id', $user->id);
+                      });
+                })
+                ->orWhereHas('columns.tasks', function ($taskQuery) use ($user) {
+                    $taskQuery->where('status', '!=', 'completed')
+                      ->whereNull('phase_id') // Only standalone tasks
+                      ->whereHas('users', function ($userQuery) use ($user) {
+                          $userQuery->where('users.id', $user->id);
+                      });
+                });
             });
         } elseif ($scope === 'contributor') {
             // Projects where user has ANY tasks (completed or not)
-            $query->whereHas('phases.tasks.users', function ($q) use ($user) {
-                $q->where('users.id', $user->id);
+            // Include both phase tasks and standalone tasks
+            $query->where(function($q) use ($user) {
+                $q->whereHas('phases.tasks.users', function ($taskQuery) use ($user) {
+                    $taskQuery->where('users.id', $user->id);
+                })
+                ->orWhereHas('columns.tasks.users', function ($taskQuery) use ($user) {
+                    $taskQuery->where('users.id', $user->id)
+                      ->whereNull('phase_id'); // Only standalone tasks
+                });
             });
         } elseif ($scope === 'member') {
             // Projects where user has tasks OR is a project resource OR directly shared
             $query->where(function($q) use ($user) {
-                // Has tasks assigned
-                $q->whereHas('phases.tasks.users', function ($taskQuery) use ($user) {
-                    $taskQuery->where('users.id', $user->id);
+                // Has tasks assigned (phase or standalone)
+                $q->where(function($taskQuery) use ($user) {
+                    $taskQuery->whereHas('phases.tasks.users', function ($tq) use ($user) {
+                        $tq->where('users.id', $user->id);
+                    })
+                    ->orWhereHas('columns.tasks.users', function ($tq) use ($user) {
+                        $tq->where('users.id', $user->id)
+                           ->whereNull('phase_id'); // Only standalone tasks
+                    });
                 })
                 // OR is a project resource (contributor, manager, viewer)
                 ->orWhereHas('resources', function ($resourceQuery) use ($user) {
