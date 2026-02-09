@@ -110,6 +110,74 @@ class ScheduleController extends Controller
             }
         }
 
+        // Compute statistics for displayed tasks
+        $displayedTasks = $overdueTasks->merge($rangeTasks);
+        
+        // Status breakdown
+        $statusCounts = [
+            'planned' => 0,
+            'active' => 0,
+            'completed' => 0,
+        ];
+        $statusCounts = array_merge($statusCounts, $displayedTasks->groupBy('status')->map->count()->toArray());
+        
+        // Due-date pressure buckets
+        $dueDateBuckets = [
+            'overdue' => 0,
+            'next7' => 0,
+            'next14' => 0,
+            'later' => 0,
+        ];
+        foreach ($displayedTasks as $task) {
+            $due = $task->getEffectiveDueDate();
+            if (!$due) continue;
+            if ($due->isBefore($today) && $task->status !== 'completed') {
+                $dueDateBuckets['overdue']++;
+            } elseif ($due->between($today, $today->copy()->addDays(6))) {
+                $dueDateBuckets['next7']++;
+            } elseif ($due->between($today->copy()->addDays(7), $today->copy()->addDays(13))) {
+                $dueDateBuckets['next14']++;
+            } else {
+                $dueDateBuckets['later']++;
+            }
+        }
+        
+        // Summary numbers
+        $totalTasks = $displayedTasks->count();
+        $overdueCount = $overdueTasks->count();
+        $unassignedCount = $displayedTasks->filter(fn($t) => $t->users->isEmpty())->count();
+        $distinctProjects = $displayedTasks->pluck('column.project.id')->unique()->count();
+        
+        // Conditional chart data
+        $chartData = null;
+        if ($request->filled('assignee')) {
+            // Tasks by project
+            $chartData = $displayedTasks->groupBy('column.project.name')->map->count()->toArray();
+        } elseif ($request->filled('project_id')) {
+            // Tasks by assignee
+            $assigneeCounts = [];
+            foreach ($displayedTasks as $task) {
+                foreach ($task->users as $user) {
+                    $assigneeCounts[$user->name] = ($assigneeCounts[$user->name] ?? 0) + 1;
+                }
+            }
+            $chartData = $assigneeCounts;
+        }
+
+        // Active filters for display
+        $activeProject = null;
+        if ($request->filled('project_id')) {
+            $activeProject = Project::find($request->input('project_id'));
+        }
+        $activeAssignee = null;
+        if ($request->filled('assignee')) {
+            if ($request->input('assignee') === 'unassigned') {
+                $activeAssignee = 'Unassigned';
+            } else {
+                $activeAssignee = User::find($request->input('assignee'));
+            }
+        }
+
         // Group tasks by effective due date for display
         $overdueGrouped = $overdueTasks->groupBy(function ($task) {
             return $task->getEffectiveDueDate()->format('Y-m-d');
@@ -126,7 +194,16 @@ class ScheduleController extends Controller
             'filterEnd',
             'showCompleted',
             'projects',
-            'users'
+            'users',
+            'statusCounts',
+            'dueDateBuckets',
+            'totalTasks',
+            'overdueCount',
+            'unassignedCount',
+            'distinctProjects',
+            'chartData',
+            'activeProject',
+            'activeAssignee'
         ));
     }
 }

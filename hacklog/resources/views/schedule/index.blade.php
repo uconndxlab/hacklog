@@ -57,6 +57,78 @@
             </div>
         </div>
 
+        {{-- Summary Statistics and Charts --}}
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="h5 mb-3">Summary</h2>
+                @if($activeProject || $activeAssignee)
+                <p class="text-muted small mb-3">
+                    @if($activeProject) Filtered by project: <strong>{{ $activeProject->name }}</strong> @endif
+                    @if($activeProject && $activeAssignee) • @endif
+                    @if($activeAssignee) Filtered by assignee: <strong>{{ is_string($activeAssignee) ? $activeAssignee : $activeAssignee->name }}</strong> @endif
+                </p>
+                @endif
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3 class="h6 card-title">Status Breakdown</h3>
+                                <div id="statusChart" style="height: 200px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3 class="h6 card-title">Due-Date Pressure</h3>
+                                <div id="dueDateChart" style="height: 200px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @if($chartData)
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3 class="h6 card-title">
+                                    @if(request('assignee')) Tasks by Project @else Tasks by Assignee @endif
+                                </h3>
+                                <div id="distributionChart" style="height: 200px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-md-3">
+                                        <div class="h4 mb-1">{{ $totalTasks }}</div>
+                                        <div class="small text-muted">Total Tasks</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="h4 mb-1">{{ $overdueCount }}</div>
+                                        <div class="small text-muted">Overdue</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="h4 mb-1">{{ $unassignedCount }}</div>
+                                        <div class="small text-muted">Unassigned</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="h4 mb-1">{{ $distinctProjects }}</div>
+                                        <div class="small text-muted">Projects</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- Overdue Section --}}
         @if($overdueGrouped->isNotEmpty())
             <div class="mb-4">
@@ -196,4 +268,61 @@
         @endif
     </div>
 </div>
+
+<script src="https://www.gstatic.com/charts/loader.js"></script>
+<script>
+google.charts.load('current', {'packages':['corechart']});
+google.charts.setOnLoadCallback(drawCharts);
+
+function drawCharts() {
+    // Status Chart
+    var statusData = google.visualization.arrayToDataTable([
+        ['Status', 'Count'],
+        ['Planned', {{ $statusCounts['planned'] }}],
+        ['Active', {{ $statusCounts['active'] }}],
+        ['Completed', {{ $statusCounts['completed'] }}]
+    ]);
+    var statusOptions = {
+        pieHole: 0.4,
+        chartArea: {width: '90%', height: '80%'},
+        legend: {position: 'bottom'},
+        colors: ['#6c757d', '#0d6efd', '#198754']
+    };
+    var statusChart = new google.visualization.PieChart(document.getElementById('statusChart'));
+    statusChart.draw(statusData, statusOptions);
+
+    // Due Date Chart
+    var dueData = google.visualization.arrayToDataTable([
+        ['Bucket', 'Count'],
+        ['Overdue', {{ $dueDateBuckets['overdue'] }}],
+        ['Next 7 days', {{ $dueDateBuckets['next7'] }}],
+        ['Next 14 days', {{ $dueDateBuckets['next14'] }}],
+        ['Later', {{ $dueDateBuckets['later'] }}]
+    ]);
+    var dueOptions = {
+        chartArea: {width: '80%', height: '70%'},
+        legend: {position: 'bottom'},
+        bars: 'horizontal',
+        colors: ['#dc3545', '#fd7e14', '#ffc107', '#6c757d']
+    };
+    var dueChart = new google.visualization.BarChart(document.getElementById('dueDateChart'));
+    dueChart.draw(dueData, dueOptions);
+
+    @if($chartData)
+    // Distribution Chart
+    var distData = google.visualization.arrayToDataTable([
+        ['Category', 'Count'],
+        @foreach($chartData as $key => $value)
+        ['{{ addslashes($key) }}', {{ $value }}],
+        @endforeach
+    ]);
+    var distOptions = {
+        chartArea: {width: '80%', height: '70%'},
+        legend: {position: 'bottom'}
+    };
+    var distChart = new google.visualization.BarChart(document.getElementById('distributionChart'));
+    distChart.draw(distData, distOptions);
+    @endif
+}
+</script>
 @endsection
