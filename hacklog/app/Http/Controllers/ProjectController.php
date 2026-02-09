@@ -435,7 +435,7 @@ class ProjectController extends Controller
             ->get();
         $columns = $project->columns;
         $users = \App\Models\User::orderBy('name')->get();
-        $task->load(['users', 'comments.user']);
+        $task->load(['users', 'comments.user', 'activities.user', 'creator', 'updater']);
         
         return view('projects.partials.board-task-form', compact('project', 'task', 'phases', 'columns', 'users', 'activeTab'));
     }
@@ -450,7 +450,7 @@ class ProjectController extends Controller
             abort(403, 'Task does not belong to this project.');
         }
 
-        $task->load(['phase', 'column', 'users']);
+        $task->load(['phase', 'column', 'users', 'creator', 'updater']);
         $phase = $task->phase;
 
         return view('tasks.show', compact('project', 'phase', 'task'));
@@ -484,11 +484,29 @@ class ProjectController extends Controller
         // Set position to end of column
         $validated['position'] = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
 
+        // Set creator
+        $validated['created_by'] = auth()->id();
+        $validated['updated_by'] = auth()->id();
+
+        // Set completed_at if status is completed
+        if ($validated['status'] === 'completed') {
+            $validated['completed_at'] = now();
+        }
+
         // Create the task
         $task = \App\Models\Task::create($validated);
 
         // Sync assignees
-        $task->users()->sync($validated['assignees'] ?? []);
+        $oldAssignees = [];
+        $newAssignees = $validated['assignees'] ?? [];
+        $task->users()->sync($newAssignees);
+
+        // Log initial activities
+        if (!empty($newAssignees)) {
+            \App\Models\TaskActivity::log($task->id, auth()->id(), 'assignees_changed', [
+                'added' => $newAssignees,
+            ]);
+        }
 
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
@@ -554,11 +572,28 @@ class ProjectController extends Controller
         // Set position to end of column
         $validated['position'] = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
 
+        // Set creator
+        $validated['created_by'] = auth()->id();
+        $validated['updated_by'] = auth()->id();
+
+        // Set completed_at if status is completed
+        if ($validated['status'] === 'completed') {
+            $validated['completed_at'] = now();
+        }
+
         // Create the task
         $task = \App\Models\Task::create($validated);
 
         // Sync assignees
-        $task->users()->sync($validated['assignees'] ?? []);
+        $newAssignees = $validated['assignees'] ?? [];
+        $task->users()->sync($newAssignees);
+
+        // Log initial activities
+        if (!empty($newAssignees)) {
+            \App\Models\TaskActivity::log($task->id, auth()->id(), 'assignees_changed', [
+                'added' => $newAssignees,
+            ]);
+        }
 
         // Redirect to task detail page if it has a phase, otherwise to board
         if ($task->phase_id) {
@@ -601,12 +636,71 @@ class ProjectController extends Controller
         }
 
         $oldColumnId = $task->column_id;
+        $oldStatus = $task->status;
+        $oldPhaseId = $task->phase_id;
+        $oldDueDate = $task->due_date?->format('Y-m-d');
+        $oldAssignees = $task->users->pluck('id')->toArray();
+        
+        // Set updater
+        $validated['updated_by'] = auth()->id();
+
+        // Handle completed_at timestamp
+        if ($validated['status'] === 'completed' && $oldStatus !== 'completed') {
+            $validated['completed_at'] = now();
+        } elseif ($validated['status'] !== 'completed' && $oldStatus === 'completed') {
+            $validated['completed_at'] = null;
+        }
         
         // Update the task
         $task->update($validated);
 
         // Sync assignees
-        $task->users()->sync($validated['assignees'] ?? []);
+        $newAssignees = $validated['assignees'] ?? [];
+        $task->users()->sync($newAssignees);
+
+        // Log meaningful changes
+        $userId = auth()->id();
+
+        // Status changes
+        if ($oldStatus !== $validated['status']) {
+            if ($validated['status'] === 'completed') {
+                \App\Models\TaskActivity::log($task->id, $userId, 'completed', null);
+            } elseif ($oldStatus === 'completed') {
+                \App\Models\TaskActivity::log($task->id, $userId, 'reopened', null);
+            } else {
+                \App\Models\TaskActivity::log($task->id, $userId, 'status_changed', [
+                    'from' => $oldStatus,
+                    'to' => $validated['status'],
+                ]);
+            }
+        }
+
+        // Phase changes
+        if ($oldPhaseId != ($validated['phase_id'] ?? null)) {
+            $newPhase = $validated['phase_id'] ? \App\Models\Phase::find($validated['phase_id']) : null;
+            \App\Models\TaskActivity::log($task->id, $userId, 'phase_changed', [
+                'from' => $oldPhaseId,
+                'to' => $validated['phase_id'],
+                'to_name' => $newPhase?->name,
+            ]);
+        }
+
+        // Assignee changes
+        if ($oldAssignees !== $newAssignees) {
+            \App\Models\TaskActivity::log($task->id, $userId, 'assignees_changed', [
+                'added' => array_diff($newAssignees, $oldAssignees),
+                'removed' => array_diff($oldAssignees, $newAssignees),
+            ]);
+        }
+
+        // Due date changes
+        $newDueDate = $validated['due_date'] ?? null;
+        if ($oldDueDate !== $newDueDate) {
+            \App\Models\TaskActivity::log($task->id, $userId, 'due_date_changed', [
+                'from' => $oldDueDate,
+                'to' => $newDueDate,
+            ]);
+        }
 
         // If column changed, adjust positions
         if ($oldColumnId != $validated['column_id']) {
@@ -701,7 +795,20 @@ class ProjectController extends Controller
         // Update task
         $task->column_id = $validated['column_id'];
         $task->position = $validated['position'];
+        $task->updated_by = auth()->id();
         $task->save();
+
+        // Log column change activity
+        if ($oldColumnId !== $validated['column_id']) {
+            $oldColumn = $project->columns()->find($oldColumnId);
+            $newColumn = $project->columns()->find($validated['column_id']);
+            \App\Models\TaskActivity::log($task->id, auth()->id(), 'column_changed', [
+                'from' => $oldColumnId,
+                'to' => $validated['column_id'],
+                'from_name' => $oldColumn?->name,
+                'to_name' => $newColumn?->name,
+            ]);
+        }
 
         // Adjust positions in the old column (if changed)
         if ($oldColumnId !== $validated['column_id']) {
@@ -716,7 +823,45 @@ class ProjectController extends Controller
             ->where('position', '>=', $validated['position'])
             ->increment('position');
 
-        return response()->json(['success' => true]);
+        // Return updated column(s) HTML for the affected columns
+        $columns = $project->columns;
+        $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
+            $query->where('project_id', $project->id);
+        })
+        ->with(['phase', 'users'])
+        ->get()
+        ->groupBy('column_id');
+
+        // If column changed, return both old and new columns
+        if ($oldColumnId !== $validated['column_id']) {
+            $oldColumn = $columns->firstWhere('id', $oldColumnId);
+            $newColumn = $columns->firstWhere('id', $validated['column_id']);
+
+            $response = [
+                'success' => true,
+                'columnChanged' => true,
+                'oldColumnHtml' => view('projects.partials.board-column-tasks', [
+                    'column' => $oldColumn,
+                    'columnTasks' => $tasks->get($oldColumnId, collect()),
+                    'project' => $project,
+                    'allColumns' => $columns,
+                    'isProjectBoard' => true
+                ])->render(),
+                'newColumnHtml' => view('projects.partials.board-column-tasks', [
+                    'column' => $newColumn,
+                    'columnTasks' => $tasks->get($validated['column_id'], collect()),
+                    'project' => $project,
+                    'allColumns' => $columns,
+                    'isProjectBoard' => true
+                ])->render(),
+                'oldColumnId' => $oldColumnId,
+                'newColumnId' => $validated['column_id']
+            ];
+
+            return response()->json($response);
+        }
+
+        return response()->json(['success' => true, 'columnChanged' => false]);
     }
 
     /**

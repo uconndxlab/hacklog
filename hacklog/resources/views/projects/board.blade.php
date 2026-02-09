@@ -576,6 +576,27 @@ document.addEventListener('keydown', function(e) {
             if (!data.success) {
                 // Revert on failure
                 revertTaskPosition();
+            } else if (data.columnChanged) {
+                // Update both columns with fresh HTML
+                const oldColumnContainer = document.getElementById(`board-column-${data.oldColumnId}-tasks`);
+                const newColumnContainer = document.getElementById(`board-column-${data.newColumnId}-tasks`);
+                
+                if (oldColumnContainer && data.oldColumnHtml) {
+                    oldColumnContainer.outerHTML = data.oldColumnHtml;
+                    // Re-process the new HTML with HTMX
+                    const newOldColumn = document.getElementById(`board-column-${data.oldColumnId}-tasks`);
+                    if (newOldColumn && typeof htmx !== 'undefined') {
+                        htmx.process(newOldColumn);
+                    }
+                }
+                if (newColumnContainer && data.newColumnHtml) {
+                    newColumnContainer.outerHTML = data.newColumnHtml;
+                    // Re-process the new HTML with HTMX
+                    const newNewColumn = document.getElementById(`board-column-${data.newColumnId}-tasks`);
+                    if (newNewColumn && typeof htmx !== 'undefined') {
+                        htmx.process(newNewColumn);
+                    }
+                }
             }
         })
         .catch(() => {

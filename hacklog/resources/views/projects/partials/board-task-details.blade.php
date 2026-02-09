@@ -56,7 +56,26 @@
             <dd class="col-sm-8">{{ $task->created_at->format('F j, Y \a\t g:i A') }}</dd>
 
             <dt class="col-sm-4">Last Updated</dt>
-            <dd class="col-sm-8 mb-0">{{ $task->updated_at->format('F j, Y \a\t g:i A') }}</dd>
+            <dd class="col-sm-8">{{ $task->updated_at->format('F j, Y \a\t g:i A') }}</dd>
+        </dl>
+
+        {{-- Task Metadata Section --}}
+        <hr class="my-3">
+        <dl class="row mb-0">
+            @if($task->creator)
+                <dt class="col-sm-4"><small class="text-muted">Created By</small></dt>
+                <dd class="col-sm-8"><small class="text-muted">{{ $task->creator->name }}</small></dd>
+            @endif
+
+            @if($task->updater)
+                <dt class="col-sm-4"><small class="text-muted">Last Updated By</small></dt>
+                <dd class="col-sm-8"><small class="text-muted">{{ $task->updater->name }}</small></dd>
+            @endif
+
+            @if($task->completed_at)
+                <dt class="col-sm-4"><small class="text-muted">Completed</small></dt>
+                <dd class="col-sm-8 mb-0"><small class="text-muted">{{ $task->completed_at->format('F j, Y \a\t g:i A') }}</small></dd>
+            @endif
         </dl>
     </div>
 </div>

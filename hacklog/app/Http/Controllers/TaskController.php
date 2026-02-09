@@ -51,11 +51,26 @@ class TaskController extends Controller
         // Set position to end of column
         $validated['position'] = Task::getNextPositionInColumn($validated['column_id']);
 
+        // Set creator
+        $validated['created_by'] = auth()->id();
+        $validated['updated_by'] = auth()->id();
+
+        // Set completed_at if status is completed
+        if ($validated['status'] === 'completed') {
+            $validated['completed_at'] = now();
+        }
+
         $task = $phase->tasks()->create($validated);
 
         // Sync assignees
-        if (isset($validated['assignees'])) {
-            $task->users()->sync($validated['assignees']);
+        $newAssignees = $validated['assignees'] ?? [];
+        $task->users()->sync($newAssignees);
+
+        // Log initial activities
+        if (!empty($newAssignees)) {
+            \App\Models\TaskActivity::log($task->id, auth()->id(), 'assignees_changed', [
+                'added' => $newAssignees,
+            ]);
         }
 
         return redirect()->route('projects.board', ['project' => $project, 'phase' => $phase->id])
@@ -97,6 +112,18 @@ class TaskController extends Controller
         ]);
 
         $oldColumnId = $task->column_id;
+        $oldStatus = $task->status;
+        $oldAssignees = $task->users->pluck('id')->toArray();
+        
+        // Set updater
+        $validated['updated_by'] = auth()->id();
+
+        // Handle completed_at timestamp
+        if ($validated['status'] === 'completed' && $oldStatus !== 'completed') {
+            $validated['completed_at'] = now();
+        } elseif ($validated['status'] !== 'completed' && $oldStatus === 'completed') {
+            $validated['completed_at'] = null;
+        }
         
         // If column changed, set position to end of new column
         if ($oldColumnId != $validated['column_id']) {
@@ -106,8 +133,34 @@ class TaskController extends Controller
         $task->update($validated);
 
         // Only sync assignees if not a simple column change from board
+        $newAssignees = $validated['assignees'] ?? [];
         if (!$request->input('column_change_only')) {
-            $task->users()->sync($validated['assignees'] ?? []);
+            $task->users()->sync($newAssignees);
+        }
+
+        // Log meaningful changes
+        $userId = auth()->id();
+
+        // Status changes
+        if ($oldStatus !== $validated['status']) {
+            if ($validated['status'] === 'completed') {
+                \App\Models\TaskActivity::log($task->id, $userId, 'completed', null);
+            } elseif ($oldStatus === 'completed') {
+                \App\Models\TaskActivity::log($task->id, $userId, 'reopened', null);
+            } else {
+                \App\Models\TaskActivity::log($task->id, $userId, 'status_changed', [
+                    'from' => $oldStatus,
+                    'to' => $validated['status'],
+                ]);
+            }
+        }
+
+        // Assignee changes (only if assignees were actually synced)
+        if (!$request->input('column_change_only') && $oldAssignees !== $newAssignees) {
+            \App\Models\TaskActivity::log($task->id, $userId, 'assignees_changed', [
+                'added' => array_diff($newAssignees, $oldAssignees),
+                'removed' => array_diff($oldAssignees, $newAssignees),
+            ]);
         }
 
         // Check if this is from the board view

@@ -80,15 +80,52 @@
             </p>
         @endif
         
-        <p class="card-text mb-2">
-            <span class="badge 
-                @if($task->status === 'planned') bg-secondary
-                @elseif($task->status === 'active') bg-success
-                @else bg-primary
-                @endif">
-                {{ ucfirst($task->status) }}
-            </span>
-        </p>
+        {{-- Interactive status badge --}}
+        <div class="mb-2">
+            <form 
+                action="{{ route('projects.board.tasks.update', [$project, $task]) }}" 
+                method="POST"
+                class="d-inline">
+                @csrf
+                @method('PUT')
+                
+                {{-- Hidden fields to preserve task data --}}
+                <input type="hidden" name="title" value="{{ $task->title }}">
+                <input type="hidden" name="description" value="{{ $task->description }}">
+                <input type="hidden" name="phase_id" value="{{ $task->phase_id }}">
+                <input type="hidden" name="column_id" value="{{ $task->column_id }}">
+                <input type="hidden" name="from_board_modal" value="1">
+                <input type="hidden" name="status_change_only" value="1">
+                @if($task->start_date)
+                    <input type="hidden" name="start_date" value="{{ $task->start_date->format('Y-m-d') }}">
+                @endif
+                @if($task->due_date)
+                    <input type="hidden" name="due_date" value="{{ $task->due_date->format('Y-m-d') }}">
+                @endif
+                @foreach($task->users as $user)
+                    <input type="hidden" name="assignees[]" value="{{ $user->id }}">
+                @endforeach
+                
+                <select 
+                    name="status" 
+                    class="form-select form-select-sm d-inline-block w-auto badge 
+                    @if($task->status === 'planned') bg-secondary
+                    @elseif($task->status === 'active') bg-success
+                    @else bg-primary
+                    @endif"
+                    style="cursor: pointer; text-align: left; border: none; padding-right: 1.5rem;"
+                    hx-trigger="change"
+                    hx-put="{{ route('projects.board.tasks.update', [$project, $task]) }}"
+                    hx-target="#board-column-{{ $task->column_id }}-tasks"
+                    hx-swap="outerHTML"
+                    hx-include="closest form"
+                    title="Click to change status">
+                    <option value="planned" {{ $task->status === 'planned' ? 'selected' : '' }}>Planned</option>
+                    <option value="active" {{ $task->status === 'active' ? 'selected' : '' }}>Active</option>
+                    <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>Completed</option>
+                </select>
+            </form>
+        </div>
         
         {{-- Edit button --}}
         <div class="mb-2 d-none">

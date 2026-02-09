@@ -321,6 +321,35 @@
             @enderror
         </div>
 
+        {{-- Task Metadata (only for edit mode) --}}
+        @if($isEdit)
+            <div class="card bg-light border-0 mb-3">
+                <div class="card-body p-3">
+                    <h6 class="text-muted mb-2" style="font-size: 0.875rem;">Task Metadata</h6>
+                    <div class="row g-2">
+                        @if($task->creator)
+                            <div class="col-md-6">
+                                <small class="text-muted d-block">Created By</small>
+                                <small>{{ $task->creator->name }}</small>
+                            </div>
+                        @endif
+                        @if($task->updater)
+                            <div class="col-md-6">
+                                <small class="text-muted d-block">Last Updated By</small>
+                                <small>{{ $task->updater->name }}</small>
+                            </div>
+                        @endif
+                        @if($task->completed_at)
+                            <div class="col-md-6">
+                                <small class="text-muted d-block">Completed</small>
+                                <small>{{ $task->completed_at->format('M j, Y g:i A') }}</small>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
+
         @if($isEdit)
             </div>
             
@@ -385,6 +414,24 @@
                             <small>No comments yet. Start the discussion!</small>
                         </div>
                     @endforelse
+
+                    {{-- Activity Log Section --}}
+                    @if($task->activities->isNotEmpty())
+                        <hr class="my-4">
+                        <h6 class="text-muted mb-3">Activity</h6>
+                        @foreach($task->activities as $activity)
+                            <div class="mb-2 pb-2 border-bottom border-light">
+                                <div class="d-flex align-items-start justify-content-between gap-2">
+                                    <div>
+                                        <small class="text-muted d-block">
+                                            {{ $activity->getSummary() }}
+                                        </small>
+                                    </div>
+                                    <small class="text-muted text-nowrap">{{ $activity->created_at->diffForHumans() }}</small>
+                                </div>
+                            </div>
+                        @endforeach
+                    @endif
                 </div>
             </div>
         </div>

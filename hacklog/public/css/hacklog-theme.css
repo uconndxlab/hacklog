@@ -613,4 +613,43 @@ small {
 }
 
 /* ============================================
+   TASK CARD INTERACTIVE STATUS BADGE
    ============================================ */
+
+/**
+ * Style the status dropdown to look like a badge
+ * Makes it clear that the status is clickable/interactive
+ */
+.task-card select[name="status"] {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23fff' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.375rem center;
+    background-size: 8px 8px;
+    padding: 0.25rem 1.25rem 0.25rem 0.5rem;
+    text-transform: uppercase;
+    transition: opacity 0.15s ease-in-out;
+}
+
+.task-card select[name="status"]:hover {
+    opacity: 0.85;
+}
+
+.task-card select[name="status"]:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
+}
+
+/* Style dropdown options to match their respective badge colors */
+.task-card select[name="status"] option {
+    background-color: white;
+    color: #212529;
+    padding: 0.5rem;
+}
+
+/* ============================================

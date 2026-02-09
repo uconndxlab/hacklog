@@ -17,6 +17,9 @@ class Task extends Model
         'position',
         'start_date',
         'due_date',
+        'created_by',
+        'updated_by',
+        'completed_at',
     ];
 
     protected $casts = [
@@ -24,6 +27,7 @@ class Task extends Model
         'position' => 'integer',
         'start_date' => 'date',
         'due_date' => 'date',
+        'completed_at' => 'datetime',
     ];
 
     /**
@@ -104,6 +108,21 @@ class Task extends Model
     public function comments()
     {
         return $this->hasMany(TaskComment::class)->orderBy('created_at', 'desc');
+    }
+
+    public function activities()
+    {
+        return $this->hasMany(TaskActivity::class)->orderBy('created_at', 'desc');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     /**
