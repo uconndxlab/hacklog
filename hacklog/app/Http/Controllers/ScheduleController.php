@@ -152,15 +152,21 @@ class ScheduleController extends Controller
         $busiestAssignees = collect();
         if (!request('assignee')) {
             $busiestAssignees = User::where('active', true)
-                ->whereHas('tasks', function ($query) use ($visibleProjectIds) {
+                ->whereHas('tasks', function ($query) use ($visibleProjectIds, $showCompleted) {
                     $query->whereHas('column.project', function ($q) use ($visibleProjectIds) {
                         $q->whereIn('id', $visibleProjectIds);
                     });
+                    if (!$showCompleted) {
+                        $query->where('status', '!=', 'completed');
+                    }
                 })
-                ->withCount(['tasks' => function ($query) use ($visibleProjectIds) {
+                ->withCount(['tasks' => function ($query) use ($visibleProjectIds, $showCompleted) {
                     $query->whereHas('column.project', function ($q) use ($visibleProjectIds) {
                         $q->whereIn('id', $visibleProjectIds);
                     });
+                    if (!$showCompleted) {
+                        $query->where('status', '!=', 'completed');
+                    }
                 }])
                 ->orderBy('tasks_count', 'desc')
                 ->get();
@@ -168,10 +174,13 @@ class ScheduleController extends Controller
         
         // Users without tasks (active users with no tasks in visible projects)
         $usersWithoutTasks = User::where('active', true)
-            ->whereDoesntHave('tasks', function ($query) use ($visibleProjectIds) {
+            ->whereDoesntHave('tasks', function ($query) use ($visibleProjectIds, $showCompleted) {
                 $query->whereHas('column.project', function ($q) use ($visibleProjectIds) {
                     $q->whereIn('id', $visibleProjectIds);
                 });
+                if (!$showCompleted) {
+                    $query->where('status', '!=', 'completed');
+                }
             })
             ->orderBy('name')
             ->get();
