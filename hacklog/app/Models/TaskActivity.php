@@ -81,6 +81,10 @@ class TaskActivity extends Model
                 $userName,
                 $this->metadata['to_name'] ?? 'unknown'
             ),
+            'comment_added' => sprintf(
+                '%s added a comment',
+                $userName
+            ),
             default => sprintf('%s: %s', $userName, $this->action),
         };
     }

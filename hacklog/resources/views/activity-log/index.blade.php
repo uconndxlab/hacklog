@@ -49,6 +49,7 @@
                             <option value="">All</option>
                             <option value="project" {{ request('type') === 'project' ? 'selected' : '' }}>Project</option>
                             <option value="task" {{ request('type') === 'task' ? 'selected' : '' }}>Task</option>
+                            <option value="comment" {{ request('type') === 'comment' ? 'selected' : '' }}>Comment</option>
                         </select>
                     </div>
                     <a href="{{ route('activity-log.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
@@ -134,7 +135,7 @@
                                                     @endif
                                                 @endif
                                             </div>
-                                        @else
+                                        @elseif($activity->type === 'task')
                                             {{-- Task Activity --}}
                                             <div class="activity-content">
                                                 <strong>{{ $activity->user ? $activity->user->name : 'System' }}</strong>
@@ -174,6 +175,30 @@
                                                 @else
                                                     <span class="text-muted">(deleted task)</span>
                                                 @endif
+                                            </div>
+                                        @elseif($activity->type === 'comment')
+                                            {{-- Comment Activity --}}
+                                            <div class="activity-content">
+                                                <strong>{{ $activity->user ? $activity->user->name : 'System' }}</strong>
+                                                commented on task
+                                                @if($activity->task && $activity->task->column && $activity->task->column->project)
+                                                    on
+                                                    @if($activity->task->phase)
+                                                        <a href="{{ route('projects.board', ['project' => $activity->task->column->project, 'phase' => $activity->task->phase->id]) }}">
+                                                            {{ $activity->task->column->project->name }}
+                                                        </a>
+                                                    @else
+                                                        <a href="{{ route('projects.board', $activity->task->column->project) }}">
+                                                            {{ $activity->task->column->project->name }}
+                                                        </a>
+                                                    @endif
+                                                    <span class="text-muted small">• {{ $activity->task->title }}</span>
+                                                @else
+                                                    <span class="text-muted">(deleted task)</span>
+                                                @endif
+                                                <div class="mt-1 text-muted small fst-italic">
+                                                    "{{ \Illuminate\Support\Str::limit($activity->body, 100) }}"
+                                                </div>
                                             </div>
                                         @endif
                                     </div>

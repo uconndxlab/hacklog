@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\ProjectActivity;
 use App\Models\TaskActivity;
+use App\Models\TaskComment;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -47,11 +48,19 @@ class ActivityLogController extends Controller
             ->whereBetween('created_at', [$filterStart, $filterEnd])
             ->orderBy('created_at', 'desc');
 
+        // Build task comments query
+        $taskCommentsQuery = TaskComment::select('id', 'task_id', 'user_id', 'body', 'created_at', DB::raw("'comment' as type"))
+            ->whereBetween('created_at', [$filterStart, $filterEnd])
+            ->orderBy('created_at', 'desc');
+
         // Filter by project (only if a valid project ID is provided)
         if ($request->filled('project_id') && $request->input('project_id') != '') {
             $projectId = $request->input('project_id');
             $projectActivitiesQuery->where('project_id', $projectId);
             $taskActivitiesQuery->whereHas('task.column', function ($q) use ($projectId) {
+                $q->where('project_id', $projectId);
+            });
+            $taskCommentsQuery->whereHas('task.column', function ($q) use ($projectId) {
                 $q->where('project_id', $projectId);
             });
         }
@@ -63,6 +72,7 @@ class ActivityLogController extends Controller
             $userId = $userId; // Keep as string for comparison
             $projectActivitiesQuery->where('user_id', $userId);
             $taskActivitiesQuery->where('user_id', $userId);
+            $taskCommentsQuery->where('user_id', $userId);
             $userFilterApplied = true;
         }
 
@@ -71,14 +81,20 @@ class ActivityLogController extends Controller
             $type = $request->input('type');
             if ($type === 'project') {
                 $taskActivitiesQuery->whereRaw('1 = 0'); // Exclude all task activities
+                $taskCommentsQuery->whereRaw('1 = 0'); // Exclude all comments
             } elseif ($type === 'task') {
                 $projectActivitiesQuery->whereRaw('1 = 0'); // Exclude all project activities
+                $taskCommentsQuery->whereRaw('1 = 0'); // Exclude all comments
+            } elseif ($type === 'comment') {
+                $projectActivitiesQuery->whereRaw('1 = 0'); // Exclude all project activities
+                $taskActivitiesQuery->whereRaw('1 = 0'); // Exclude all task activities
             }
         }
 
         // Get activities
         $projectActivities = $projectActivitiesQuery->get()->load(['project', 'user']);
         $taskActivities = $taskActivitiesQuery->get()->load(['task.column.project', 'user']);
+        $taskComments = $taskCommentsQuery->get()->load(['task.column.project', 'task.phase', 'user']);
 
         // Debug activities
         \Log::info('Activities query results', [
@@ -128,9 +144,12 @@ class ActivityLogController extends Controller
 
         // Also get projects created during this date range (even if no activities logged yet)
         // Only show these when NOT filtering by user (since they have no user_id)
+        // Also exclude when filtering by task or comment type
         $newProjectActivities = collect([]);
         
-        if (!$request->filled('user_id') || $request->input('user_id') == '') {
+        $typeFilter = $request->input('type');
+        if ((!$request->filled('user_id') || $request->input('user_id') == '') 
+            && (!$request->filled('type') || $typeFilter == '' || $typeFilter === 'project')) {
             $newProjectsQuery = Project::whereBetween('created_at', [$filterStart, $filterEnd])
                 ->whereNotIn('id', $projectIdsWithCreatedActivity);
 
@@ -158,6 +177,7 @@ class ActivityLogController extends Controller
         // Combine and sort by created_at
         $allActivities = $projectActivities
             ->concat($taskActivities)
+            ->concat($taskComments)
             ->concat($newProjectActivities)
             ->sortByDesc('created_at')
             ->take(200); // Show most recent 200 activities
