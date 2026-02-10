@@ -148,6 +148,34 @@ class ScheduleController extends Controller
         $unassignedCount = $displayedTasks->filter(fn($t) => $t->users->isEmpty())->count();
         $distinctProjects = $displayedTasks->pluck('column.project.id')->unique()->count();
         
+        // Busiest assignees (users with most tasks in visible projects) - only when not filtering by assignee
+        $busiestAssignees = collect();
+        if (!request('assignee')) {
+            $busiestAssignees = User::where('active', true)
+                ->whereHas('tasks', function ($query) use ($visibleProjectIds) {
+                    $query->whereHas('column.project', function ($q) use ($visibleProjectIds) {
+                        $q->whereIn('id', $visibleProjectIds);
+                    });
+                })
+                ->withCount(['tasks' => function ($query) use ($visibleProjectIds) {
+                    $query->whereHas('column.project', function ($q) use ($visibleProjectIds) {
+                        $q->whereIn('id', $visibleProjectIds);
+                    });
+                }])
+                ->orderBy('tasks_count', 'desc')
+                ->get();
+        }
+        
+        // Users without tasks (active users with no tasks in visible projects)
+        $usersWithoutTasks = User::where('active', true)
+            ->whereDoesntHave('tasks', function ($query) use ($visibleProjectIds) {
+                $query->whereHas('column.project', function ($q) use ($visibleProjectIds) {
+                    $q->whereIn('id', $visibleProjectIds);
+                });
+            })
+            ->orderBy('name')
+            ->get();
+        
         // Conditional chart data
         $chartData = null;
         if ($request->filled('assignee')) {
@@ -203,7 +231,9 @@ class ScheduleController extends Controller
             'distinctProjects',
             'chartData',
             'activeProject',
-            'activeAssignee'
+            'activeAssignee',
+            'busiestAssignees',
+            'usersWithoutTasks'
         ));
     }
 }
