@@ -10,29 +10,22 @@
 
         {{-- Filter Form --}}
         <div class="card mb-4">
-            <div class="card-body">
-                <form method="GET" action="{{ route('projects.timeline', $project) }}" class="row g-3">
-                    <div class="col-md-4">
-                        <label for="start" class="form-label">Start Date</label>
-                        <input type="date" class="form-control" id="start" name="start" value="{{ $filterStart }}">
+            <div class="card-body py-2">
+                <form method="GET" action="{{ route('projects.timeline', $project) }}" class="d-flex align-items-center gap-3 flex-wrap">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="start" class="form-label mb-0 text-nowrap">From</label>
+                        <input type="date" class="form-control form-control-sm" id="start" name="start" value="{{ $filterStart }}" onchange="this.form.submit()">
                     </div>
-                    <div class="col-md-4">
-                        <label for="end" class="form-label">End Date</label>
-                        <input type="date" class="form-control" id="end" name="end" value="{{ $filterEnd }}">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="end" class="form-label mb-0 text-nowrap">To</label>
+                        <input type="date" class="form-control form-control-sm" id="end" name="end" value="{{ $filterEnd }}" onchange="this.form.submit()">
                     </div>
-                    <div class="col-md-4 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary">Filter</button>
-                        @if($showCompleted)
-                            <a href="{{ route('projects.timeline', array_merge(['project' => $project], array_filter(['start' => $filterStart, 'end' => $filterEnd]))) }}" class="btn btn-outline-secondary">Hide Completed</a>
-                        @else
-                            <button type="submit" name="show_completed" value="1" class="btn btn-outline-secondary">Show Completed</button>
-                        @endif
-                    </div>
-                    @if($filterStart || $filterEnd)
-                        <div class="col-12">
-                            <a href="{{ route('projects.timeline', array_merge(['project' => $project], ($showCompleted ? ['show_completed' => '1'] : []))) }}" class="btn btn-sm btn-outline-secondary">Clear Filters</a>
-                        </div>
+                    @if($showCompleted)
+                        <a href="{{ route('projects.timeline', array_merge(['project' => $project], array_filter(['start' => $filterStart, 'end' => $filterEnd]))) }}" class="btn btn-sm btn-outline-secondary">Hide Completed</a>
+                    @else
+                        <a href="{{ route('projects.timeline', array_merge(['project' => $project], array_filter(['start' => $filterStart, 'end' => $filterEnd, 'show_completed' => '1']))) }}" class="btn btn-sm btn-outline-secondary">Show Completed</a>
                     @endif
+                    <a href="{{ route('projects.timeline', $project) }}" class="btn btn-sm btn-outline-secondary">Reset</a>
                 </form>
             </div>
         </div>

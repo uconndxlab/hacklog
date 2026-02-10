@@ -148,40 +148,46 @@ class ScheduleController extends Controller
         $unassignedCount = $displayedTasks->filter(fn($t) => $t->users->isEmpty())->count();
         $distinctProjects = $displayedTasks->pluck('column.project.id')->unique()->count();
         
-        // Busiest assignees (users with most tasks in visible projects) - only when not filtering by assignee
+        // Busiest assignees - calculated from displayed tasks (respects date range filter)
         $busiestAssignees = collect();
         if (!request('assignee')) {
-            $busiestAssignees = User::where('active', true)
-                ->whereHas('tasks', function ($query) use ($visibleProjectIds, $showCompleted) {
-                    $query->whereHas('column.project', function ($q) use ($visibleProjectIds) {
-                        $q->whereIn('id', $visibleProjectIds);
-                    });
-                    if (!$showCompleted) {
-                        $query->where('status', '!=', 'completed');
+            // Count tasks per user from the displayed tasks collection
+            $userTaskCounts = [];
+            foreach ($displayedTasks as $task) {
+                foreach ($task->users as $user) {
+                    // Only include admin and team users
+                    if (!in_array($user->role, ['admin', 'team'])) {
+                        continue;
                     }
+                    if (!isset($userTaskCounts[$user->id])) {
+                        $userTaskCounts[$user->id] = [
+                            'user' => $user,
+                            'count' => 0,
+                        ];
+                    }
+                    $userTaskCounts[$user->id]['count']++;
+                }
+            }
+            
+            // Sort by count descending and convert to collection
+            $busiestAssignees = collect($userTaskCounts)
+                ->sortByDesc('count')
+                ->map(function ($item) {
+                    $user = $item['user'];
+                    $user->tasks_count = $item['count'];
+                    return $user;
                 })
-                ->withCount(['tasks' => function ($query) use ($visibleProjectIds, $showCompleted) {
-                    $query->whereHas('column.project', function ($q) use ($visibleProjectIds) {
-                        $q->whereIn('id', $visibleProjectIds);
-                    });
-                    if (!$showCompleted) {
-                        $query->where('status', '!=', 'completed');
-                    }
-                }])
-                ->orderBy('tasks_count', 'desc')
-                ->get();
+                ->values();
         }
         
-        // Users without tasks (active users with no tasks in visible projects)
+        // Users without tasks in the displayed date range
+        $usersWithTaskIds = $displayedTasks->flatMap(function ($task) {
+            return $task->users->pluck('id');
+        })->unique()->toArray();
+        
         $usersWithoutTasks = User::where('active', true)
-            ->whereDoesntHave('tasks', function ($query) use ($visibleProjectIds, $showCompleted) {
-                $query->whereHas('column.project', function ($q) use ($visibleProjectIds) {
-                    $q->whereIn('id', $visibleProjectIds);
-                });
-                if (!$showCompleted) {
-                    $query->where('status', '!=', 'completed');
-                }
-            })
+            ->whereIn('role', ['admin', 'team'])
+            ->whereNotIn('id', $usersWithTaskIds)
             ->orderBy('name')
             ->get();
         

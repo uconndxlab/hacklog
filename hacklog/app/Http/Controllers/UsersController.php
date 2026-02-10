@@ -24,9 +24,21 @@ class UsersController extends Controller
     /**
      * Display a listing of users.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::orderBy('name')->get();
+        $query = User::orderBy('name');
+        
+        // Filter by role
+        if ($request->filled('role')) {
+            $query->where('role', $request->input('role'));
+        }
+        
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('active', $request->input('status') === 'active');
+        }
+        
+        $users = $query->get();
         return view('users.index', compact('users'));
     }
 

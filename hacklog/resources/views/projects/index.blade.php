@@ -20,26 +20,26 @@
 
 {{-- Filters --}}
 <div class="card mb-4">
-    <div class="card-body">
-        {{-- Search --}}
-        <div class="mb-3">
-            <input type="text" 
-                   class="form-control" 
-                   id="search" 
-                   name="search" 
-                   placeholder="Search projects by name or description..."
-                   value="{{ request('search') }}"
-                   hx-get="{{ route('projects.index') }}"
-                   hx-trigger="input changed delay:500ms, search"
-                   hx-target="#projects-list"
-                   hx-include="[name='scope'], [name='status'], [name='time'], [name='owner'], [name='sort']"
-                   hx-push-url="true">
-        </div>
-
+    <div class="card-body py-2">
         <div class="d-flex align-items-center gap-3 flex-wrap">
+            {{-- Search --}}
+            <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 300px;">
+                <input type="text" 
+                       class="form-control form-control-sm" 
+                       id="search" 
+                       name="search" 
+                       placeholder="Search..."
+                       value="{{ request('search') }}"
+                       hx-get="{{ route('projects.index') }}"
+                       hx-trigger="input changed delay:500ms, search"
+                       hx-target="#projects-list"
+                       hx-include="[name='scope'], [name='status'], [name='time'], [name='owner'], [name='sort']"
+                       hx-push-url="true">
+            </div>
+
             {{-- Sort Filter --}}
             <div class="d-flex align-items-center gap-2">
-                <label class="form-label mb-0 small text-muted">Sort</label>
+                <label class="form-label mb-0 text-nowrap">Sort</label>
                 <select class="form-select form-select-sm" name="sort" style="width: auto;"
                         hx-get="{{ route('projects.index') }}"
                         hx-trigger="change"
@@ -60,7 +60,7 @@
 
             {{-- Scope Filter --}}
             <div class="d-flex align-items-center gap-2">
-                <label class="form-label mb-0 small text-muted">Scope</label>
+                <label class="form-label mb-0 text-nowrap">Scope</label>
                 <select class="form-select form-select-sm" name="scope" style="width: auto;"
                         hx-get="{{ route('projects.index') }}"
                         hx-trigger="change"
@@ -68,7 +68,7 @@
                         hx-include="[name='search'], [name='status'], [name='time'], [name='owner'], [name='sort']"
                         hx-push-url="true">
                     <option value="all" {{ request('scope', Auth::user()->isAdmin() ? 'all' : 'assigned') === 'all' ? 'selected' : '' }}>
-                        All projects
+                        All
                     </option>
                     <option value="assigned" {{ request('scope', Auth::user()->isAdmin() ? 'all' : 'assigned') === 'assigned' ? 'selected' : '' }}>
                         Assigned to me
@@ -84,71 +84,49 @@
 
             {{-- Status Filter --}}
             <div class="d-flex align-items-center gap-2">
-                <label class="form-label mb-0 small text-muted">Status</label>
+                <label class="form-label mb-0 text-nowrap">Status</label>
                 <select class="form-select form-select-sm" name="status" style="width: auto;"
                         hx-get="{{ route('projects.index') }}"
                         hx-trigger="change"
                         hx-target="#projects-list"
                         hx-include="[name='search'], [name='scope'], [name='time'], [name='owner'], [name='sort']"
                         hx-push-url="true">
-                    <option value="active" {{ request('status', 'active') === 'active' ? 'selected' : '' }}>
-                        Active
-                    </option>
-                    <option value="planned" {{ request('status') === 'planned' ? 'selected' : '' }}>
-                        Planned
-                    </option>
-                    <option value="paused" {{ request('status') === 'paused' ? 'selected' : '' }}>
-                        On hold
-                    </option>
-                    <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>
-                        Completed
-                    </option>
-                    <option value="archived" {{ request('status') === 'archived' ? 'selected' : '' }}>
-                        Archived
-                    </option>
+                    <option value="active" {{ request('status', 'active') === 'active' ? 'selected' : '' }}>Active</option>
+                    <option value="planned" {{ request('status') === 'planned' ? 'selected' : '' }}>Planned</option>
+                    <option value="paused" {{ request('status') === 'paused' ? 'selected' : '' }}>On hold</option>
+                    <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
+                    <option value="archived" {{ request('status') === 'archived' ? 'selected' : '' }}>Archived</option>
                 </select>
             </div>
 
             {{-- Time-based Filter --}}
             <div class="d-flex align-items-center gap-2">
-                <label class="form-label mb-0 small text-muted">Timeline</label>
+                <label class="form-label mb-0 text-nowrap">Timeline</label>
                 <select class="form-select form-select-sm" name="time" style="width: auto;"
                         hx-get="{{ route('projects.index') }}"
                         hx-trigger="change"
                         hx-target="#projects-list"
                         hx-include="[name='search'], [name='scope'], [name='status'], [name='owner'], [name='sort']"
                         hx-push-url="true">
-                    <option value="" {{ !request('time') ? 'selected' : '' }}>
-                        All timeframes
-                    </option>
-                    <option value="overdue" {{ request('time') === 'overdue' ? 'selected' : '' }}>
-                        Overdue
-                    </option>
-                    <option value="7" {{ request('time') === '7' ? 'selected' : '' }}>
-                        Due in 7 days
-                    </option>
-                    <option value="14" {{ request('time') === '14' ? 'selected' : '' }}>
-                        Due in 14 days
-                    </option>
-                    <option value="30" {{ request('time') === '30' ? 'selected' : '' }}>
-                        Due in 30 days
-                    </option>
+                    <option value="" {{ !request('time') ? 'selected' : '' }}>All</option>
+                    <option value="overdue" {{ request('time') === 'overdue' ? 'selected' : '' }}>Overdue</option>
+                    <option value="7" {{ request('time') === '7' ? 'selected' : '' }}>Due in 7 days</option>
+                    <option value="14" {{ request('time') === '14' ? 'selected' : '' }}>Due in 14 days</option>
+                    <option value="30" {{ request('time') === '30' ? 'selected' : '' }}>Due in 30 days</option>
                 </select>
             </div>
 
             {{-- Admin: Owner Filter --}}
             @if(Auth::user()->isAdmin())
                 <div class="d-flex align-items-center gap-2">
-                    <label class="form-label mb-0 small text-muted">Owner</label>
+                    <label class="form-label mb-0 text-nowrap">Owner</label>
                     <select class="form-select form-select-sm" name="owner" style="width: auto;"
                             hx-get="{{ route('projects.index') }}"
                             hx-trigger="change"
                             hx-target="#projects-list"
                             hx-include="[name='search'], [name='scope'], [name='status'], [name='time'], [name='sort']"
                             hx-push-url="true">
-                        <option value="" {{ !request('owner') ? 'selected' : '' }}>
-                            Any owner
-                        </option>
+                        <option value="" {{ !request('owner') ? 'selected' : '' }}>All</option>
                         @php
                             $users = \App\Models\User::where('active', true)->orderBy('name')->get();
                         @endphp
@@ -161,10 +139,8 @@
                 </div>
             @endif
 
-            {{-- Clear Filters --}}
-            @if(request()->hasAny(['search', 'scope', 'time', 'owner', 'sort']) || request('status', 'active') !== 'active')
-                <a href="{{ route('projects.index') }}" class="btn btn-outline-secondary btn-sm ms-auto">Clear Filters</a>
-            @endif
+            {{-- Reset --}}
+            <a href="{{ route('projects.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
         </div>
     </div>
 </div>

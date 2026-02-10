@@ -11,20 +11,20 @@
 
         {{-- Filter Form --}}
         <div class="card mb-4">
-            <div class="card-body">
-                <form method="GET" action="{{ route('activity-log.index') }}" class="row g-3">
-                    <div class="col-md-3">
-                        <label for="start" class="form-label">Start Date</label>
-                        <input type="date" class="form-control" id="start" name="start" value="{{ $filterStart->format('Y-m-d') }}">
+            <div class="card-body py-2">
+                <form method="GET" action="{{ route('activity-log.index') }}" class="d-flex align-items-center gap-3 flex-wrap">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="start" class="form-label mb-0 text-nowrap">From</label>
+                        <input type="date" class="form-control form-control-sm" id="start" name="start" value="{{ $filterStart->format('Y-m-d') }}" onchange="this.form.submit()">
                     </div>
-                    <div class="col-md-3">
-                        <label for="end" class="form-label">End Date</label>
-                        <input type="date" class="form-control" id="end" name="end" value="{{ $filterEnd->format('Y-m-d') }}">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="end" class="form-label mb-0 text-nowrap">To</label>
+                        <input type="date" class="form-control form-control-sm" id="end" name="end" value="{{ $filterEnd->format('Y-m-d') }}" onchange="this.form.submit()">
                     </div>
-                    <div class="col-md-3">
-                        <label for="project_id" class="form-label">Project</label>
-                        <select class="form-select" id="project_id" name="project_id">
-                            <option value="">All Projects</option>
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="project_id" class="form-label mb-0 text-nowrap">Project</label>
+                        <select class="form-select form-select-sm" id="project_id" name="project_id" onchange="this.form.submit()">
+                            <option value="">All</option>
                             @foreach($projects as $project)
                                 <option value="{{ $project->id }}" {{ request('project_id') == $project->id ? 'selected' : '' }}>
                                     {{ $project->name }}
@@ -32,10 +32,10 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label for="user_id" class="form-label">User</label>
-                        <select class="form-select" id="user_id" name="user_id">
-                            <option value="">All Users</option>
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="user_id" class="form-label mb-0 text-nowrap">User</label>
+                        <select class="form-select form-select-sm" id="user_id" name="user_id" onchange="this.form.submit()">
+                            <option value="">All</option>
                             @foreach($users as $user)
                                 <option value="{{ $user->id }}" {{ (string)request('user_id') === (string)$user->id ? 'selected' : '' }}>
                                     {{ $user->name }}
@@ -43,20 +43,15 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label for="type" class="form-label">Activity Type</label>
-                        <select class="form-select" id="type" name="type">
-                            <option value="">All Types</option>
-                            <option value="project" {{ request('type') === 'project' ? 'selected' : '' }}>Project Activities</option>
-                            <option value="task" {{ request('type') === 'task' ? 'selected' : '' }}>Task Activities</option>
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="type" class="form-label mb-0 text-nowrap">Type</label>
+                        <select class="form-select form-select-sm" id="type" name="type" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option value="project" {{ request('type') === 'project' ? 'selected' : '' }}>Project</option>
+                            <option value="task" {{ request('type') === 'task' ? 'selected' : '' }}>Task</option>
                         </select>
                     </div>
-                    <div class="col-md-3 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary">Apply Filters</button>
-                    </div>
-                    <div class="col-12">
-                        <a href="{{ route('activity-log.index') }}" class="btn btn-sm btn-outline-secondary">Reset to Defaults</a>
-                    </div>
+                    <a href="{{ route('activity-log.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
                 </form>
             </div>
         </div>

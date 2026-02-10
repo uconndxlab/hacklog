@@ -13,6 +13,32 @@
             <a href="{{ route('users.create') }}" class="btn btn-primary">Create User</a>
         </div>
 
+        {{-- Filter Form --}}
+        <div class="card mb-4">
+            <div class="card-body py-2">
+                <form method="GET" action="{{ route('users.index') }}" class="d-flex align-items-center gap-3 flex-wrap">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="role" class="form-label mb-0 text-nowrap">Role</label>
+                        <select class="form-select form-select-sm" id="role" name="role" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>Admin</option>
+                            <option value="team" {{ request('role') === 'team' ? 'selected' : '' }}>Team</option>
+                            <option value="client" {{ request('role') === 'client' ? 'selected' : '' }}>Client</option>
+                        </select>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="status" class="form-label mb-0 text-nowrap">Status</label>
+                        <select class="form-select form-select-sm" id="status" name="status" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                            <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+                        </select>
+                    </div>
+                    <a href="{{ route('users.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+                </form>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-body p-0">
                 <div class="table-responsive">

@@ -15,12 +15,12 @@
 
         {{-- Filter Form --}}
         <div class="card mb-4">
-            <div class="card-body">
-                <form method="GET" action="{{ route('projects.schedule', $project) }}" class="row g-3">
-                    <div class="col-md-6">
-                        <label for="assignee" class="form-label">Assignee</label>
-                        <select class="form-select" id="assignee" name="assignee">
-                            <option value="">All Assignees</option>
+            <div class="card-body py-2">
+                <form method="GET" action="{{ route('projects.schedule', $project) }}" class="d-flex align-items-center gap-3 flex-wrap">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="assignee" class="form-label mb-0 text-nowrap">Assignee</label>
+                        <select class="form-select form-select-sm" id="assignee" name="assignee" onchange="this.form.submit()">
+                            <option value="">All</option>
                             <option value="unassigned" {{ request('assignee') === 'unassigned' ? 'selected' : '' }}>Unassigned</option>
                             @foreach($users as $user)
                                 <option value="{{ $user->id }}" {{ request('assignee') == $user->id ? 'selected' : '' }}>
@@ -29,17 +29,12 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-6 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary">Apply Filters</button>
-                        @if($showCompleted)
-                            <a href="{{ route('projects.schedule', $project, array_merge(request()->query(), ['show_completed' => null])) }}" class="btn btn-outline-secondary">Hide Completed</a>
-                        @else
-                            <a href="{{ route('projects.schedule', $project, array_merge(request()->query(), ['show_completed' => '1'])) }}" class="btn btn-outline-secondary">Show Completed</a>
-                        @endif
-                    </div>
-                    <div class="col-12">
-                        <a href="{{ route('projects.schedule', $project) }}" class="btn btn-sm btn-outline-secondary">Reset to Defaults</a>
-                    </div>
+                    @if($showCompleted)
+                        <a href="{{ route('projects.schedule', array_merge(['project' => $project], array_filter(array_merge(request()->query(), ['show_completed' => null])))) }}" class="btn btn-sm btn-outline-secondary">Hide Completed</a>
+                    @else
+                        <a href="{{ route('projects.schedule', array_merge(['project' => $project], array_merge(request()->query(), ['show_completed' => '1']))) }}" class="btn btn-sm btn-outline-secondary">Show Completed</a>
+                    @endif
+                    <a href="{{ route('projects.schedule', $project) }}" class="btn btn-sm btn-outline-secondary">Reset</a>
                 </form>
             </div>
         </div>
