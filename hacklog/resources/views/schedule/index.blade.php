@@ -80,7 +80,7 @@
 
                         <div class="card mb-3">
                             <div class="card-body">
-                                <h3 class="h6 card-title">Busiest Assignees</h3>
+                                <h3 class="h6 card-title">Most Tasks</h3>
                                 @if($busiestAssignees->isNotEmpty())
                                 <div class="list-group list-group-flush">
                                     @foreach($busiestAssignees->take(5) as $assignee)
@@ -98,9 +98,9 @@
                             </div>
                         </div>
 
-                        <div class="card">
+                        <div class="card mb-3">
                             <div class="card-body">
-                                <h3 class="h6 card-title">Users Without Tasks</h3>
+                                <h3 class="h6 card-title">No Tasks</h3>
                                 @if($usersWithoutTasks->isNotEmpty())
                                 <div class="list-group list-group-flush">
                                     @foreach($usersWithoutTasks->take(5) as $user)

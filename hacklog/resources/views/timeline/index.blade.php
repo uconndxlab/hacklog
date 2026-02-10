@@ -133,6 +133,16 @@
                                                                 {{ ucfirst($project->status) }}
                                                             </span>
                                                         </div>
+                                                        @if($projectGroup['assignees']['count'] > 0)
+                                                            <div class="d-flex flex-wrap gap-1">
+                                                                @foreach($projectGroup['assignees']['data'] as $assignee)
+                                                                    <span class="badge bg-info text-dark border-0" style="font-size: 0.75rem; font-weight: 500; cursor:pointer;" 
+                                                                          title="{{ $assignee['user']->name }}">
+                                                                        {{ $assignee['initials'] }}
+                                                                    </span>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
                                                     </div>
                                                 @endif
                                             </td>

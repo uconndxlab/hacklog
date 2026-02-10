@@ -212,9 +212,34 @@ class TimelineController extends Controller
                 return $phase;
             });
             
+            // Get distinct assignees for this project
+            $assignees = \App\Models\User::whereHas('tasks', function ($query) use ($project, $showCompleted) {
+                $query->whereHas('column.project', function ($q) use ($project) {
+                    $q->where('id', $project->id);
+                });
+                if (!$showCompleted) {
+                    $query->where('status', '!=', 'completed');
+                }
+            })->select('id', 'name')->distinct()->get();
+            
+            $assigneeCount = $assignees->count();
+            
+            // Create assignee data with initials and full user objects
+            $assigneeData = $assignees->map(function ($user) {
+                $nameParts = explode(' ', $user->name);
+                return [
+                    'user' => $user,
+                    'initials' => strtoupper(substr($nameParts[0], 0, 1) . (isset($nameParts[1]) ? substr($nameParts[1], 0, 1) : ''))
+                ];
+            })->sortBy('initials')->values();
+            
             return [
                 'project' => $project,
                 'phases' => $phasesWithTaskCounts,
+                'assignees' => [
+                    'count' => $assigneeCount,
+                    'data' => $assigneeData,
+                ],
             ];
         })->values();
 
