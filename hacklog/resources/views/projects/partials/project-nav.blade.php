@@ -31,6 +31,7 @@
             Resources
         </a>
     </li>
+    @if(!Auth::user()->isClient())
     <li class="nav-item">
         <a class="nav-link @if($currentView === 'sharing') active @endif" href="{{ route('projects.sharing', $project) }}">
             Sharing
@@ -41,5 +42,6 @@
             Settings
         </a>
     </li>
+    @endif
 </ul>
 </div>

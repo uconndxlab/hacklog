@@ -498,6 +498,8 @@ class ProjectController extends Controller
      */
     public function storeTask(Request $request, Project $project)
     {
+        $user = auth()->user();
+        
         $validated = $request->validate([
             'phase_id' => 'nullable|exists:phases,id',
             'column_id' => 'required|exists:columns,id',
@@ -509,6 +511,12 @@ class ProjectController extends Controller
             'assignees' => 'nullable|array',
             'assignees.*' => 'exists:users,id',
         ]);
+
+        // Clients can only create tasks with status 'planned' and cannot assign users
+        if ($user->isClient()) {
+            $validated['status'] = 'planned';
+            $validated['assignees'] = [];
+        }
 
         // If phase_id provided, verify it belongs to this project
         if (!empty($validated['phase_id'])) {
@@ -652,6 +660,8 @@ class ProjectController extends Controller
             abort(403, 'Task does not belong to this project.');
         }
 
+        $user = auth()->user();
+
         $validated = $request->validate([
             'phase_id' => 'nullable|exists:phases,id',
             'column_id' => 'required|exists:columns,id',
@@ -663,6 +673,14 @@ class ProjectController extends Controller
             'assignees' => 'nullable|array',
             'assignees.*' => 'exists:users,id',
         ]);
+
+        // Clients cannot change status, column, start_date, or assignees
+        if ($user->isClient()) {
+            $validated['status'] = $task->status;
+            $validated['column_id'] = $task->column_id;
+            $validated['start_date'] = $task->start_date;
+            $validated['assignees'] = $task->users->pluck('id')->toArray();
+        }
 
         // If phase_id provided, verify it belongs to this project
         if (!empty($validated['phase_id'])) {
@@ -969,6 +987,11 @@ class ProjectController extends Controller
      */
     public function deleteTask(Request $request, Project $project, \App\Models\Task $task)
     {
+        // Clients cannot delete tasks
+        if (auth()->user()->isClient()) {
+            abort(403, 'Clients cannot delete tasks.');
+        }
+
         // Verify task belongs to this project
         if ($task->column->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
@@ -1009,6 +1032,10 @@ class ProjectController extends Controller
      */
     public function edit(Project $project)
     {
+        // Clients cannot access settings
+        if (auth()->user()->isClient()) {
+            abort(403, 'Clients cannot access project settings.');
+        }
         return view('projects.edit', compact('project'));
     }
 
@@ -1362,6 +1389,11 @@ class ProjectController extends Controller
      */
     public function sharing(Project $project)
     {
+        // Clients cannot access sharing
+        if (auth()->user()->isClient()) {
+            abort(403, 'Clients cannot access project sharing settings.');
+        }
+
         // Get all shares with related users
         $shares = $project->shares()->get()->map(function ($share) {
             if ($share->isUserShare()) {
