@@ -116,7 +116,7 @@
                     style="cursor: pointer; text-align: left; border: none; padding-right: 1.5rem;"
                     hx-trigger="change"
                     hx-put="{{ route('projects.board.tasks.update', [$project, $task]) }}"
-                    hx-target="#board-column-{{ $task->column_id }}-tasks"
+                    hx-target="[data-task-id='{{ $task->id }}']"
                     hx-swap="outerHTML"
                     hx-include="closest form"
                     title="Click to change status">

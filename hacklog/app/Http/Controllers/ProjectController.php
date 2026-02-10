@@ -772,8 +772,20 @@ class ProjectController extends Controller
 
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
+        $statusChangeOnly = $request->input('status_change_only');
         
         if (request()->header('HX-Request') && $fromBoardModal) {
+            // For status-only changes, just return the updated task card
+            if ($statusChangeOnly) {
+                $task->load(['users', 'phase']);
+                return view('projects.partials.board-task-card', [
+                    'project' => $project,
+                    'task' => $task,
+                    'allColumns' => $project->columns,
+                    'isProjectBoard' => true
+                ]);
+            }
+            
             // HTMX: Return updated column task lists
             $columns = $project->columns;
             $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
