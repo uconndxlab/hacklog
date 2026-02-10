@@ -28,7 +28,11 @@ class TaskController extends Controller
             ->orderByRaw('CASE WHEN status = "active" THEN 1 WHEN status = "planned" THEN 2 ELSE 3 END')
             ->orderBy('name')
             ->get();
-        $users = \App\Models\User::orderBy('name')->get();
+        
+        // Get users sorted: current user first, then recent assignees on this project, then alphabetically
+        $currentUser = auth()->user();
+        $users = $this->getSortedUsersForProject($project, $currentUser);
+        
         return view('tasks.create', compact('project', 'phase', 'columns', 'phases', 'users'));
     }
 
@@ -92,7 +96,11 @@ class TaskController extends Controller
     public function edit(Project $project, Phase $phase, Task $task)
     {
         $columns = $project->columns;
-        $users = \App\Models\User::orderBy('name')->get();
+        
+        // Get users sorted: current user first, then recent assignees on this project, then alphabetically
+        $currentUser = auth()->user();
+        $users = $this->getSortedUsersForProject($project, $currentUser);
+        
         $task->load('users');
         return view('tasks.edit', compact('project', 'phase', 'task', 'columns', 'users'));
     }
@@ -384,5 +392,55 @@ class TaskController extends Controller
             'allColumns' => $columns,
             'isProjectBoard' => true
         ]);
+    }
+
+    /**
+     * Get users sorted for assignment: current user first, then recent assignees on this project, then alphabetically
+     */
+    private function getSortedUsersForProject($project, $currentUser)
+    {
+        // Get all users assigned to tasks in this project, ordered by most recent assignment
+        $recentAssigneeIds = \DB::table('task_user')
+            ->join('tasks', 'task_user.task_id', '=', 'tasks.id')
+            ->join('columns', 'tasks.column_id', '=', 'columns.id')
+            ->where('columns.project_id', $project->id)
+            ->select('task_user.user_id', \DB::raw('MAX(task_user.created_at) as last_assigned_at'))
+            ->groupBy('task_user.user_id')
+            ->orderBy('last_assigned_at', 'desc')
+            ->pluck('user_id')
+            ->toArray();
+
+        // Get all users
+        $allUsers = \App\Models\User::all();
+
+        // Separate current user, recent assignees, and others
+        $sortedUsers = collect();
+
+        // 1. Current user first (if exists)
+        if ($currentUser) {
+            $sortedUsers->push($allUsers->find($currentUser->id));
+        }
+
+        // 2. Recent assignees (excluding current user if already added)
+        $recentAssignees = $allUsers->whereIn('id', $recentAssigneeIds)
+            ->sortBy(function ($user) use ($recentAssigneeIds) {
+                return array_search($user->id, $recentAssigneeIds);
+            });
+
+        foreach ($recentAssignees as $user) {
+            if (!$sortedUsers->contains('id', $user->id)) {
+                $sortedUsers->push($user);
+            }
+        }
+
+        // 3. All other users sorted alphabetically
+        $remainingUsers = $allUsers->whereNotIn('id', $sortedUsers->pluck('id'))
+            ->sortBy('name');
+
+        foreach ($remainingUsers as $user) {
+            $sortedUsers->push($user);
+        }
+
+        return $sortedUsers->filter(); // Remove nulls (in case current user doesn't exist)
     }
 }
