@@ -228,17 +228,6 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <label for="status" class="form-label">Status</label>
-                @if(Auth::user()->isClient())
-                    <select 
-                        class="form-select" 
-                        id="status_display" 
-                        disabled>
-                        <option value="planned" {{ ($isEdit ? $task->status : 'planned') === 'planned' ? 'selected' : '' }}>Planned</option>
-                        <option value="active" {{ ($isEdit ? $task->status : 'planned') === 'active' ? 'selected' : '' }}>Active</option>
-                        <option value="completed" {{ ($isEdit ? $task->status : 'planned') === 'completed' ? 'selected' : '' }}>Completed</option>
-                    </select>
-                    <input type="hidden" name="status" value="{{ $isEdit ? $task->status : 'planned' }}">
-                @else
                 <select 
                     class="form-select @error('status') is-invalid @enderror" 
                     id="status" 
@@ -251,25 +240,11 @@
                 @error('status')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
-                @endif
             </div>
             
             @if($isEdit)
                 <div class="col-md-6">
                     <label for="column_id_select" class="form-label">Column</label>
-                    @if(Auth::user()->isClient())
-                        <select 
-                            class="form-select" 
-                            id="column_id_display" 
-                            disabled>
-                            @foreach($columns as $col)
-                                <option value="{{ $col->id }}" {{ $task->column_id == $col->id ? 'selected' : '' }}>
-                                    {{ $col->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <input type="hidden" name="column_id" value="{{ $task->column_id }}">
-                    @else
                     <select 
                         class="form-select @error('column_id') is-invalid @enderror" 
                         id="column_id_select" 
@@ -284,7 +259,6 @@
                     @error('column_id')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
-                    @endif
                 </div>
             @endif
         </div>
