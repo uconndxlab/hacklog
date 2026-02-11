@@ -853,6 +853,7 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'column_id' => 'required|exists:columns,id',
             'position' => 'required|integer|min:0',
+            'filter_phase_id' => 'nullable|integer|exists:phases,id',
         ]);
 
         // Verify task belongs to this project
@@ -899,12 +900,21 @@ class ProjectController extends Controller
 
         // Return updated column(s) HTML for the affected columns
         $columns = $project->columns;
-        $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
+        
+        // Build task query with optional phase filter
+        $tasksQuery = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
-        })
-        ->with(['phase', 'users'])
-        ->get()
-        ->groupBy('column_id');
+        });
+        
+        // Apply phase filter if provided
+        $filterPhaseId = $validated['filter_phase_id'] ?? null;
+        if ($filterPhaseId) {
+            $tasksQuery->where('phase_id', $filterPhaseId);
+        }
+        
+        $tasks = $tasksQuery->with(['phase', 'users'])
+            ->get()
+            ->groupBy('column_id');
 
         // If column changed, return both old and new columns
         if ($oldColumnId !== $validated['column_id']) {
@@ -919,14 +929,16 @@ class ProjectController extends Controller
                     'columnTasks' => $tasks->get($oldColumnId, collect()),
                     'project' => $project,
                     'allColumns' => $columns,
-                    'isProjectBoard' => true
+                    'isProjectBoard' => true,
+                    'filterPhaseId' => $filterPhaseId
                 ])->render(),
                 'newColumnHtml' => view('projects.partials.board-column-tasks', [
                     'column' => $newColumn,
                     'columnTasks' => $tasks->get($validated['column_id'], collect()),
                     'project' => $project,
                     'allColumns' => $columns,
-                    'isProjectBoard' => true
+                    'isProjectBoard' => true,
+                    'filterPhaseId' => $filterPhaseId
                 ])->render(),
                 'oldColumnId' => $oldColumnId,
                 'newColumnId' => $validated['column_id']

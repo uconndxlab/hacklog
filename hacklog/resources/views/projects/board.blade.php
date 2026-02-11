@@ -558,16 +558,25 @@ document.addEventListener('keydown', function(e) {
         draggedTask.dataset.position = position;
 
         // Send to server
+        const requestBody = {
+            column_id: newColumnId,
+            position: position
+        };
+        
+        // Include phase filter if active
+        const urlParams = new URLSearchParams(window.location.search);
+        const filterPhaseId = urlParams.get('phase');
+        if (filterPhaseId) {
+            requestBody.filter_phase_id = filterPhaseId;
+        }
+        
         fetch(`/projects/{{ $project->id }}/board/tasks/${draggedTask.dataset.taskId}/move`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify({
-                column_id: newColumnId,
-                position: position
-            })
+            body: JSON.stringify(requestBody)
         })
         .then(response => response.json())
         .then(data => {
