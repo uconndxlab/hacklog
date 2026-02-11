@@ -570,6 +570,12 @@ document.addEventListener('keydown', function(e) {
             requestBody.filter_phase_id = filterPhaseId;
         }
         
+        // Include assignee filter if active
+        const filterAssigned = urlParams.get('assigned');
+        if (filterAssigned) {
+            requestBody.filter_assigned = filterAssigned;
+        }
+        
         fetch(`/projects/{{ $project->id }}/board/tasks/${draggedTask.dataset.taskId}/move`, {
             method: 'POST',
             headers: {

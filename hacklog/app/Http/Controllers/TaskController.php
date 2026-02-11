@@ -290,7 +290,12 @@ class TaskController extends Controller
         if (request()->header('HX-Request')) {
             if ($fromBoard === '1') {
                 // Board context: return board-column-tasks partial
-                return $this->returnBoardColumnTasks($project, $task->column_id);
+                return $this->returnBoardColumnTasks(
+                    $project, 
+                    $task->column_id, 
+                    $request->input('filter_phase_id'),
+                    $request->input('filter_assigned')
+                );
             } else {
                 // Phase context: return phase column-tasks partial
                 $column = $task->column;
@@ -320,7 +325,12 @@ class TaskController extends Controller
         if (request()->header('HX-Request')) {
             if ($fromBoard === '1') {
                 // Board context: return board-column-tasks partial
-                return $this->returnBoardColumnTasks($project, $task->column_id);
+                return $this->returnBoardColumnTasks(
+                    $project, 
+                    $task->column_id, 
+                    $request->input('filter_phase_id'),
+                    $request->input('filter_assigned')
+                );
             } else {
                 // Phase context: return phase column-tasks partial
                 $column = $task->column;
@@ -377,20 +387,41 @@ class TaskController extends Controller
     /**
      * Helper method to return board column tasks for HTMX
      */
-    protected function returnBoardColumnTasks(Project $project, int $columnId)
+    protected function returnBoardColumnTasks(Project $project, int $columnId, $filterPhaseId = null, $filterAssigned = null)
     {
         $columns = $project->columns;
         $column = $columns->firstWhere('id', $columnId);
         
-        // Simple query: get all tasks in this column
-        $columnTasks = \App\Models\Task::where('column_id', $columnId)->with(['phase', 'users'])->get();
+        // Build query with optional filters
+        $query = \App\Models\Task::where('column_id', $columnId);
+        
+        // Apply phase filter if provided
+        if ($filterPhaseId) {
+            $query->where('phase_id', $filterPhaseId);
+        }
+        
+        // Apply assignment filter if provided
+        if ($filterAssigned === 'me') {
+            $query->whereHas('users', function ($q) {
+                $q->where('users.id', auth()->id());
+            });
+        } elseif ($filterAssigned === 'none') {
+            $query->whereDoesntHave('users');
+        } elseif ($filterAssigned && is_numeric($filterAssigned)) {
+            $query->whereHas('users', function ($q) use ($filterAssigned) {
+                $q->where('users.id', $filterAssigned);
+            });
+        }
+        
+        $columnTasks = $query->with(['phase', 'users'])->get();
         
         return view('projects.partials.board-column-tasks', [
             'column' => $column,
             'columnTasks' => $columnTasks,
             'project' => $project,
             'allColumns' => $columns,
-            'isProjectBoard' => true
+            'isProjectBoard' => true,
+            'filterPhaseId' => $filterPhaseId
         ]);
     }
 

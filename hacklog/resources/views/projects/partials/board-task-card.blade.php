@@ -76,6 +76,12 @@
                             hx-swap="outerHTML">
                             @csrf
                             <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
+                            @if(isset($filterPhaseId) && $filterPhaseId)
+                                <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}">
+                            @endif
+                            @if(request('assigned'))
+                                <input type="hidden" name="filter_assigned" value="{{ request('assigned') }}">
+                            @endif
                             <button type="submit" class="btn btn-outline-secondary">↑</button>
                         </form>
                     @else
@@ -92,6 +98,12 @@
                             hx-swap="outerHTML">
                             @csrf
                             <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
+                            @if(isset($filterPhaseId) && $filterPhaseId)
+                                <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}">
+                            @endif
+                            @if(request('assigned'))
+                                <input type="hidden" name="filter_assigned" value="{{ request('assigned') }}">
+                            @endif
                             <button type="submit" class="btn btn-outline-secondary">↓</button>
                         </form>
                     @else
@@ -161,6 +173,12 @@
             <input type="hidden" name="from_board_modal" value="1">
             <input type="hidden" name="old_column_id" value="{{ $task->column_id }}">
             <input type="hidden" name="column_change_only" value="1">
+            @if(isset($filterPhaseId) && $filterPhaseId)
+                <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}">
+            @endif
+            @if(request('assigned'))
+                <input type="hidden" name="filter_assigned" value="{{ request('assigned') }}">
+            @endif
             @foreach($task->users as $user)
                 <input type="hidden" name="assignees[]" value="{{ $user->id }}">
             @endforeach

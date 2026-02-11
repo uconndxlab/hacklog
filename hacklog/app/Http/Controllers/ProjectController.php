@@ -788,12 +788,35 @@ class ProjectController extends Controller
             
             // HTMX: Return updated column task lists
             $columns = $project->columns;
-            $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
+            
+            // Build task query with optional filters
+            $tasksQuery = \App\Models\Task::whereHas('column', function ($query) use ($project) {
                 $query->where('project_id', $project->id);
-            })
-            ->with(['phase', 'users'])
-            ->get()
-            ->groupBy('column_id');
+            });
+            
+            // Apply phase filter if provided
+            $filterPhaseId = $request->input('filter_phase_id');
+            if ($filterPhaseId) {
+                $tasksQuery->where('phase_id', $filterPhaseId);
+            }
+            
+            // Apply assignment filter if provided
+            $filterAssigned = $request->input('filter_assigned');
+            if ($filterAssigned === 'me') {
+                $tasksQuery->whereHas('users', function ($query) use ($request) {
+                    $query->where('users.id', $request->user()->id);
+                });
+            } elseif ($filterAssigned === 'none') {
+                $tasksQuery->whereDoesntHave('users');
+            } elseif ($filterAssigned && is_numeric($filterAssigned)) {
+                $tasksQuery->whereHas('users', function ($query) use ($filterAssigned) {
+                    $query->where('users.id', $filterAssigned);
+                });
+            }
+            
+            $tasks = $tasksQuery->with(['phase', 'users'])
+                ->get()
+                ->groupBy('column_id');
             
             // If column changed, we need to update both old and new columns
             if ($oldColumnId != $validated['column_id']) {
@@ -806,7 +829,8 @@ class ProjectController extends Controller
                     'columnTasks' => $tasks->get($oldColumnId, collect()),
                     'project' => $project,
                     'allColumns' => $columns,
-                    'isProjectBoard' => true
+                    'isProjectBoard' => true,
+                    'filterPhaseId' => $filterPhaseId
                 ])->render();
                 
                 $html .= '<div id="board-column-' . $validated['column_id'] . '-tasks" hx-swap-oob="true">';
@@ -815,7 +839,8 @@ class ProjectController extends Controller
                     'columnTasks' => $tasks->get($validated['column_id'], collect()),
                     'project' => $project,
                     'allColumns' => $columns,
-                    'isProjectBoard' => true
+                    'isProjectBoard' => true,
+                    'filterPhaseId' => $filterPhaseId
                 ])->render();
                 $html .= '</div>';
                 
@@ -831,7 +856,8 @@ class ProjectController extends Controller
                     'columnTasks' => $tasks->get($validated['column_id'], collect()),
                     'project' => $project,
                     'allColumns' => $columns,
-                    'isProjectBoard' => true
+                    'isProjectBoard' => true,
+                    'filterPhaseId' => $filterPhaseId
                 ])->render();
                 
                 $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
@@ -854,6 +880,7 @@ class ProjectController extends Controller
             'column_id' => 'required|exists:columns,id',
             'position' => 'required|integer|min:0',
             'filter_phase_id' => 'nullable|integer|exists:phases,id',
+            'filter_assigned' => 'nullable|string',
         ]);
 
         // Verify task belongs to this project
@@ -910,6 +937,20 @@ class ProjectController extends Controller
         $filterPhaseId = $validated['filter_phase_id'] ?? null;
         if ($filterPhaseId) {
             $tasksQuery->where('phase_id', $filterPhaseId);
+        }
+        
+        // Apply assignment filter if provided
+        $filterAssigned = $validated['filter_assigned'] ?? null;
+        if ($filterAssigned === 'me') {
+            $tasksQuery->whereHas('users', function ($query) use ($request) {
+                $query->where('users.id', $request->user()->id);
+            });
+        } elseif ($filterAssigned === 'none') {
+            $tasksQuery->whereDoesntHave('users');
+        } elseif ($filterAssigned && is_numeric($filterAssigned)) {
+            $tasksQuery->whereHas('users', function ($query) use ($filterAssigned) {
+                $query->where('users.id', $filterAssigned);
+            });
         }
         
         $tasks = $tasksQuery->with(['phase', 'users'])
