@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\ProjectActivity;
+use App\Models\Task;
 use App\Models\TaskActivity;
 use App\Models\TaskComment;
 use App\Models\User;
@@ -96,11 +97,18 @@ class ActivityLogController extends Controller
         $taskActivities = $taskActivitiesQuery->get()->load(['task.column.project', 'user']);
         $taskComments = $taskCommentsQuery->get()->load(['task.column.project', 'task.phase', 'user']);
 
+        // Initialize new activities collections
+        $newProjectActivities = collect([]);
+        $newTaskActivities = collect([]);
+
         // Debug activities
         \Log::info('Activities query results', [
             'project_activities_count' => $projectActivities->count(),
             'task_activities_count' => $taskActivities->count(),
-            'total_activities' => $projectActivities->count() + $taskActivities->count(),
+            'task_comments_count' => $taskComments->count(),
+            'new_project_activities_count' => $newProjectActivities->count(),
+            'new_task_activities_count' => $newTaskActivities->count(),
+            'total_activities' => $projectActivities->count() + $taskActivities->count() + $taskComments->count() + $newProjectActivities->count() + $newTaskActivities->count(),
             'project_activities_sample' => $projectActivities->take(2)->map(function($a) {
                 return [
                     'id' => $a->id,
@@ -145,7 +153,6 @@ class ActivityLogController extends Controller
         // Also get projects created during this date range (even if no activities logged yet)
         // Only show these when NOT filtering by user (since they have no user_id)
         // Also exclude when filtering by task or comment type
-        $newProjectActivities = collect([]);
         
         $typeFilter = $request->input('type');
         if ((!$request->filled('user_id') || $request->input('user_id') == '') 
@@ -174,11 +181,47 @@ class ActivityLogController extends Controller
             });
         }
 
+        // Also get tasks created during this date range
+        // Include when NOT filtering by type or when type is 'task'
+        $newTaskActivities = collect([]);
+        if (!$request->filled('type') || $request->input('type') == '' || $request->input('type') === 'task') {
+            $newTasksQuery = Task::whereBetween('created_at', [$filterStart, $filterEnd])
+                ->with(['column.project', 'phase', 'creator']); // Load relationships
+
+            // Apply project filter
+            if ($request->filled('project_id') && $request->input('project_id') != '') {
+                $newTasksQuery->whereHas('column', function ($q) use ($request) {
+                    $q->where('project_id', $request->input('project_id'));
+                });
+            }
+
+            // Apply user filter (tasks have created_by)
+            if ($request->filled('user_id') && $request->input('user_id') != '') {
+                $newTasksQuery->where('created_by', $request->input('user_id'));
+            }
+
+            // Convert new tasks to activity-like objects
+            $newTaskActivities = $newTasksQuery->get()->map(function($task) {
+                return (object)[
+                    'id' => 'task_created_' . $task->id,
+                    'task_id' => $task->id,
+                    'task' => $task,
+                    'user_id' => $task->created_by,
+                    'user' => $task->creator,
+                    'action' => 'created',
+                    'metadata' => null,
+                    'created_at' => $task->created_at,
+                    'type' => 'task',
+                ];
+            });
+        }
+
         // Combine and sort by created_at
         $allActivities = $projectActivities
             ->concat($taskActivities)
             ->concat($taskComments)
             ->concat($newProjectActivities)
+            ->concat($newTaskActivities)
             ->sortByDesc('created_at')
             ->take(200); // Show most recent 200 activities
 

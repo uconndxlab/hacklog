@@ -15,73 +15,8 @@
                    hx-target="#taskModalContent">
                     {{ $task->title }}
                 </a>
-            </h6>
-            
-            {{-- Move up/down buttons --}}
-            @if($task->canMoveUp() || $task->canMoveDown())
-                <div class="btn-group btn-group-sm" role="group">
-                    @if($task->canMoveUp())
-                        <form 
-                            action="{{ $task->phase ? route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) : '#' }}" 
-                            method="POST" 
-                            class="d-inline"
-                            hx-post="{{ $task->phase ? route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) : '#' }}"
-                            hx-target="#board-column-{{ $task->column_id }}-tasks"
-                            hx-swap="outerHTML">
-                            @csrf
-                            <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
-                            <button type="submit" class="btn btn-outline-secondary">↑</button>
-                        </form>
-                    @else
-                        <button type="button" class="btn btn-outline-secondary" disabled>↑</button>
-                    @endif
-                    
-                    @if($task->canMoveDown())
-                        <form 
-                            action="{{ $task->phase ? route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) : '#' }}" 
-                            method="POST" 
-                            class="d-inline"
-                            hx-post="{{ $task->phase ? route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) : '#' }}"
-                            hx-target="#board-column-{{ $task->column_id }}-tasks"
-                            hx-swap="outerHTML">
-                            @csrf
-                            <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
-                            <button type="submit" class="btn btn-outline-secondary">↓</button>
-                        </form>
-                    @else
-                        <button type="button" class="btn btn-outline-secondary" disabled>↑</button>
-                    @endif
-                </div>
-            @endif
-        </div>
-        
-        @if($task->phase)
-            <p class="card-text mb-2">
-                <small class="text-muted">Phase: {{ $task->phase->name }}</small>
-            </p>
-        @endif
-        
-        @if($task->due_date)
-            <p class="card-text mb-2">
-                <small class="text-muted">
-                    <strong>Due:</strong> {{ $task->due_date->format('M j, Y') }}
-                    @if($task->isOverdue())
-                        <span class="badge bg-danger ms-1">Overdue</span>
-                    @endif
-                </small>
-            </p>
-        @endif
-        
-        @if($task->users->isNotEmpty())
-            <p class="card-text mb-2">
-                <small class="text-muted">
-                    <strong>Assigned:</strong> {{ $task->users->pluck('name')->join(', ') }}
-                </small>
-            </p>
-        @endif
-        
-        {{-- Interactive status badge --}}
-        <div class="mb-2">
+                {{-- Interactive status badge --}}
+        <div class="my-2">
             <form 
                 action="{{ route('projects.board.tasks.update', [$project, $task]) }}" 
                 method="POST"
@@ -126,6 +61,76 @@
                 </select>
             </form>
         </div>
+            </h6>
+            
+            {{-- Move up/down buttons --}}
+            @if($task->canMoveUp() || $task->canMoveDown())
+                <div class="btn-group btn-group-sm" role="group">
+                    @if($task->canMoveUp())
+                        <form 
+                            action="{{ $task->phase ? route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) : '#' }}" 
+                            method="POST" 
+                            class="d-inline"
+                            hx-post="{{ $task->phase ? route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) : '#' }}"
+                            hx-target="#board-column-{{ $task->column_id }}-tasks"
+                            hx-swap="outerHTML">
+                            @csrf
+                            <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
+                            <button type="submit" class="btn btn-outline-secondary">↑</button>
+                        </form>
+                    @else
+                        <button type="button" class="btn btn-outline-secondary" disabled>↑</button>
+                    @endif
+                    
+                    @if($task->canMoveDown())
+                        <form 
+                            action="{{ $task->phase ? route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) : '#' }}" 
+                            method="POST" 
+                            class="d-inline"
+                            hx-post="{{ $task->phase ? route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) : '#' }}"
+                            hx-target="#board-column-{{ $task->column_id }}-tasks"
+                            hx-swap="outerHTML">
+                            @csrf
+                            <input type="hidden" name="from_board" value="{{ isset($isProjectBoard) && $isProjectBoard ? '1' : '0' }}">
+                            <button type="submit" class="btn btn-outline-secondary">↓</button>
+                        </form>
+                    @else
+                        <button type="button" class="btn btn-outline-secondary" disabled>↑</button>
+                    @endif
+                </div>
+            @endif
+        </div>
+
+        
+        
+        @if($task->phase)
+            <p class="card-text mb-2">
+                <small class="text-muted">Phase: {{ $task->phase->name }}</small>
+            </p>
+        @endif
+
+        
+        
+        @if($task->due_date)
+            <p class="card-text mb-2">
+                <small class="text-muted">
+                    <strong>Due:</strong> {{ $task->due_date->format('M j, Y') }}
+                    @if($task->isOverdue())
+                        <span class="badge bg-danger ms-1">Overdue</span>
+                    @endif
+                </small>
+            </p>
+        @endif
+        
+        @if($task->users->isNotEmpty())
+            <p class="card-text mb-2">
+                <small class="text-muted">
+                    <strong>Assigned:</strong> {{ $task->users->pluck('name')->join(', ') }}
+                </small>
+            </p>
+        @endif
+        
+    
         
         {{-- Edit button --}}
         <div class="mb-2 d-none">
@@ -161,6 +166,7 @@
             @endforeach
             
             <div class="input-group input-group-sm">
+                <label class="input-group-text" for="columnSelect-{{ $task->id }}">Move to:</label>
                 <select 
                     name="column_id" 
                     class="form-select form-select-sm"
@@ -175,8 +181,10 @@
                         </option>
                     @endforeach
                 </select>
-                <button type="submit" class="btn btn-outline-secondary btn-sm">Move</button>
+                <button type="submit" class="btn btn-outline-secondary btn-sm d-none">Move</button>
             </div>
         </form>
+
+        
     </div>
 </div>
