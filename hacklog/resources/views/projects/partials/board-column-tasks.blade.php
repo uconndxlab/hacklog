@@ -8,7 +8,8 @@
             'project' => $project,
             'task' => $task,
             'allColumns' => $allColumns,
-            'isProjectBoard' => $isProjectBoard ?? true
+            'isProjectBoard' => $isProjectBoard ?? true,
+            'filterPhaseId' => $filterPhaseId ?? null
         ])
     @empty
         <div class="text-muted text-center py-4">

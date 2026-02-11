@@ -143,7 +143,8 @@
                     'column' => $column,
                     'columnTasks' => $tasks->get($column->id, collect()),
                     'allColumns' => $columns,
-                    'isProjectBoard' => true
+                    'isProjectBoard' => true,
+                    'filterPhaseId' => request('phase')
                 ])
             </div>
         @endforeach

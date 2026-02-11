@@ -4,7 +4,7 @@
         <p class="text-muted text-center py-3 mb-0">No tasks</p>
     @else
         @foreach($columnTasks as $task)
-            @include('tasks.partials.task-card', ['project' => $project, 'phase' => $phase, 'task' => $task])
+            @include('tasks.partials.task-card', ['project' => $project, 'phase' => $phase, 'task' => $task, 'filterPhaseId' => $phase->id])
         @endforeach
     @endif
 </div>

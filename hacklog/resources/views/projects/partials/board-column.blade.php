@@ -23,6 +23,7 @@
         'columnTasks' => $columnTasks,
         'project' => $project,
         'allColumns' => $allColumns,
-        'isProjectBoard' => $isProjectBoard ?? true
+        'isProjectBoard' => $isProjectBoard ?? true,
+        'filterPhaseId' => $filterPhaseId ?? null
     ])
 </div>

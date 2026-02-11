@@ -206,29 +206,45 @@ class Task extends Model
 
     /**
      * Check if this task can move up
+     * 
+     * @param int|null $filterPhaseId Optional phase ID to check within that phase only
      */
-    public function canMoveUp(): bool
+    public function canMoveUp(?int $filterPhaseId = null): bool
     {
         if ($this->position === null) {
             return false;
         }
 
-        return static::where('column_id', $this->column_id)
-            ->where('position', '<', $this->position)
-            ->exists();
+        $query = static::where('column_id', $this->column_id)
+            ->where('position', '<', $this->position);
+        
+        // If filtering by phase, only check within that phase
+        if ($filterPhaseId !== null) {
+            $query->where('phase_id', $filterPhaseId);
+        }
+
+        return $query->exists();
     }
 
     /**
      * Check if this task can move down
+     * 
+     * @param int|null $filterPhaseId Optional phase ID to check within that phase only
      */
-    public function canMoveDown(): bool
+    public function canMoveDown(?int $filterPhaseId = null): bool
     {
         if ($this->position === null) {
             return false;
         }
 
-        return static::where('column_id', $this->column_id)
-            ->where('position', '>', $this->position)
-            ->exists();
+        $query = static::where('column_id', $this->column_id)
+            ->where('position', '>', $this->position);
+        
+        // If filtering by phase, only check within that phase
+        if ($filterPhaseId !== null) {
+            $query->where('phase_id', $filterPhaseId);
+        }
+
+        return $query->exists();
     }
 }

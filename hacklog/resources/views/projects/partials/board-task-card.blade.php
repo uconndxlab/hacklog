@@ -64,9 +64,9 @@
             </h6>
             
             {{-- Move up/down buttons --}}
-            @if($task->canMoveUp() || $task->canMoveDown())
+            @if($task->canMoveUp($filterPhaseId ?? null) || $task->canMoveDown($filterPhaseId ?? null))
                 <div class="btn-group btn-group-sm" role="group">
-                    @if($task->canMoveUp())
+                    @if($task->canMoveUp($filterPhaseId ?? null))
                         <form 
                             action="{{ $task->phase ? route('projects.phases.tasks.move-up', [$project, $task->phase, $task]) : '#' }}" 
                             method="POST" 
@@ -82,7 +82,7 @@
                         <button type="button" class="btn btn-outline-secondary" disabled>↑</button>
                     @endif
                     
-                    @if($task->canMoveDown())
+                    @if($task->canMoveDown($filterPhaseId ?? null))
                         <form 
                             action="{{ $task->phase ? route('projects.phases.tasks.move-down', [$project, $task->phase, $task]) : '#' }}" 
                             method="POST" 
