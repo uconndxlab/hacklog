@@ -1,144 +1,78 @@
 # Hacklog
 
-An open-source project management platform built with Laravel 12, Bootstrap 5, and SQLite.
+Project management tool built with Laravel 12, Bootstrap 5, HTMX, and SQLite.
 
 ## Features
 
-- **Projects & Phases**: Organize work hierarchically
-- **Kanban Board**: Visual task management with customizable columns
-- **Task Assignments**: Assign tasks to team members
-- **Schedule View**: Timeline view of tasks by due date (project-level and organization-wide)
-- **Timeline View**: Gantt-style weekly timeline
-- **Resources**: Curated links and notes per project
-- **Authentication**: Simple login/register system
+- **Kanban Board** — drag-and-drop task cards across customizable columns
+- **Projects & Phases** — projects contain phases; tasks belong to a phase (optional) and a column
+- **Task Tracking** — status (planned/active/completed), start/due dates, multi-assignee, comments (Trix rich text), position ordering
+- **Activity Log** — per-task activity history and an org-wide admin activity log with date/project/user/type filters
+- **Schedule View** — tasks by due date, per-project and org-wide, filterable by assignee
+- **Timeline View** — Gantt-style weekly view per-project and org-wide
+- **Resources** — links and notes attached to a project
+- **Project Sharing** — share projects with specific users
+- **User Management** — admin-only; create/edit/deactivate users, LDAP lookup.
+
+## Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | Laravel 12 (PHP 8.2+) |
+| Frontend | Blade templates, Bootstrap 5 (CSS only, no JS bundle) |
+| Interactivity | HTMX for inline updates; vanilla JS for drag-and-drop |
+| Database | SQLite |
+| Rich Text | Trix editor |
+| Auth | CAS (NetID) via `uconndxlab/laravel-cas`, with masquerade mode for local dev |
+| Directory | LDAP via `directorytree/ldaprecord-laravel` for user lookups |
+
+## Authentication
+
+CAS-based single sign-on using CAS. No local password login (yet). Flow:
+
+1. User visits `/login` → redirected to CAS server
+2. CAS returns NetID → app checks for matching active local user
+3. If authorized, Laravel session is created
+
+Set `CAS_MASQUERADE=<netid>` in `.env` to bypass CAS during local development.
+
+## Roles
+
+Two roles: **admin** and **user**. Enforced via middleware. Admins get access to user management, bulk task operations, and the activity log.
+
+## Data Model
+
+- **Project** → has many Phases, Columns, Resources, Shares
+- **Phase** → has many Tasks (optional grouping)
+- **Column** → has many Tasks (board workflow)
+- **Task** → belongs to Project + Column, optionally to Phase; has many Assignees (users), Comments, Activities
+- **TaskActivity** / **ProjectActivity** — append-only logs of changes (status, assignee, column, phase, due date, etc.)
 
 ## Getting Started
 
-### Prerequisites
+Requires PHP 8.2+, Composer, Node.js, and SQLite.
 
-- PHP 8.3+
-- Composer
-- SQLite
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan db:seed
+npm install && npm run build
+```
 
-### Installation
+Run the dev environment (server + queue + logs + Vite):
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   composer install
-   ```
-3. Set up environment:
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
-4. Run migrations:
-   ```bash
-   php artisan migrate
-   ```
-5. Seed demo users:
-   ```bash
-   php artisan db:seed
-   ```
+```bash
+composer dev
+```
 
-### Default Users
-
-After seeding, you can log in with these accounts (password: `password`):
-
-- **admin@hacklog.com** (Admin - full access to user management)
-- **jane@hacklog.com** (User - standard access)
-- **john@hacklog.com** (User - standard access)
-
-### Running the Application
+Or just the server:
 
 ```bash
 php artisan serve
 ```
 
-Visit `http://localhost:8000` and log in with one of the test accounts.
-
-## Stack
-
-- **Backend**: Laravel 12
-- **Frontend**: Blade templates + Bootstrap 5
-- **Enhancement**: HTMX (progressive enhancement only)
-- **Database**: SQLite
-- **Rich Text**: Trix editor
-
-## Project Structure
-
-- **Projects** contain **Phases** which contain **Tasks**
-- Tasks are organized in **Columns** (kanban workflow)
-- Tasks have:
-  - Status (planned, active, completed)
-  - Dates (start_date, due_date)
-  - Assignees (many-to-many with users)
-  - Position (ordering within column)
-
-## Authentication
-
-Manual authentication using Laravel's built-in primitives:
-- No third-party auth packages
-- Simple login/register/logout flows
-- Session-based authentication
-- Password hashing with bcrypt
-
-## User Management
-
-- Admin-only access to user management at `/users`
-- Admins can:
-  - Create new users
-  - Edit user details (name, email, role)
-  - Activate/deactivate user accounts
-- Normal users cannot access user management
-- Deactivated users cannot log in
-- All users can be assigned to tasks
-
-## Roles
-
-**Two roles supported:**
-- **Admin**: Full access including user management
-- **User**: Standard access to projects, tasks, and schedules
-
-Role enforcement via simple middleware checks - no complex permission system.
-
-## Development Philosophy
-
-- Prefer Laravel conventions
-- Keep controllers thin
-- Avoid over-abstraction
-- Simple role system (admin/user only)
-- Calm, professional UI with high contrast
-
 ## License
 
-Open source - MIT License
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT
