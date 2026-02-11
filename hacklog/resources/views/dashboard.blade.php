@@ -43,7 +43,7 @@
                                                 </a>
                                             </h6>
                                             <p class="mb-1 text-muted small">
-                                                {{ $task->getProject()->name }}
+                                                <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
                                                 @if($task->phase)
                                                      › {{ $task->phase->name }}
                                                 @endif
@@ -91,8 +91,10 @@
                                                     </a>
                                                 </h6>
                                                 <p class="mb-1 text-muted small">
-                                                    {{ $task->getProject()->name }}
-                                                    @if($task->phase)
+                                                   
+                                                   <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
+                                                    
+                                                   @if($task->phase)
                                                          › {{ $task->phase->name }}
                                                     @endif
                                                 </p>
@@ -137,7 +139,9 @@
                                                     </a>
                                                 </h6>
                                                 <p class="mb-1 text-muted small">
-                                                    {{ $task->getProject()->name }}
+
+                                                    <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
+
                                                     @if($task->phase)
                                                          › {{ $task->phase->name }}
                                                     @endif
@@ -216,7 +220,8 @@
                                                 </a>
                                             </h6>
                                             <p class="mb-1 text-muted small">
-                                                {{ $task->getProject()->name }}
+                                                
+                                                <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
                                                 @if($task->phase)
                                                      › {{ $task->phase->name }}
                                                 @endif
@@ -259,7 +264,8 @@
                                             </a>
                                         </h6>
                                         <small class="text-muted mb-1">
-                                            {{ $task->getProject()->name }}
+                                            <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
+
                                         </small>
                                         @if($effectiveDueDate)
                                             <small class="text-muted">
