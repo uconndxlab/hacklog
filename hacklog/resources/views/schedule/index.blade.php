@@ -343,6 +343,12 @@
 google.charts.setOnLoadCallback(drawCharts);
 
 function drawCharts() {
+    // Chart colors for light and dark theme 
+    var isDark = document.body.classList.contains('theme-dark');
+    var chartBg = isDark ? '#232a36' : 'white';
+    var textColor = isDark ? '#b8bcc6' : '#333';
+    var annotationColor = isDark ? '#e2e6eb' : '#000';
+
     // Due Date Chart
     var dueData = google.visualization.arrayToDataTable([
         ['Bucket', 'Count', {role: 'annotation'}],
@@ -352,15 +358,18 @@ function drawCharts() {
         ['Later', {{ $dueDateBuckets['later'] }}, '{{ $dueDateBuckets['later'] }}']
     ]);
     var dueOptions = {
+        backgroundColor: chartBg,
         chartArea: {width: '80%', height: '70%'},
-        legend: {position: 'bottom'},
+        legend: {position: 'bottom', textStyle: {color: textColor}},
         bars: 'horizontal',
         colors: ['#dc3545', '#fd7e14', '#ffc107', '#6c757d'],
+        hAxis: {textStyle: {color: textColor}, baselineColor: isDark ? '#3d4553' : '#ccc'},
+        vAxis: {textStyle: {color: textColor}, baselineColor: isDark ? '#3d4553' : '#ccc'},
         annotations: {
             alwaysOutside: true,
-            textStyle: {
-                fontSize: 12,
-                color: '#000'
+            textStyle: { 
+                fontSize: 12, 
+                color: annotationColor 
             }
         }
     };
@@ -376,13 +385,16 @@ function drawCharts() {
         @endforeach
     ]);
     var distOptions = {
+        backgroundColor: chartBg,
         chartArea: {width: '80%', height: '70%'},
-        legend: {position: 'bottom'},
+        legend: {position: 'bottom', textStyle: {color: textColor}},
+        hAxis: {textStyle: {color: textColor}, baselineColor: isDark ? '#3d4553' : '#ccc'},
+        vAxis: {textStyle: {color: textColor}, baselineColor: isDark ? '#3d4553' : '#ccc'},
         annotations: {
             alwaysOutside: true,
-            textStyle: {
-                fontSize: 12,
-                color: '#000'
+            textStyle: { 
+                fontSize: 12, 
+                color: annotationColor 
             }
         }
     };
