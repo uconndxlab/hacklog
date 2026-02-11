@@ -144,6 +144,18 @@
                     Discussion
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {{ ($activeTab ?? 'details') === 'attachments' ? 'active' : '' }}" 
+                        id="attachments-tab" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#attachments" 
+                        type="button" 
+                        role="tab" 
+                        aria-controls="attachments" 
+                        aria-selected="{{ ($activeTab ?? 'details') === 'attachments' ? 'true' : 'false' }}">
+                    Attachments
+                </button>
+            </li>
         </ul>
     </div>
     @endif
@@ -503,6 +515,71 @@
                     @endif
                 </div>
             </div>
+            
+            {{-- Attachments Tab --}}
+            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'attachments' ? 'show active' : '' }}" 
+                 id="attachments" 
+                 role="tabpanel" 
+                 aria-labelledby="attachments-tab"
+                 style="height: 100%; overflow-y: auto;">
+                
+                {{-- Upload form - sticky at top --}}
+                <div class="border-bottom" style="position: sticky; top: 0; background: white; z-index: 10; padding: 1rem 1.5rem; padding-bottom: 1rem;">
+                    <div id="attachmentUploadStatus" class="alert alert-success alert-dismissible fade mb-2" role="alert" style="display: none;">
+                        <span id="attachmentUploadMessage"></span>
+                        <button type="button" class="btn-close" onclick="document.getElementById('attachmentUploadStatus').style.display='none'"></button>
+                    </div>
+                    <div class="d-flex gap-2 align-items-end">
+                        <div style="flex: 1;">
+                            <label for="attachment_file" class="form-label mb-1">Upload File</label>
+                            <input type="file" 
+                                   class="form-control form-control-sm" 
+                                   id="attachment_file" 
+                                   accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls"
+                                   data-upload-url="{{ route('projects.board.tasks.attachments.upload', [$project, $task]) }}">
+                            <small class="text-muted">Max 10MB. Images, PDFs, documents, and spreadsheets.</small>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="uploadAttachment()">Upload</button>
+                    </div>
+                </div>
+                </div>
+                
+                {{-- Attachments list - scrollable --}}
+                <div style="padding: 1rem 1.5rem;" id="attachmentsList">
+                    @forelse($task->attachments as $attachment)
+                        <div class="mb-3 pb-3 border-bottom" data-attachment-id="{{ $attachment->id }}">
+                            <div class="d-flex align-items-start justify-content-between gap-2">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <a href="{{ route('projects.board.tasks.attachments.download', [$project, $task, $attachment]) }}" 
+                                           class="text-decoration-none">
+                                            <strong>{{ $attachment->original_name }}</strong>
+                                        </a>
+                                        <span class="badge bg-light text-muted border" style="font-weight: 400;">
+                                            {{ number_format($attachment->size / 1024, 1) }} KB
+                                        </span>
+                                    </div>
+                                    <small class="text-muted">
+                                        Uploaded by {{ $attachment->user->name }} • {{ $attachment->created_at->diffForHumans() }}
+                                    </small>
+                                </div>
+                                @if($attachment->user_id === auth()->id() || auth()->user()->isAdmin())
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            onclick="deleteAttachment('{{ route('projects.board.tasks.attachments.destroy', [$project, $task, $attachment]) }}', {{ $attachment->id }})"
+                                            title="Delete attachment">
+                                        Delete
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <div class="text-muted text-center py-3" id="noAttachmentsMessage">
+                            <small>No attachments yet. Upload a file to get started.</small>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
         </div>
         @else
         </div>
@@ -511,6 +588,162 @@
 </form>
 
 <script>
+// Show status message for attachments
+function showAttachmentStatus(message, isError = false) {
+    const statusDiv = document.getElementById('attachmentUploadStatus');
+    const messageSpan = document.getElementById('attachmentUploadMessage');
+    
+    statusDiv.className = 'alert alert-dismissible fade show mb-2';
+    statusDiv.className += isError ? ' alert-danger' : ' alert-success';
+    messageSpan.textContent = message;
+    statusDiv.style.display = 'block';
+    
+    // Auto-hide success messages after 3 seconds
+    if (!isError) {
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 3000);
+    }
+}
+
+// Handle attachment upload without closing modal
+function uploadAttachment() {
+    const fileInput = document.getElementById('attachment_file');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showAttachmentStatus('Please select a file to upload.', true);
+        return;
+    }
+    
+    // Check file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+        showAttachmentStatus('File size must be less than 10MB.', true);
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+    
+    const uploadUrl = fileInput.getAttribute('data-upload-url');
+    const uploadBtn = event.target;
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Uploading...';
+    
+    fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || 'Upload failed');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        showAttachmentStatus('File uploaded successfully!');
+        fileInput.value = ''; // Clear the file input
+        
+        // Add the new attachment to the list
+        const attachmentsList = document.getElementById('attachmentsList');
+        const noMessage = document.getElementById('noAttachmentsMessage');
+        if (noMessage) {
+            noMessage.remove();
+        }
+        
+        // Insert new attachment at the top
+        const newItem = document.createElement('div');
+        newItem.className = 'mb-3 pb-3 border-bottom';
+        newItem.setAttribute('data-attachment-id', data.id);
+        newItem.innerHTML = `
+            <div class="d-flex align-items-start justify-content-between gap-2">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <a href="${data.download_url}" class="text-decoration-none">
+                            <strong>${data.original_name}</strong>
+                        </a>
+                        <span class="badge bg-light text-muted border" style="font-weight: 400;">
+                            ${(data.size / 1024).toFixed(1)} KB
+                        </span>
+                    </div>
+                    <small class="text-muted">
+                        Uploaded by ${data.user_name} • just now
+                    </small>
+                </div>
+                <button type="button" 
+                        class="btn btn-sm btn-outline-danger"
+                        onclick="deleteAttachment('${data.delete_url}', ${data.id})"
+                        title="Delete attachment">
+                    Delete
+                </button>
+            </div>
+        `;
+        attachmentsList.insertBefore(newItem, attachmentsList.firstChild);
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        showAttachmentStatus(error.message || 'Failed to upload file.', true);
+    })
+    .finally(() => {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Upload';
+    });
+}
+
+// Handle attachment delete without closing modal
+function deleteAttachment(deleteUrl, attachmentId) {
+    if (!confirm('Are you sure you want to delete this attachment?')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+    formData.append('_method', 'DELETE');
+    
+    fetch(deleteUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || 'Delete failed');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        showAttachmentStatus('Attachment deleted successfully!');
+        
+        // Remove the attachment from the list
+        const attachmentItem = document.querySelector(`[data-attachment-id="${attachmentId}"]`);
+        if (attachmentItem) {
+            attachmentItem.remove();
+        }
+        
+        // Show "no attachments" message if list is empty
+        const attachmentsList = document.getElementById('attachmentsList');
+        if (attachmentsList.children.length === 0) {
+            attachmentsList.innerHTML = '<div class="text-muted text-center py-3" id="noAttachmentsMessage"><small>No attachments yet. Upload a file to get started.</small></div>';
+        }
+    })
+    .catch(error => {
+        console.error('Delete error:', error);
+        showAttachmentStatus(error.message || 'Failed to delete attachment.', true);
+    });
+}
+
 // Phase selector date range display
 (function() {
     const phaseSelect = document.getElementById('phase_id');
@@ -683,6 +916,54 @@
         });
     });
 })();
+
+// Trix inline attachment handling
+@if($isEdit)
+(function() {
+    const trixEditor = document.querySelector('trix-editor[input="description"]');
+    if (!trixEditor) return;
+    
+    // Handle attachment addition
+    trixEditor.addEventListener('trix-attachment-add', function(event) {
+        const attachment = event.attachment;
+        if (!attachment.file) return;
+        
+        // Upload the file
+        const formData = new FormData();
+        formData.append('file', attachment.file);
+        
+        fetch('{{ route("projects.board.tasks.attachments.trix", [$project, $task]) }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Upload failed: ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.url && data.href) {
+                attachment.setAttributes({
+                    url: data.url,
+                    href: data.href
+                });
+            } else {
+                throw new Error('Invalid response from server');
+            }
+        })
+        .catch(error => {
+            console.error('Trix upload error:', error);
+            attachment.remove();
+            alert('Failed to upload file: ' + error.message);
+        });
+    });
+})();
+@endif
 
 // Update modal title for global modal
 @if($isGlobalModal)

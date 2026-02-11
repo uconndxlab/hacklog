@@ -469,6 +469,12 @@ class ProjectController extends Controller
             abort(403, 'Task does not belong to this project.');
         }
 
+        // Check for activeTab in session (set by attachment actions)
+        if (session()->has('activeTab')) {
+            $activeTab = session('activeTab');
+            session()->forget('activeTab');
+        }
+
         $phases = $project->phases()
             ->orderByRaw('CASE WHEN status = "active" THEN 1 WHEN status = "planned" THEN 2 ELSE 3 END')
             ->orderBy('name')
@@ -479,7 +485,7 @@ class ProjectController extends Controller
         $currentUser = auth()->user();
         $users = $this->getSortedUsersForProject($project, $currentUser);
         
-        $task->load(['users', 'comments.user', 'activities.user', 'creator', 'updater']);
+        $task->load(['users', 'comments.user', 'activities.user', 'creator', 'updater', 'attachments.user']);
         
         return view('projects.partials.board-task-form', compact('project', 'task', 'phases', 'columns', 'users', 'activeTab'));
     }
