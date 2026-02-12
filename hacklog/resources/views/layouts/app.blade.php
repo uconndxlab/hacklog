@@ -51,6 +51,16 @@
                     @endif
                 </ul>
                 <ul class="navbar-nav ms-auto">
+                    <li class="nav-item d-flex align-items-center me-2">
+                        <button id="hl-theme-toggle"
+                                type="button"
+                                class="btn btn-sm btn-outline-light hl-theme-toggle"
+                                aria-label="Toggle color theme">
+                            <span class="hl-theme-toggle-track">
+                                <span class="hl-theme-toggle-thumb"></span>
+                            </span>
+                        </button>
+                    </li>
                     @auth
                         <li class="nav-item">
                             <span class="nav-link text-light">{{ Auth::user()->name }}</span>
@@ -157,6 +167,47 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // =========================
+            // Theme toggle (light/dark)
+            // =========================
+            const body = document.body;
+            const THEME_KEY = 'hacklog-theme';
+            const themeToggle = document.getElementById('hl-theme-toggle');
+
+            function applyTheme(theme) {
+                if (theme === 'dark') {
+                    body.classList.add('theme-dark');
+                } else {
+                    body.classList.remove('theme-dark');
+                }
+            }
+
+            // Initial theme: saved preference or system preference
+            (() => {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved === 'dark' || saved === 'light') {
+                        applyTheme(saved);
+                    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                        applyTheme('dark');
+                    }
+                } catch (_) {
+                    // If localStorage is unavailable, silently ignore
+                }
+            })();
+
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    const isDark = !body.classList.contains('theme-dark');
+                    applyTheme(isDark ? 'dark' : 'light');
+                    try {
+                        localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+                    } catch (_) {
+                        // Ignore persistence errors
+                    }
+                });
+            }
+
             const projectSelectionModal = document.getElementById('projectSelectionModal');
             const taskCreationModal = document.getElementById('taskCreationModal');
             const projectSearch = document.getElementById('projectSearch');
