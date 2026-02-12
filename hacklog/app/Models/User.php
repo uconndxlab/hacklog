@@ -133,12 +133,41 @@ class User extends Authenticatable
             ->where('user_id', $this->id)
             ->max('created_at');
         
-        // Return the most recent one
-        $latest = $projectActivity && $taskActivity 
-            ? max($projectActivity, $taskActivity)
-            : ($projectActivity ?: $taskActivity);
+        // Get the latest from task comments
+        $taskComment = \DB::table('task_comments')
+            ->where('user_id', $this->id)
+            ->max('created_at');
         
-        return $latest ? \Carbon\Carbon::parse($latest) : null;
+        // Get the latest from task attachments
+        $taskAttachment = \DB::table('task_attachments')
+            ->where('user_id', $this->id)
+            ->max('created_at');
+        
+        // Get the latest task created by this user
+        $taskCreated = \DB::table('tasks')
+            ->where('created_by', $this->id)
+            ->max('created_at');
+        
+        // Get the latest task updated by this user
+        $taskUpdated = \DB::table('tasks')
+            ->where('updated_by', $this->id)
+            ->max('updated_at');
+        
+        // Return the most recent one
+        $timestamps = array_filter([
+            $projectActivity,
+            $taskActivity,
+            $taskComment,
+            $taskAttachment,
+            $taskCreated,
+            $taskUpdated
+        ]);
+        
+        if (empty($timestamps)) {
+            return null;
+        }
+        
+        return \Carbon\Carbon::parse(max($timestamps));
     }
 
     /**

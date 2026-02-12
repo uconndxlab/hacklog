@@ -12,6 +12,7 @@ use App\Http\Controllers\TaskAttachmentController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TeamDashboardController;
 use App\Http\Controllers\TimelineController;
+use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
@@ -38,6 +39,7 @@ Route::middleware('auth')->group(function () {
     // Admin-only: User management and task cleanup
     Route::middleware('admin')->group(function () {
         Route::resource('users', UsersController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+        Route::get('users/{user}', [UserProfileController::class, 'show'])->name('users.show');
         Route::post('users/search', [UsersController::class, 'searchUsers'])->name('users.search');
         Route::post('users/lookup-netid', [UsersController::class, 'lookupNetid'])->name('users.lookup-netid');
         Route::get('admin/projects/{project}/phases/{phase}/tasks', [TaskController::class, 'adminIndex'])->name('admin.phases.tasks.index');

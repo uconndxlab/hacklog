@@ -58,7 +58,11 @@
                         <tbody>
                             @forelse($users as $user)
                                 <tr>
-                                    <td class="fw-medium">{{ $user->name }}</td>
+                                    <td class="fw-medium">
+                                        <a href="{{ route('users.show', $user) }}" class="text-decoration-none">
+                                            {{ $user->name }}
+                                        </a>
+                                    </td>
                                     <td class="font-monospace">{{ $user->netid }}</td>
                                     <td>{{ $user->email }}</td>
                                     <td>
