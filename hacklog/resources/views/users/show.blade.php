@@ -224,6 +224,144 @@
             </div>
         </div>
         @endif
+
+        {{-- Recent Activity --}}
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Recent Activity</h5>
+                <p class="text-muted small mb-3">Last 30 days (up to 50 items)</p>
+                
+                @if($recentActivities->isEmpty())
+                    <div class="text-center text-muted py-5">
+                        <p class="mb-0">No recent activity</p>
+                    </div>
+                @else
+                    <div class="activity-timeline">
+                        @php
+                            $lastDate = null;
+                        @endphp
+                        @foreach($recentActivities as $activity)
+                            @php
+                                $currentDate = $activity->created_at->format('Y-m-d');
+                                $showDateHeader = $lastDate !== $currentDate;
+                                $lastDate = $currentDate;
+                            @endphp
+
+                            @if($showDateHeader)
+                                <div class="date-header mt-3 mb-2">
+                                    <strong class="text-muted">{{ $activity->created_at->format('l, F j') }}</strong>
+                                </div>
+                            @endif
+
+                            <div class="activity-item mb-2 pb-2 border-bottom">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        @if($activity->type === 'project')
+                                            {{-- Project Activity --}}
+                                            <div class="activity-content small">
+                                                @if($activity->action === 'created')
+                                                    Created project
+                                                    @if($activity->project)
+                                                        <a href="{{ route('projects.show', $activity->project) }}">{{ $activity->project->name }}</a>
+                                                    @else
+                                                        <span class="text-muted">(deleted)</span>
+                                                    @endif
+                                                @elseif($activity->action === 'updated')
+                                                    Updated project
+                                                    @if($activity->project)
+                                                        <a href="{{ route('projects.show', $activity->project) }}">{{ $activity->project->name }}</a>
+                                                    @else
+                                                        <span class="text-muted">(deleted)</span>
+                                                    @endif
+                                                @elseif($activity->action === 'status_changed')
+                                                    Changed status of
+                                                    @if($activity->project)
+                                                        <a href="{{ route('projects.show', $activity->project) }}">{{ $activity->project->name }}</a>
+                                                    @else
+                                                        <span class="text-muted">(deleted)</span>
+                                                    @endif
+                                                    from <span class="badge bg-secondary">{{ $activity->metadata['from'] ?? 'unknown' }}</span>
+                                                    to <span class="badge bg-primary">{{ $activity->metadata['to'] ?? 'unknown' }}</span>
+                                                @else
+                                                    {{ $activity->action }} on project
+                                                    @if($activity->project)
+                                                        <a href="{{ route('projects.show', $activity->project) }}">{{ $activity->project->name }}</a>
+                                                    @else
+                                                        <span class="text-muted">(deleted)</span>
+                                                    @endif
+                                                @endif
+                                            </div>
+                                        @elseif($activity->type === 'task')
+                                            {{-- Task Activity --}}
+                                            <div class="activity-content small">
+                                                @if($activity->action === 'created')
+                                                    Created task
+                                                    @if(isset($activity->task))
+                                                        <a href="{{ route('projects.board', $activity->task->column->project) }}">{{ Str::limit($activity->task->title, 50) }}</a>
+                                                        <span class="text-muted">in {{ $activity->task->column->project->name }}</span>
+                                                    @else
+                                                        <span class="text-muted">(deleted)</span>
+                                                    @endif
+                                                @elseif($activity->action === 'status_changed')
+                                                    Changed status from
+                                                    <span class="badge bg-secondary">{{ $activity->metadata['from'] ?? 'unknown' }}</span>
+                                                    to
+                                                    <span class="badge bg-primary">{{ $activity->metadata['to'] ?? 'unknown' }}</span>
+                                                    on task
+                                                    @if($activity->task)
+                                                        <a href="{{ route('projects.board', $activity->task->column->project) }}">{{ Str::limit($activity->task->title, 50) }}</a>
+                                                    @else
+                                                        <span class="text-muted">(deleted)</span>
+                                                    @endif
+                                                @elseif($activity->action === 'assigned')
+                                                    Was assigned to task
+                                                    @if($activity->task)
+                                                        <a href="{{ route('projects.board', $activity->task->column->project) }}">{{ Str::limit($activity->task->title, 50) }}</a>
+                                                    @else
+                                                        <span class="text-muted">(deleted)</span>
+                                                    @endif
+                                                @elseif($activity->action === 'unassigned')
+                                                    Was unassigned from task
+                                                    @if($activity->task)
+                                                        <a href="{{ route('projects.board', $activity->task->column->project) }}">{{ Str::limit($activity->task->title, 50) }}</a>
+                                                    @else
+                                                        <span class="text-muted">(deleted)</span>
+                                                    @endif
+                                                @else
+                                                    {{ $activity->action }} on task
+                                                    @if($activity->task)
+                                                        <a href="{{ route('projects.board', $activity->task->column->project) }}">{{ Str::limit($activity->task->title, 50) }}</a>
+                                                    @else
+                                                        <span class="text-muted">(deleted)</span>
+                                                    @endif
+                                                @endif
+                                            </div>
+                                        @elseif($activity->type === 'comment')
+                                            {{-- Task Comment --}}
+                                            <div class="activity-content small">
+                                                Commented on task
+                                                @if($activity->task)
+                                                    <a href="{{ route('projects.board', $activity->task->column->project) }}">{{ Str::limit($activity->task->title, 50) }}</a>
+                                                    <span class="text-muted">in {{ $activity->task->column->project->name }}</span>
+                                                @else
+                                                    <span class="text-muted">(deleted task)</span>
+                                                @endif
+                                                @if($activity->body)
+                                                    <div class="text-muted fst-italic mt-1">{{ Str::limit(strip_tags($activity->body), 100) }}</div>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div class="text-muted small text-nowrap ms-3">
+                                        {{ $activity->created_at->format('g:i A') }}
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
     </div>
 </div>
 

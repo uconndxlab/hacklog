@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Task;
 use App\Models\TaskComment;
+use App\Models\TaskActivity;
+use App\Models\ProjectActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -146,6 +148,64 @@ class UserProfileController extends Controller
             ];
         })->sortByDesc('active_task_count')->values();
 
+        // ===== RECENT ACTIVITY (last 30 days, up to 50 items) =====
+        
+        // Get project activities
+        $projectActivities = ProjectActivity::where('user_id', $user->id)
+            ->where('created_at', '>=', $last30Days)
+            ->with('project')
+            ->get()
+            ->map(function ($activity) {
+                $activity->type = 'project';
+                return $activity;
+            });
+
+        // Get task activities
+        $taskActivities = TaskActivity::where('user_id', $user->id)
+            ->where('created_at', '>=', $last30Days)
+            ->with(['task.column.project', 'task.phase'])
+            ->get()
+            ->map(function ($activity) {
+                $activity->type = 'task';
+                return $activity;
+            });
+
+        // Get task comments
+        $taskComments = TaskComment::where('user_id', $user->id)
+            ->where('created_at', '>=', $last30Days)
+            ->with(['task.column.project', 'task.phase'])
+            ->get()
+            ->map(function ($comment) {
+                $comment->type = 'comment';
+                return $comment;
+            });
+
+        // Get tasks created by user
+        $tasksCreatedByUser = Task::where('created_by', $user->id)
+            ->where('created_at', '>=', $last30Days)
+            ->with(['column.project', 'phase'])
+            ->get()
+            ->map(function ($task) {
+                return (object)[
+                    'id' => 'task_created_' . $task->id,
+                    'task_id' => $task->id,
+                    'task' => $task,
+                    'user_id' => $task->created_by,
+                    'action' => 'created',
+                    'metadata' => null,
+                    'created_at' => $task->created_at,
+                    'type' => 'task',
+                ];
+            });
+
+        // Combine all activities and sort by most recent
+        $recentActivities = $projectActivities
+            ->concat($taskActivities)
+            ->concat($taskComments)
+            ->concat($tasksCreatedByUser)
+            ->sortByDesc('created_at')
+            ->take(50);
+
         return view('users.show', compact(
             'user',
             // Current workload
@@ -172,7 +232,9 @@ class UserProfileController extends Controller
             'statusBreakdown',
             'duePressure',
             // Active projects
-            'activeProjectsData'
+            'activeProjectsData',
+            // Recent activity
+            'recentActivities'
         ));
     }
 }
