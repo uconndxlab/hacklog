@@ -42,12 +42,18 @@
                         <a class="nav-link {{ request()->routeIs('timeline.*') ? 'active' : '' }}" href="{{ route('timeline.index') }}">Timeline</a>
                     </li>
                     @if(Auth::check() && Auth::user()->isAdmin())
+
+
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('team.*') ? 'active' : '' }}" href="{{ route('team.dashboard') }}">Team</a>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">Users</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('activity-log.*') ? 'active' : '' }}" href="{{ route('activity-log.index') }}">Activity Log</a>
                         </li>
+
                     @endif
                 </ul>
                 <ul class="navbar-nav ms-auto">

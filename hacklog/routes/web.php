@@ -10,6 +10,7 @@ use App\Http\Controllers\ProjectResourceController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TaskAttachmentController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TeamDashboardController;
 use App\Http\Controllers\TimelineController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +33,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
     Route::get('/timeline', [TimelineController::class, 'index'])->name('timeline.index');
+    Route::get('/team', [TeamDashboardController::class, 'index'])->name('team.dashboard');
 
     // Admin-only: User management and task cleanup
     Route::middleware('admin')->group(function () {
