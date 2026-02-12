@@ -21,8 +21,9 @@ class TeamDashboardController extends Controller
             ? Carbon::parse($request->input('end_date'))->endOfDay() 
             : Carbon::today()->addDays(30)->endOfDay();
 
-        // Get all active team members (exclude clients if needed, include all users)
+        // Get all active team members (exclude clients)
         $users = User::where('active', true)
+            ->where('role', '!=', 'client')
             ->orderBy('name')
             ->get();
 
