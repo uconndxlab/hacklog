@@ -21,6 +21,55 @@
     <div class="row">
         <!-- Main Content -->
         <div class="col-lg-8">
+            @if(Auth::user()->isClient())
+                {{-- Projects You're On - Main section for clients --}}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Your Projects</h2>
+                    </div>
+                    <div class="card-body">
+                        @if($activeProjects->isEmpty())
+                            <p class="text-muted mb-0">No projects have been shared with you yet.</p>
+                        @else
+                            <div class="list-group list-group-flush">
+                                @foreach($activeProjects as $project)
+                                    <div class="list-group-item px-0 py-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h5 class="mb-2">
+                                                    <a href="{{ route('projects.board', $project) }}" class="text-decoration-none">
+                                                        {{ $project->name }}
+                                                    </a>
+                                                </h5>
+                                                @if($project->description)
+                                                    <p class="text-muted mb-2 small">{{ Str::limit($project->description, 150) }}</p>
+                                                @endif
+                                                <div class="d-flex gap-3 flex-wrap">
+                                                    <small class="text-muted">{{ $project->user_task_count }} task{{ $project->user_task_count === 1 ? '' : 's' }} assigned to you</small>
+                                                    @if($project->next_epic_date)
+                                                        <small class="text-muted">
+                                                            Next milestone: {{ $project->next_epic_date->format('M j, Y') }}
+                                                            @if($project->next_epic_date->isPast())
+                                                                <span class="text-danger">· Overdue</span>
+                                                            @elseif($project->next_epic_date->isToday())
+                                                                <span class="text-warning">· Due today</span>
+                                                            @elseif($project->next_epic_date->diffInDays() <= 7)
+                                                                <span class="text-warning">· Due soon</span>
+                                                            @endif
+                                                        </small>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            <a href="{{ route('projects.board', $project) }}" class="btn btn-primary">View Board</a>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             {{-- Needs Attention Section (conditional) --}}
             @if($overdueTasks->isNotEmpty())
                 <div class="card mb-4 border-warning">
@@ -242,8 +291,8 @@
 
         <!-- Sidebar -->
         <div class="col-lg-4">
-            {{-- Unassigned Tasks Section --}}
-            @if($unassignedTasks->isNotEmpty())
+            {{-- Unassigned Tasks Section - Hidden for clients --}}
+            @if(!Auth::user()->isClient() && $unassignedTasks->isNotEmpty())
                 <div class="card mb-4 border-info">
                     <div class="card-header bg-info bg-opacity-10">
                         <h3 class="h5 mb-0">Tasks Without Anyone Assigned</h3>
@@ -283,7 +332,8 @@
                 </div>
             @endif
 
-            <!-- Projects You're On -->
+            <!-- Projects You're On - Sidebar for non-clients -->
+            @if(!Auth::user()->isClient())
             <div class="card mb-4">
                 <div class="card-header">
                     <h3 class="h5 mb-0">Projects You're On</h3>
@@ -324,20 +374,7 @@
                         </div>
                     @endif
                 </div>
-            </div>
-
-            <!-- Quick Navigation -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="h5 mb-0">Quick Actions</h3>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{{ route('projects.index') }}" class="btn btn-outline-primary">Browse All Projects</a>
-                        <a href="{{ route('schedule.index') }}" class="btn btn-outline-primary">View Organization Schedule</a>
-                        <a href="{{ route('timeline.index') }}" class="btn btn-outline-primary">View Organization Timeline</a>
-                    </div>
-                </div>
+            @endif
             </div>
         </div>
     </div>

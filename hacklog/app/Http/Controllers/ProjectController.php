@@ -687,14 +687,6 @@ class ProjectController extends Controller
             'assignees.*' => 'exists:users,id',
         ]);
 
-        // Clients cannot change status, column, start_date, or assignees
-        if ($user->isClient()) {
-            $validated['status'] = $task->status;
-            $validated['column_id'] = $task->column_id;
-            $validated['start_date'] = $task->start_date;
-            $validated['assignees'] = $task->users->pluck('id')->toArray();
-        }
-
         // If phase_id provided, verify it belongs to this project
         if (!empty($validated['phase_id'])) {
             $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
