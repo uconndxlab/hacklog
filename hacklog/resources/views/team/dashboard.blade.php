@@ -201,8 +201,16 @@
         });
         google.charts.setOnLoadCallback(drawCharts);
 
+        window.addEventListener('hacklog-theme-change', function() {
+            drawCharts();
+        });
+
         function drawCharts() {
             console.log('Drawing charts...');
+            var isDark = document.body.classList.contains('theme-dark');
+            var chartBg = isDark ? '#232a36' : 'white';
+            var textColor = isDark ? '#b8bcc6' : '#333';
+
             @foreach ($teamMetrics as $metrics)
                 @if ($metrics['summary']['total_tasks'] > 0)
                     console.log(
@@ -219,23 +227,14 @@
                     var statusOptions{{ $metrics['user']->id }} = {
                         pieHole: 0.4,
                         colors: ['#6c757d', '#0d6efd', '#198754'],
+                        backgroundColor: chartBg,
                         legend: {
                             position: 'bottom',
-                            textStyle: {
-                                fontSize: 11
-                            }
+                            textStyle: { fontSize: 11, color: textColor }
                         },
-                        chartArea: {
-                            width: '90%',
-                            height: '70%'
-                        },
+                        chartArea: { width: '90%', height: '70%' },
                         pieSliceText: 'value',
-                        tooltip: {
-                            textStyle: {
-                                fontSize: 12
-                            }
-                        },
-                        backgroundColor: 'transparent'
+                        tooltip: { textStyle: { fontSize: 12, color: textColor } }
                     };
 
                     var statusChart{{ $metrics['user']->id }} = new google.visualization.PieChart(
@@ -246,9 +245,7 @@
 
                     // Due Pressure Bar Chart
                     var duePressureData{{ $metrics['user']->id }} = google.visualization.arrayToDataTable([
-                        ['Category', 'Tasks', {
-                            role: 'style'
-                        }],
+                        ['Category', 'Tasks', { role: 'style' }],
                         ['Overdue', {{ $metrics['due_pressure']['overdue'] }}, '#dc3545'],
                         ['Next 7 Days', {{ $metrics['due_pressure']['next_7_days'] }}, '#ffc107'],
                         ['Next 14 Days', {{ $metrics['due_pressure']['next_14_days'] }}, '#0dcaf0'],
@@ -257,21 +254,10 @@
 
                     var duePressureOptions{{ $metrics['user']->id }} = {
                         legend: 'none',
-                        chartArea: {
-                            width: '75%',
-                            height: '70%'
-                        },
-                        hAxis: {
-                            minValue: 0,
-                            textStyle: {
-                                fontSize: 11
-                            }
-                        },
-                        vAxis: {
-                            textStyle: {
-                                fontSize: 11
-                            }
-                        }
+                        backgroundColor: chartBg,
+                        chartArea: { width: '75%', height: '70%' },
+                        hAxis: { minValue: 0, textStyle: { fontSize: 11, color: textColor } },
+                        vAxis: { textStyle: { fontSize: 11, color: textColor } }
                     };
 
                     var duePressureChart{{ $metrics['user']->id }} = new google.visualization.BarChart(
@@ -283,7 +269,6 @@
             @endforeach
         }
 
-        // Redraw charts on window resize
         window.addEventListener('resize', function() {
             drawCharts();
         });
