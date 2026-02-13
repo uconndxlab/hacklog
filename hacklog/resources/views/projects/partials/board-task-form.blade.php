@@ -66,7 +66,7 @@
     @endif
     
     {{-- Sticky header with actions --}}
-    <div class="border-bottom bg-light px-3 py-2" style="position: sticky; top: 0; z-index: 10; flex-shrink: 0;">
+    <div class="border-bottom bg-light px-3 py-2 task-form-header" style="position: sticky; top: 0; z-index: 10; flex-shrink: 0;">
         @if($isGlobalModal)
             <div class="mb-2">
                 <small class="text-muted">Project: <strong>{{ $project->name }}</strong></small>
@@ -106,7 +106,7 @@
     
     {{-- Tabs - sticky at top --}}
     @if($isEdit)
-    <div class="border-bottom px-3" style="position: sticky; top: 0; background: white; z-index: 10; flex-shrink: 0;">
+    <div class="border-bottom px-3 task-form-tabs-bg" style="position: sticky; top: 0; z-index: 10; flex-shrink: 0;">
         <ul class="nav nav-tabs" id="taskModalTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link {{ ($activeTab ?? 'details') === 'details' ? 'active' : '' }}" 
@@ -416,7 +416,7 @@
                  style="height: 100%; overflow-y: auto;">
                 
                 {{-- Comment form - sticky at top --}}
-                <div class="border-bottom" style="position: sticky; top: 0; background: white; z-index: 10; padding: 1rem 1.5rem; padding-bottom: 1rem;">
+                <div class="border-bottom task-form-tabs-bg" style="position: sticky; top: 0; z-index: 10; padding: 1rem 1.5rem; padding-bottom: 1rem;">
                     <div id="commentFormContainer">
                         <div class="mb-2">
                             <textarea 
@@ -498,7 +498,7 @@
                  style="height: 100%; overflow-y: auto;">
                 
                 {{-- Upload form - sticky at top --}}
-                <div class="border-bottom" style="position: sticky; top: 0; background: white; z-index: 10; padding: 1rem 1.5rem; padding-bottom: 1rem;">
+                <div class="border-bottom task-form-tabs-bg" style="position: sticky; top: 0; z-index: 10; padding: 1rem 1.5rem; padding-bottom: 1rem;">
                     <div id="attachmentUploadStatus" class="alert alert-success alert-dismissible fade mb-2" role="alert" style="display: none;">
                         <span id="attachmentUploadMessage"></span>
                         <button type="button" class="btn-close" onclick="document.getElementById('attachmentUploadStatus').style.display='none'"></button>

@@ -340,7 +340,11 @@
 <script src="https://www.gstatic.com/charts/loader.js"></script>
 <script>
     google.charts.load('current', {'packages':['corechart']});
-google.charts.setOnLoadCallback(drawCharts);
+    google.charts.setOnLoadCallback(drawCharts);
+
+    window.addEventListener('hacklog-theme-change', function() {
+        if (document.getElementById('dueDateChart')) drawCharts();
+    });
 
 function drawCharts() {
     // Chart colors for light and dark theme 
