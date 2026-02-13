@@ -77,6 +77,18 @@ body.theme-dark .card-body .fs-5 {
 body.theme-dark .card-header {
     background-color: #2a3342;
     border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+body.theme-dark .card-header.bg-white {
+    background-color: #2a3342 !important;
+    color: #e2e6eb;
+}
+body.theme-dark .card-header.bg-white .card-title,
+body.theme-dark .card-header.bg-white .text-muted {
+    color: #e2e6eb !important;
+}
+body.theme-dark .card-header.bg-white .text-muted {
+    color: #b8bcc6 !important;
     color: #e2e6eb;
 }
 
@@ -89,6 +101,14 @@ body.theme-dark .modal-content {
 body.theme-dark .modal-header,
 body.theme-dark .modal-footer {
     border-color: rgba(255, 255, 255, 0.06);
+}
+
+body.theme-dark .modal .btn-close {
+    filter: invert(1);
+    opacity: 0.85;
+}
+body.theme-dark .modal .btn-close:hover {
+    opacity: 1;
 }
 
 /* Task form modal: header (buttons row), tabs bar, and sticky sections */
