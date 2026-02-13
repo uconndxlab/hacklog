@@ -139,7 +139,7 @@
                                                     </div>
                                                 @endif
                                             </td>
-                                            <td class="@if($phase->isOverdue()) bg-danger-subtle @elseif($phase->status === 'completed') bg-light @endif">
+                                            <td class="timeline-phase-label @if($phase->isOverdue()) bg-danger-subtle @elseif($phase->status === 'completed') bg-light @endif">
                                                 <div class="d-flex flex-column gap-1">
                                                     <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" 
                                                        class="@if($phase->isOverdue()) text-danger @elseif($phase->status === 'completed') text-muted @else text-body @endif text-decoration-none" style="font-size: 0.875rem;">

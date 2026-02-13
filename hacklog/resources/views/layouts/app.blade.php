@@ -172,6 +172,15 @@
     @stack('scripts')
 
     <script>
+        (function() {
+            var THEME_KEY = 'hacklog-theme';
+            try {
+                var saved = localStorage.getItem(THEME_KEY);
+                if (saved === 'dark') document.body.classList.add('theme-dark');
+                else if (saved === 'light') document.body.classList.remove('theme-dark');
+                else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) document.body.classList.add('theme-dark');
+            } catch (_) {}
+        })();
         document.addEventListener('DOMContentLoaded', function() {
             // =========================
             // Theme toggle (light/dark)
@@ -188,7 +197,7 @@
                 }
             }
 
-            // Initial theme: saved preference or system preference
+            // Re-apply initial theme in case DOM was not ready when the IIFE above ran
             (() => {
                 try {
                     const saved = localStorage.getItem(THEME_KEY);
@@ -211,6 +220,7 @@
                     } catch (_) {
                         // Ignore persistence errors
                     }
+                    window.dispatchEvent(new CustomEvent('hacklog-theme-change', { detail: { theme: isDark ? 'dark' : 'light' } }));
                 });
             }
 

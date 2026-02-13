@@ -91,6 +91,55 @@ body.theme-dark .modal-footer {
     border-color: rgba(255, 255, 255, 0.06);
 }
 
+/* Task form modal: header (buttons row), tabs bar, and sticky sections */
+.task-form-header {
+    border-bottom-color: #dee2e6;
+}
+.task-form-tabs-bg {
+    background-color: #fff;
+    border-bottom-color: #dee2e6;
+}
+body.theme-dark .task-form-header {
+    background-color: #232a36 !important; /* match modal content and tabs */
+    border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Buttons in task form header: exact same background as header (#232a36) */
+body.theme-dark .task-form-header .btn-outline-secondary,
+body.theme-dark .task-form-header .btn-outline-danger {
+    background-color: #232a36 !important;
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #e2e6eb;
+}
+body.theme-dark .task-form-header .btn-outline-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #e2e6eb;
+}
+body.theme-dark .task-form-header .btn-outline-danger {
+    border-color: rgba(248, 81, 73, 0.6);
+    color: #f87171;
+}
+body.theme-dark .task-form-header .btn-outline-danger:hover {
+    background-color: rgba(248, 81, 73, 0.12) !important;
+    border-color: rgba(248, 81, 73, 0.8);
+    color: #fca5a5;
+}
+body.theme-dark .task-form-header .btn-primary {
+    background-color: #343d4a !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: #e2e6eb !important;
+}
+body.theme-dark .task-form-header .btn-primary:hover {
+    background-color: #3d4754 !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    color: #e2e6eb !important;
+}
+body.theme-dark .task-form-tabs-bg {
+    background-color: #232a36 !important;
+    border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+}
+
 /* Dark: top navbar bar */
 body.theme-dark .navbar {
     background-color: #1e2430 !important;
@@ -150,8 +199,42 @@ body.theme-dark .form-select:focus {
     box-shadow: 0 0 0 0.2rem rgba(123, 163, 255, 0.25);
 }
 
+/* Dark: file input "Choose File" button */
+body.theme-dark .form-control[type="file"]::file-selector-button {
+    background-color: #2a3342;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e2e6eb;
+}
+body.theme-dark .form-control[type="file"]::-webkit-file-upload-button {
+    background-color: #2a3342;
+    border: 1px solid rgba(255, 255, 255, 0.2); 
+    color: #e2e6eb;
+}
+
 body.theme-dark .form-label {
     color: #e2e6eb;
+}
+
+body.theme-dark .form-text {
+    color: #b8bcc6;
+}
+
+body.theme-dark .form-check-label {
+    color: #e2e6eb;
+}
+
+body.theme-dark .user-picker-list {
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    background-color: #232a36;
+}
+
+body.theme-dark .form-check-input {
+    border-color: rgba(255, 255, 255, 0.35);
+    background-color: #2a3342;
+}
+body.theme-dark .form-check-input:checked {
+    border-color: #7ba3ff;
+    background-color: #7ba3ff;
 }
 
 /* Dark: "Move to:" label and similar input-group labels */
@@ -187,6 +270,19 @@ body.theme-dark .alert-danger {
 body.theme-dark .alert-danger .alert-link,
 body.theme-dark .alert-danger strong {
     color: #f5e0df;
+}
+
+body.theme-dark .alert-success {
+    background-color: #1a2e1e;
+    border-color: rgba(25, 135, 84, 0.4);
+    color: #b8e0c8;
+}
+body.theme-dark .alert-success .alert-link,
+body.theme-dark .alert-success strong {
+    color: #d4f0de;
+}
+body.theme-dark .alert-success .btn-close {
+    filter: invert(1);
 }
 
 /* Dark: empty-state style alert (e.g. "No projects yet") */
@@ -257,17 +353,18 @@ body.theme-dark .nav-tabs .nav-link {
 
 body.theme-dark .nav-tabs .nav-link:hover {
     color: #e2e6eb;
-    border-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 body.theme-dark .nav-tabs .nav-link.active {
     background-color: #2a3342;
-    border-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+    border-bottom-color: #232a36; /* merge with tab content background */
     color: #e2e6eb;
 }
 
 body.theme-dark .nav-tabs {
-    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.12);
 }
 
 /* Dark: secondary and outline buttons */
@@ -285,10 +382,32 @@ body.theme-dark .btn-outline-secondary:hover {
     color: #e2e6eb;
 }
 
-/* Dark: timeline view table */
+/* Dark: timeline view table – force header bar and text (override light gradient) */
 body.theme-dark .timeline-table thead th {
-    background-color: #2a3342;
+    background: #2a3342 !important;
     border-bottom-color: rgba(255, 255, 255, 0.08);
+    color: #e2e6eb;
+}
+body.theme-dark .timeline-table thead th.timeline-header,
+body.theme-dark .timeline-table thead th .text-muted {
+    color: #e2e6eb !important;
+}
+
+/* Dark: phase name in left column (override .text-body / .text-muted on the link) */
+body.theme-dark .timeline-phase-label,
+body.theme-dark .timeline-phase-label a,
+body.theme-dark .timeline-phase-label a.text-body,
+body.theme-dark .timeline-phase-label a.text-muted {
+    color: #e2e6eb !important;
+}
+body.theme-dark .timeline-phase-label a.text-danger {
+    color: #f5a9a9 !important;
+}
+body.theme-dark .timeline-phase-label a:hover {
+    color: #a3c2ff !important;
+}
+body.theme-dark .timeline-phase-label .text-muted {
+    color: #b8bcc6 !important;
 }
 
 body.theme-dark .timeline-table tbody td {
@@ -337,6 +456,13 @@ body.theme-dark .dropdown-item:focus {
 body.theme-dark .bg-light {
     background-color: #2a3342 !important;
     color: #b8bcc6;
+}
+
+/* Dark: assignee pills (Assign To) on Task Form – border fits theme */
+body.theme-dark .badge.bg-light.text-dark,
+body.theme-dark #assignedUserPills .badge {
+    color: #e2e6eb !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 /* --- Theme toggle (light/dark switch in navbar) --- */
