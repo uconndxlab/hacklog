@@ -8,6 +8,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Task extends Model
 {
+    /**
+     * Available status values for tasks
+     */
+    const STATUSES = [
+        'planned',
+        'active',
+        'awaiting_feedback',
+        'completed',
+    ];
+
     protected $fillable = [
         'phase_id',
         'column_id',
@@ -88,6 +98,37 @@ class Task extends Model
         static::addGlobalScope('ordered', function ($builder) {
             $builder->orderByRaw('position IS NULL, position ASC');
         });
+    }
+
+    /**
+     * Scope: Open tasks (not completed)
+     */
+    public function scopeOpen($query)
+    {
+        return $query->where('status', '!=', 'completed');
+    }
+
+    /**
+     * Scope: Active work (active status + column.counts_as_active)
+     */
+    public function scopeActiveWork($query)
+    {
+        return $query->where('status', 'active')
+            ->whereHas('column', function ($q) {
+                $q->where('counts_as_active', true);
+            });
+    }
+
+    /**
+     * Get formatted status display name
+     */
+    public function getStatusDisplayAttribute(): string
+    {
+        return match($this->status) {
+            'awaiting_feedback' => 'Awaiting Feedback',
+            'in_progress' => 'In Progress',
+            default => ucfirst($this->status)
+        };
     }
 
     public function phase(): BelongsTo

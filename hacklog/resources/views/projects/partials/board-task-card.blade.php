@@ -46,6 +46,7 @@
                     class="form-select form-select-sm d-inline-block w-auto badge 
                     @if($task->status === 'planned') bg-secondary
                     @elseif($task->status === 'active') bg-success
+                    @elseif($task->status === 'awaiting_feedback') bg-warning text-dark
                     @else bg-primary
                     @endif"
                     style="cursor: pointer; text-align: left; border: none; padding-right: 1.5rem;"
@@ -57,6 +58,7 @@
                     title="Click to change status">
                     <option value="planned" {{ $task->status === 'planned' ? 'selected' : '' }}>Planned</option>
                     <option value="active" {{ $task->status === 'active' ? 'selected' : '' }}>Active</option>
+                    <option value="awaiting_feedback" {{ $task->status === 'awaiting_feedback' ? 'selected' : '' }}>Awaiting Feedback</option>
                     <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>Completed</option>
                 </select>
             </form>

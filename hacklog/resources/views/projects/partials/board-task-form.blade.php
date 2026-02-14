@@ -235,6 +235,7 @@
                     required>
                     <option value="planned" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'planned' ? 'selected' : '' }}>Planned</option>
                     <option value="active" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'active' ? 'selected' : '' }}>Active</option>
+                    <option value="awaiting_feedback" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'awaiting_feedback' ? 'selected' : '' }}>Awaiting Feedback</option>
                     <option value="completed" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'completed' ? 'selected' : '' }}>Completed</option>
                 </select>
                 @error('status')

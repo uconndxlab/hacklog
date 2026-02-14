@@ -15,11 +15,15 @@ class DashboardController extends Controller
         $user = $request->user();
         $today = today();
 
-        // Get all assigned tasks (not completed) with relationships
+        // Get all assigned tasks with relationships
+        // Clients see awaiting_feedback tasks (they need to provide feedback)
+        // Team/Admin don't see awaiting_feedback in their upcoming work
+        $excludedStatuses = $user->isClient() ? ['completed'] : ['completed', 'awaiting_feedback'];
+        
         $allAssignedTasks = Task::whereHas('users', function ($query) use ($user) {
             $query->where('users.id', $user->id);
         })
-        ->where('status', '!=', 'completed')
+        ->whereNotIn('status', $excludedStatuses)
         ->with(['phase.project', 'column.project'])
         ->get();
 
@@ -52,6 +56,24 @@ class DashboardController extends Controller
         $noDueDate = $allAssignedTasks->filter(function($task) {
             return !$task->getEffectiveDueDate();
         })->take(5);
+
+        // For clients: get awaiting_feedback tasks from their projects (not necessarily assigned)
+        $awaitingFeedbackTasks = collect();
+        if ($user->isClient()) {
+            $awaitingFeedbackTasks = Task::where('status', 'awaiting_feedback')
+                ->whereHas('phase.project', function($query) use ($user) {
+                    $query->whereHas('shares', function($shareQuery) use ($user) {
+                        $shareQuery->where('shareable_type', 'user')
+                                   ->where('shareable_id', (string)$user->id);
+                    })
+                    ->orWhereHas('resources', function($resourceQuery) use ($user) {
+                        $resourceQuery->where('user_id', $user->id);
+                    });
+                })
+                ->with(['phase.project', 'column'])
+                ->orderBy('updated_at', 'desc')
+                ->get();
+        }
 
         // Recently active tasks (updated in last 7 days by the user)
         $recentlyActive = Task::whereHas('users', function ($query) use ($user) {
@@ -101,7 +123,7 @@ class DashboardController extends Controller
             }])
             ->orderBy('name')
             ->get()
-            ->map(function($project) use ($user) {
+            ->map(function($project) use ($user, $excludedStatuses) {
                 // Count active tasks assigned to user
                 $taskCount = Task::whereHas('phase', function($q) use ($project) {
                     $q->where('project_id', $project->id);
@@ -109,7 +131,7 @@ class DashboardController extends Controller
                 ->whereHas('users', function($q) use ($user) {
                     $q->where('users.id', $user->id);
                 })
-                ->where('status', '!=', 'completed')
+                ->whereNotIn('status', $excludedStatuses)
                 ->count();
                 
                 // Find next phase date
@@ -129,6 +151,7 @@ class DashboardController extends Controller
             'dueThisWeek', 
             'dueNext', 
             'noDueDate',
+            'awaitingFeedbackTasks',
             'recentlyActive',
             'unassignedTasks',
             'activeProjects'
