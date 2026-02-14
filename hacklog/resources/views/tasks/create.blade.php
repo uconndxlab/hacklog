@@ -114,6 +114,7 @@
                             required>
                             <option value="planned" {{ old('status', 'planned') === 'planned' ? 'selected' : '' }}>Planned</option>
                             <option value="active" {{ old('status') === 'active' ? 'selected' : '' }}>Active</option>
+                            <option value="awaiting_feedback" {{ old('status') === 'awaiting_feedback' ? 'selected' : '' }}>Awaiting Feedback</option>
                             <option value="completed" {{ old('status') === 'completed' ? 'selected' : '' }}>Completed</option>
                         </select>
                         @error('status')

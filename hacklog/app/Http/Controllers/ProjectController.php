@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ProjectController extends Controller
 {
@@ -320,6 +322,16 @@ class ProjectController extends Controller
         ->where('due_date', '<', today())
         ->count();
 
+        // Get tasks awaiting feedback
+        $awaitingFeedbackTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
+            $query->where('project_id', $project->id);
+        })
+        ->where('status', 'awaiting_feedback')
+        ->with(['phase', 'column'])
+        ->orderBy('updated_at', 'desc')
+        ->limit(10)
+        ->get();
+
         // Find nearest upcoming due date (task or phase)
         $nearestTaskDate = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
@@ -346,7 +358,7 @@ class ProjectController extends Controller
             $nearestDueDate = $nearestPhaseDate;
         }
 
-        return view('projects.show', compact('project', 'upcomingTasks', 'activePhasesCount', 'overdueTasks', 'nearestDueDate'));
+        return view('projects.show', compact('project', 'upcomingTasks', 'activePhasesCount', 'overdueTasks', 'awaitingFeedbackTasks', 'nearestDueDate'));
     }
 
     /**
@@ -518,7 +530,7 @@ class ProjectController extends Controller
             'column_id' => 'required|exists:columns,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'required|in:planned,active,completed',
+            'status' => ['required', Rule::in(Task::STATUSES)],
             'start_date' => 'nullable|date',
             'due_date' => 'nullable|date|after_or_equal:start_date',
             'assignees' => 'nullable|array',
@@ -680,7 +692,7 @@ class ProjectController extends Controller
             'column_id' => 'required|exists:columns,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'required|in:planned,active,completed',
+            'status' => ['required', Rule::in(Task::STATUSES)],
             'start_date' => 'nullable|date',
             'due_date' => 'nullable|date|after_or_equal:start_date',
             'assignees' => 'nullable|array',

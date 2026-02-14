@@ -21,6 +21,44 @@
     <div class="row">
         <!-- Main Content -->
         <div class="col-lg-8">
+           {{-- Awaiting Feedback - Only for clients --}}
+            @if(Auth::user()->isClient() && $awaitingFeedbackTasks->isNotEmpty())
+                <div class="card mb-4 border-warning">
+                    <div class="card-header bg-warning bg-opacity-10">
+                        <h2 class="h5 mb-0">Awaiting Your Feedback</h2>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">Tasks that need your review or input</p>
+                        <div class="list-group list-group-flush">
+                            @foreach($awaitingFeedbackTasks as $task)
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                <a href="{{ route('projects.board', ['project' => $task->getProject(), 'task' => $task->id]) }}" class="text-decoration-none">
+                                                    {{ $task->title }}
+                                                </a>
+                                            </h6>
+                                            <p class="mb-1 text-muted small">
+                                                <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
+                                                @if($task->phase)
+                                                     › {{ $task->phase->name }}
+                                                @endif
+                                            </p>
+                                            <small class="text-muted">Updated {{ $task->updated_at->diffForHumans() }}</small>
+                                        </div>
+                                        <div class="ms-3">
+                                            <span class="badge bg-warning text-dark" style="font-size: 0.75rem; font-weight: 400;">{{ $task->status_display }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+
             @if(Auth::user()->isClient())
                 {{-- Projects You're On - Main section for clients --}}
                 <div class="card mb-4">
@@ -42,7 +80,7 @@
                                                     </a>
                                                 </h5>
                                                 @if($project->description)
-                                                    <p class="text-muted mb-2 small">{{ Str::limit($project->description, 150) }}</p>
+                                                    <p class="text-muted mb-2 small">{{ Str::limit(strip_tags($project->description), 150) }}</p>
                                                 @endif
                                                 <div class="d-flex gap-3 flex-wrap">
                                                     <small class="text-muted">{{ $project->user_task_count }} task{{ $project->user_task_count === 1 ? '' : 's' }} assigned to you</small>
@@ -105,7 +143,7 @@
                                             </span>
                                         </div>
                                         <div class="ms-3">
-                                            <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ ucfirst($task->status) }}</span>
+                                            <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ $task->status_display }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -155,7 +193,7 @@
                                                 </span>
                                             </div>
                                             <div class="ms-3">
-                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ ucfirst($task->status) }}</span>
+                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ $task->status_display }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -203,7 +241,7 @@
                                                 </span>
                                             </div>
                                             <div class="ms-3">
-                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ ucfirst($task->status) }}</span>
+                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ $task->status_display }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -234,7 +272,7 @@
                                                 </p>
                                             </div>
                                             <div class="ms-3">
-                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ ucfirst($task->status) }}</span>
+                                                <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ $task->status_display }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -278,7 +316,7 @@
                                             <small class="text-muted">Updated {{ $task->updated_at->diffForHumans() }}</small>
                                         </div>
                                         <div class="ms-3">
-                                            <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ ucfirst($task->status) }}</span>
+                                            <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ $task->status_display }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -287,6 +325,8 @@
                     </div>
                 </div>
             @endif
+
+ 
         </div>
 
         <!-- Sidebar -->

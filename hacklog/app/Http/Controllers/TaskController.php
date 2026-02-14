@@ -6,6 +6,7 @@ use App\Models\Phase;
 use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
@@ -45,7 +46,7 @@ class TaskController extends Controller
             'column_id' => 'required|exists:columns,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'required|in:planned,active,completed',
+            'status' => ['required', Rule::in(Task::STATUSES)],
             'start_date' => 'nullable|date',
             'due_date' => 'nullable|date|after_or_equal:start_date',
             'assignees' => 'nullable|array',
@@ -114,7 +115,7 @@ class TaskController extends Controller
             'column_id' => 'required|exists:columns,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'required|in:planned,active,completed',
+            'status' => ['required', Rule::in(Task::STATUSES)],
             'assignees' => 'nullable|array',
             'assignees.*' => 'exists:users,id',
         ]);
