@@ -80,7 +80,7 @@
                                                     </a>
                                                 </h5>
                                                 @if($project->description)
-                                                    <p class="text-muted mb-2 small">{{ Str::limit($project->description, 150) }}</p>
+                                                    <p class="text-muted mb-2 small">{{ Str::limit(strip_tags($project->description), 150) }}</p>
                                                 @endif
                                                 <div class="d-flex gap-3 flex-wrap">
                                                     <small class="text-muted">{{ $project->user_task_count }} task{{ $project->user_task_count === 1 ? '' : 's' }} assigned to you</small>

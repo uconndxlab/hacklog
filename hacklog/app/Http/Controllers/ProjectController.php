@@ -322,6 +322,16 @@ class ProjectController extends Controller
         ->where('due_date', '<', today())
         ->count();
 
+        // Get tasks awaiting feedback
+        $awaitingFeedbackTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
+            $query->where('project_id', $project->id);
+        })
+        ->where('status', 'awaiting_feedback')
+        ->with(['phase', 'column'])
+        ->orderBy('updated_at', 'desc')
+        ->limit(10)
+        ->get();
+
         // Find nearest upcoming due date (task or phase)
         $nearestTaskDate = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
@@ -348,7 +358,7 @@ class ProjectController extends Controller
             $nearestDueDate = $nearestPhaseDate;
         }
 
-        return view('projects.show', compact('project', 'upcomingTasks', 'activePhasesCount', 'overdueTasks', 'nearestDueDate'));
+        return view('projects.show', compact('project', 'upcomingTasks', 'activePhasesCount', 'overdueTasks', 'awaitingFeedbackTasks', 'nearestDueDate'));
     }
 
     /**
