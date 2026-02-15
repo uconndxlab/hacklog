@@ -106,8 +106,8 @@
     
     {{-- Tabs - sticky at top --}}
     @if($isEdit)
-    <div class="border-bottom px-3 task-form-tabs-bg" style="position: sticky; top: 0; z-index: 10; flex-shrink: 0;">
-        <ul class="nav nav-tabs" id="taskModalTabs" role="tablist">
+    <div class="border-bottom px-3 task-form-tabs-bg overflow-x-auto" style="position: sticky; top: 0; z-index: 10; flex-shrink: 0;">
+        <ul class="nav nav-tabs flex-nowrap" id="taskModalTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link {{ ($activeTab ?? 'details') === 'details' ? 'active' : '' }}" 
                         id="details-tab" 
