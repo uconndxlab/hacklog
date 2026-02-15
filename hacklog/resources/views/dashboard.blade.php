@@ -21,44 +21,6 @@
     <div class="row">
         <!-- Main Content -->
         <div class="col-lg-8">
-           {{-- Awaiting Feedback - Only for clients --}}
-            @if(Auth::user()->isClient() && $awaitingFeedbackTasks->isNotEmpty())
-                <div class="card mb-4 border-warning">
-                    <div class="card-header bg-warning bg-opacity-10">
-                        <h2 class="h5 mb-0">Awaiting Your Feedback</h2>
-                    </div>
-                    <div class="card-body">
-                        <p class="text-muted small mb-3">Tasks that need your review or input</p>
-                        <div class="list-group list-group-flush">
-                            @foreach($awaitingFeedbackTasks as $task)
-                                <div class="list-group-item px-0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-1">
-                                                <a href="{{ route('projects.board', ['project' => $task->getProject(), 'task' => $task->id]) }}" class="text-decoration-none">
-                                                    {{ $task->title }}
-                                                </a>
-                                            </h6>
-                                            <p class="mb-1 text-muted small">
-                                                <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
-                                                @if($task->phase)
-                                                     › {{ $task->phase->name }}
-                                                @endif
-                                            </p>
-                                            <small class="text-muted">Updated {{ $task->updated_at->diffForHumans() }}</small>
-                                        </div>
-                                        <div class="ms-3">
-                                            <span class="badge bg-warning text-dark" style="font-size: 0.75rem; font-weight: 400;">{{ $task->status_display }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
-            @endif
-
-
             @if(Auth::user()->isClient())
                 {{-- Projects You're On - Main section for clients --}}
                 <div class="card mb-4">
@@ -288,35 +250,100 @@
                 </div>
             </div>
 
-            {{-- Recently Active --}}
-            @if($recentlyActive->isNotEmpty())
+            {{-- Recent Activity --}}
+            @if($recentActivities->isNotEmpty())
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h2 class="h5 mb-0">Recently Active</h2>
+                        <h2 class="h5 mb-0">Recent Activity on Your Projects</h2>
                     </div>
                     <div class="card-body">
-                        <p class="text-muted small mb-3">Tasks you've worked on in the last 7 days</p>
-                        <div class="list-group list-group-flush">
-                            @foreach($recentlyActive as $task)
-                                <div class="list-group-item px-0">
+                        <p class="text-muted small mb-3">Latest updates from the last 7 days</p>
+                        <div class="activity-timeline">
+                            @foreach($recentActivities as $item)
+                                <div class="activity-item mb-3 pb-3 border-bottom">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div class="flex-grow-1">
-                                            <h6 class="mb-1">
-                                                <a href="{{ route('projects.board', ['project' => $task->getProject(), 'task' => $task->id]) }}" class="text-decoration-none">
-                                                    {{ $task->title }}
-                                                </a>
-                                            </h6>
-                                            <p class="mb-1 text-muted small">
-                                                
-                                                <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
-                                                @if($task->phase)
-                                                     › {{ $task->phase->name }}
-                                                @endif
-                                            </p>
-                                            <small class="text-muted">Updated {{ $task->updated_at->diffForHumans() }}</small>
+                                            @if($item->type === 'project')
+                                                {{-- Project Activity --}}
+                                                <div class="activity-content">
+                                                    <strong>{{ $item->activity->user ? $item->activity->user->name : 'System' }}</strong>
+                                                    @if($item->activity->action === 'created')
+                                                        created project
+                                                        @if($item->activity->project)
+                                                            <a href="{{ route('projects.show', $item->activity->project) }}">{{ $item->activity->project->name }}</a>
+                                                        @endif
+                                                    @elseif($item->activity->action === 'updated')
+                                                        updated project
+                                                        @if($item->activity->project)
+                                                            <a href="{{ route('projects.show', $item->activity->project) }}">{{ $item->activity->project->name }}</a>
+                                                        @endif
+                                                    @elseif($item->activity->action === 'status_changed')
+                                                        changed status of
+                                                        @if($item->activity->project)
+                                                            <a href="{{ route('projects.show', $item->activity->project) }}">{{ $item->activity->project->name }}</a>
+                                                        @endif
+                                                        from <span class="badge bg-secondary">{{ $item->activity->metadata['from'] ?? 'unknown' }}</span>
+                                                        to <span class="badge bg-primary">{{ $item->activity->metadata['to'] ?? 'unknown' }}</span>
+                                                    @else
+                                                        {{ $item->activity->action }} on
+                                                        @if($item->activity->project)
+                                                            <a href="{{ route('projects.show', $item->activity->project) }}">{{ $item->activity->project->name }}</a>
+                                                        @endif
+                                                    @endif
+                                                </div>
+                                            @elseif($item->type === 'task')
+                                                {{-- Task Activity --}}
+                                                <div class="activity-content">
+                                                    <strong>{{ $item->activity->user ? $item->activity->user->name : 'System' }}</strong>
+                                                    @if($item->activity->action === 'status_changed')
+                                                        changed task status from
+                                                        <span class="badge bg-secondary">{{ $item->activity->metadata['from'] ?? 'unknown' }}</span>
+                                                        to
+                                                        <span class="badge bg-primary">{{ $item->activity->metadata['to'] ?? 'unknown' }}</span>
+                                                    @elseif($item->activity->action === 'completed')
+                                                        marked task as completed
+                                                    @elseif($item->activity->action === 'reopened')
+                                                        reopened task
+                                                    @elseif($item->activity->action === 'phase_changed')
+                                                        moved task to phase: <strong>{{ $item->activity->metadata['to_name'] ?? 'unknown' }}</strong>
+                                                    @elseif($item->activity->action === 'column_changed')
+                                                        moved task to column: <strong>{{ $item->activity->metadata['to_name'] ?? 'unknown' }}</strong>
+                                                    @elseif($item->activity->action === 'assignees_changed')
+                                                        updated task assignees
+                                                    @elseif($item->activity->action === 'due_date_changed')
+                                                        changed task due date
+                                                    @else
+                                                        {{ $item->activity->action }} on task
+                                                    @endif
+
+                                                    @if($item->activity->task && $item->activity->task->column && $item->activity->task->column->project)
+                                                        on
+                                                        <a href="{{ route('projects.board', ['project' => $item->activity->task->column->project, 'task' => $item->activity->task->id]) }}">
+                                                            {{ $item->activity->task->column->project->name }}
+                                                        </a>
+                                                        <span class="text-muted small">• {{ $item->activity->task->title }}</span>
+                                                    @endif
+                                                </div>
+                                            @elseif($item->type === 'comment')
+                                                {{-- Comment Activity --}}
+                                                <div class="activity-content">
+                                                    <strong>{{ $item->activity->user ? $item->activity->user->name : 'System' }}</strong>
+                                                    commented on task
+                                                    @if($item->activity->task && $item->activity->task->column && $item->activity->task->column->project)
+                                                        on
+                                                        <a href="{{ route('projects.board', ['project' => $item->activity->task->column->project, 'task' => $item->activity->task->id]) }}">
+                                                            {{ $item->activity->task->column->project->name }}
+                                                        </a>
+                                                        <span class="text-muted small">• {{ $item->activity->task->title }}</span>
+                                                    @endif
+                                                    <div class="mt-1 text-muted small fst-italic">
+                                                        "{{ \Illuminate\Support\Str::limit($item->activity->body, 100) }}"
+                                                    </div>
+                                                </div>
+                                            @endif
                                         </div>
-                                        <div class="ms-3">
-                                            <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.75rem; font-weight: 400;">{{ $task->status_display }}</span>
+                                        <div class="text-muted small text-nowrap ms-3">
+                                            {{ $item->activity->created_at->diffForHumans() }}
                                         </div>
                                     </div>
                                 </div>
@@ -371,7 +398,54 @@
                     </div>
                 </div>
             @endif
-
+            {{-- Awaiting Feedback --}}
+            @if($awaitingFeedbackTasks->isNotEmpty())
+                <div class="card mb-4 border-warning">
+                    <div class="card-header bg-warning bg-opacity-10">
+                        <h3 class="h5 mb-0">
+                            @if(Auth::user()->isClient())
+                                Awaiting Your Feedback
+                            @else
+                                Awaiting Feedback
+                            @endif
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            @if(Auth::user()->isClient())
+                                Tasks that need your review or input
+                            @else
+                                Tasks waiting for client feedback across the organization
+                            @endif
+                        </p>
+                        <div class="list-group list-group-flush">
+                            @foreach($awaitingFeedbackTasks as $task)
+                                <div class="list-group-item px-0 py-2">
+                                    <div class="d-flex flex-column">
+                                        <h6 class="mb-1">
+                                            <a href="{{ route('projects.board', ['project' => $task->getProject(), 'task' => $task->id]) }}" class="text-decoration-none">
+                                                {{ $task->title }}
+                                            </a>
+                                        </h6>
+                                        <small class="text-muted mb-1">
+                                            <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
+                                            @if($task->phase)
+                                                 › {{ $task->phase->name }}
+                                            @endif
+                                        </small>
+                                        @if(!Auth::user()->isClient() && $task->users->isNotEmpty())
+                                            <small class="text-muted mb-1">
+                                                Assigned to: {{ $task->users->pluck('name')->join(', ') }}
+                                            </small>
+                                        @endif
+                                        <small class="text-muted">Updated {{ $task->updated_at->diffForHumans() }}</small>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endif
             <!-- Projects You're On - Sidebar for non-clients -->
             @if(!Auth::user()->isClient())
             <div class="card mb-4">

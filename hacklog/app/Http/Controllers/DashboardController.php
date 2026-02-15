@@ -58,6 +58,7 @@ class DashboardController extends Controller
         })->take(5);
 
         // For clients: get awaiting_feedback tasks from their projects (not necessarily assigned)
+        // For admins/team: get all awaiting_feedback tasks across the org
         $awaitingFeedbackTasks = collect();
         if ($user->isClient()) {
             $awaitingFeedbackTasks = Task::where('status', 'awaiting_feedback')
@@ -73,31 +74,13 @@ class DashboardController extends Controller
                 ->with(['phase.project', 'column'])
                 ->orderBy('updated_at', 'desc')
                 ->get();
+        } else {
+            // Admins and team members see all awaiting_feedback tasks across the org
+            $awaitingFeedbackTasks = Task::where('status', 'awaiting_feedback')
+                ->with(['phase.project', 'column', 'users'])
+                ->orderBy('updated_at', 'desc')
+                ->get();
         }
-
-        // Recently active tasks (updated in last 7 days by the user)
-        $recentlyActive = Task::whereHas('users', function ($query) use ($user) {
-            $query->where('users.id', $user->id);
-        })
-        ->where('updated_at', '>=', now()->subDays(7))
-        ->where('status', '!=', 'completed')
-        ->with(['phase.project', 'column'])
-        ->orderBy('updated_at', 'desc')
-        ->limit(5)
-        ->get();
-
-        // Unassigned tasks from active projects
-        $unassignedTasks = Task::whereDoesntHave('users')
-            ->where('status', '!=', 'completed')
-            ->whereHas('phase', function($query) {
-                $query->whereHas('project', function($projectQuery) {
-                    $projectQuery->where('status', 'active');
-                });
-            })
-            ->with(['phase.project', 'column'])
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
 
         // Projects you're on: where user has tasks OR is a resource OR directly shared
         // This applies to all users (clients, team, admin)
@@ -146,13 +129,89 @@ class DashboardController extends Controller
                 return $project;
             });
 
+        // Recent activities - only from projects in activeProjects, excluding current user's own actions
+        $recentActivities = collect();
+        $activeProjectIds = $activeProjects->pluck('id')->toArray();
+        
+        if (!empty($activeProjectIds)) {
+            // Get recent project activities (excluding current user)
+            $projectActivities = \App\Models\ProjectActivity::whereIn('project_id', $activeProjectIds)
+                ->where('user_id', '!=', $user->id)
+                ->where('created_at', '>=', now()->subDays(7))
+                ->with(['project', 'user'])
+                ->orderBy('created_at', 'desc')
+                ->limit(15)
+                ->get()
+                ->map(function($activity) {
+                    return (object)[
+                        'type' => 'project',
+                        'activity' => $activity,
+                        'created_at' => $activity->created_at,
+                    ];
+                });
+            
+            // Get recent task activities from these projects (excluding current user)
+            $taskActivities = \App\Models\TaskActivity::whereHas('task.column', function($query) use ($activeProjectIds) {
+                    $query->whereIn('project_id', $activeProjectIds);
+                })
+                ->where('user_id', '!=', $user->id)
+                ->where('created_at', '>=', now()->subDays(7))
+                ->with(['task.column.project', 'task.phase', 'user'])
+                ->orderBy('created_at', 'desc')
+                ->limit(15)
+                ->get()
+                ->map(function($activity) {
+                    return (object)[
+                        'type' => 'task',
+                        'activity' => $activity,
+                        'created_at' => $activity->created_at,
+                    ];
+                });
+            
+            // Get recent task comments from these projects (excluding current user)
+            $taskComments = \App\Models\TaskComment::whereHas('task.column', function($query) use ($activeProjectIds) {
+                    $query->whereIn('project_id', $activeProjectIds);
+                })
+                ->where('user_id', '!=', $user->id)
+                ->where('created_at', '>=', now()->subDays(7))
+                ->with(['task.column.project', 'task.phase', 'user'])
+                ->orderBy('created_at', 'desc')
+                ->limit(15)
+                ->get()
+                ->map(function($comment) {
+                    return (object)[
+                        'type' => 'comment',
+                        'activity' => $comment,
+                        'created_at' => $comment->created_at,
+                    ];
+                });
+            
+            // Merge and sort
+            $recentActivities = $projectActivities->concat($taskActivities)->concat($taskComments)
+                ->sortByDesc('created_at')
+                ->take(30);
+        }
+
+        // Unassigned tasks from active projects
+        $unassignedTasks = Task::whereDoesntHave('users')
+            ->where('status', '!=', 'completed')
+            ->whereHas('phase', function($query) {
+                $query->whereHas('project', function($projectQuery) {
+                    $projectQuery->where('status', 'active');
+                });
+            })
+            ->with(['phase.project', 'column'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
         return view('dashboard', compact(
             'overdueTasks',
             'dueThisWeek', 
             'dueNext', 
             'noDueDate',
             'awaitingFeedbackTasks',
-            'recentlyActive',
+            'recentActivities',
             'unassignedTasks',
             'activeProjects'
         ));
