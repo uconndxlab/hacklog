@@ -65,44 +65,45 @@
         <input type="hidden" name="global_modal" value="1">
     @endif
     
-    {{-- Sticky header with actions --}}
-    <div class="border-bottom bg-light px-3 py-2 task-form-header" style="position: sticky; top: 0; z-index: 10; flex-shrink: 0;">
+    {{-- Actions dropdown (for edit mode only) --}}
+    @if($isEdit)
+    <div class="border-bottom bg-light px-3 py-2" style="flex-shrink: 0;">
         @if($isGlobalModal)
             <div class="mb-2">
                 <small class="text-muted">Project: <strong>{{ $project->name }}</strong></small>
             </div>
         @endif
-        <div class="d-flex justify-content-between align-items-center gap-2">
-            @if($isEdit)
-
-            
-                <a href="{{ $task->phase ? route('projects.phases.tasks.show', [$project, $task->phase, $task]) : route('projects.board.tasks.show', [$project, $task]) }}" 
-                   class="btn btn-sm btn-outline-secondary">
-                    View Details
-                </a>
-            @else
-                <div></div>
-            @endif
-            <div class="d-flex gap-2">
-                @if($isEdit && !Auth::user()->isClient())
-                <button type="button" 
-                        class="btn btn-sm btn-outline-danger" 
-                        onclick="if(confirm('Are you sure you want to delete this task? This action cannot be undone.')) { 
-                            htmx.ajax('DELETE', '{{ route('projects.board.tasks.destroy', [$project, $task]) }}', {
-                                target: '#board-column-{{ $task->column_id }}-tasks',
-                                swap: 'outerHTML'
-                            });
-                        }">
-                    <i class="bi bi-trash"></i> Delete Task
+        <div class="d-flex justify-content-end">
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="taskActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Actions
                 </button>
-                @endif
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    {{ $isEdit ? 'Update Task' : 'Create Task' }}
-                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="taskActionsDropdown">
+                    <li>
+                        <a class="dropdown-item" href="{{ $task->phase ? route('projects.phases.tasks.show', [$project, $task->phase, $task]) : route('projects.board.tasks.show', [$project, $task]) }}">
+                            View Details
+                        </a>
+                    </li>
+                    @if(!Auth::user()->isClient())
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button type="button" 
+                                class="dropdown-item text-danger" 
+                                onclick="if(confirm('Are you sure you want to delete this task? This action cannot be undone.')) { 
+                                    htmx.ajax('DELETE', '{{ route('projects.board.tasks.destroy', [$project, $task]) }}', {
+                                        target: '#board-column-{{ $task->column_id }}-tasks',
+                                        swap: 'outerHTML'
+                                    });
+                                }">
+                            <i class="bi bi-trash"></i> Delete Task
+                        </button>
+                    </li>
+                    @endif
+                </ul>
             </div>
         </div>
     </div>
+    @endif
     
     {{-- Tabs - sticky at top --}}
     @if($isEdit)
@@ -559,6 +560,16 @@
         @else
         </div>
         @endif
+    </div>
+    
+    {{-- Sticky footer action bar --}}
+    <div class="modal-footer" style="position: sticky; bottom: 0; background: white; border-top: 1px solid #dee2e6; padding: 0.75rem 1rem; flex-shrink: 0; z-index: 10;">
+        <div class="d-flex justify-content-between align-items-center w-100">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+                {{ $isEdit ? 'Save Task' : 'Create Task' }}
+            </button>
+        </div>
     </div>
 </form>
 
