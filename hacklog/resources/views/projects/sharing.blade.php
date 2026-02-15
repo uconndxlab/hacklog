@@ -31,16 +31,66 @@
         {{-- Explanation Card --}}
         <div class="card mb-4 bg-light">
             <div class="card-body">
-                <h5 class="card-title">How project visibility works</h5>
-                <ul class="mb-0">
-                    <li><strong>Team members</strong> can see all projects by default</li>
-                    <li><strong>Admins</strong> have full access to everything</li>
-                    <li><strong>Clients</strong> only see projects you explicitly share with them</li>
-                </ul>
-                <p class="mb-0 mt-3 text-muted small">
-                    Sharing a project grants visibility only. To control what someone can do within a project,
-                    assign them a role in <a href="{{ route('projects.resources.index', $project) }}">Resources</a>.
-                </p>
+                <h5 class="card-title">How project visibility and permissions work</h5>
+                
+                <div class="mb-3">
+                    <h6 class="mb-2">Default Visibility</h6>
+                    <ul class="mb-0">
+                        <li><strong>Admins</strong> — See all projects automatically</li>
+                        <li><strong>Team Members</strong> — See all projects automatically</li>
+                        <li><strong>Clients</strong> — Only see projects you explicitly share with them</li>
+                    </ul>
+                </div>
+                
+                <div class="mb-0">
+                    <h6 class="mb-2">What Each Role Can Do</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Admins</strong></p>
+                            <ul class="small text-muted mb-2">
+                                <li>Full access to all features</li>
+                                <li>Create, edit, delete all tasks</li>
+                                <li>Delete any comment/attachment</li>
+                                <li>Manage assignments & dates</li>
+                                <li>Add/edit resources</li>
+                                <li>Manage sharing & settings</li>
+                                <li><strong>Plus admin-only:</strong></li>
+                                <li style="margin-left: 1rem;">User management</li>
+                                <li style="margin-left: 1rem;">Bulk operations</li>
+                                <li style="margin-left: 1rem;">Activity logs</li>
+                                <li style="margin-left: 1rem;">Filter by owner</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Team Members</strong></p>
+                            <ul class="small text-muted mb-2">
+                                <li>View all content</li>
+                                <li>Create & edit all tasks</li>
+                                <li>Delete own tasks only</li>
+                                <li>Delete own comments/attachments</li>
+                                <li>Manage assignments & dates</li>
+                                <li>Add/edit resources</li>
+                                <li>Manage sharing & settings</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Clients</strong></p>
+                            <ul class="small text-muted mb-2">
+                                <li>View all content</li>
+                                <li>Edit tasks & descriptions</li>
+                                <li>Add comments & attachments</li>
+                                <li>Add resources</li>
+                                <li>View & edit due dates</li>
+                                <li><em>Cannot delete tasks</em></li>
+                                <li><em>Cannot manage assignments</em></li>
+                                <li><em>Cannot see/edit start dates</em></li>
+                                <li><em>No access to Sharing or Settings</em></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+
             </div>
         </div>
 

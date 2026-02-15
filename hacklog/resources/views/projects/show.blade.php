@@ -113,7 +113,7 @@
                     <h2 class="h4 mb-3">Awaiting Feedback</h2>
                     <div class="card mb-4 border-warning">
                         <div class="card-header bg-warning bg-opacity-10">
-                            <h3 class="h6 mb-0 fw-semibold">Client Review Needed</h3>
+                            <h3 class="h6 mb-0 fw-semibold">Review Needed</h3>
                         </div>
                         <div class="card-body">
                             <div class="list-group list-group-flush">
