@@ -3,18 +3,21 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
-use App\Services\LdapService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
-class CreateNetIdUser extends Command
+class CreateLocalUser extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'user:create-netid 
-                           {netid : The NetID of the user to create}
+    protected $signature = 'user:create-local 
+                           {email : The email address for the user}
+                           {name : The full name of the user}
+                           {--password= : The password for the user (will prompt if not provided)}
                            {--role=user : The role for the user (user or admin)}
                            {--inactive : Create the user as inactive}';
 
@@ -23,24 +26,29 @@ class CreateNetIdUser extends Command
      *
      * @var string
      */
-    protected $description = 'Create a new user by NetID with LDAP lookup (for CAS authentication)';
-
-    protected LdapService $ldapService;
-
-    public function __construct(LdapService $ldapService)
-    {
-        parent::__construct();
-        $this->ldapService = $ldapService;
-    }
+    protected $description = 'Create a new local user with email/password authentication';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        $netid = strtolower(trim($this->argument('netid')));
+        $email = strtolower(trim($this->argument('email')));
+        $name = trim($this->argument('name'));
         $role = $this->option('role');
         $active = !$this->option('inactive');
+        $password = $this->option('password');
+
+        // Validate email
+        $validator = Validator::make(
+            ['email' => $email],
+            ['email' => 'required|email']
+        );
+
+        if ($validator->fails()) {
+            $this->error('Invalid email address format.');
+            return 1;
+        }
 
         // Validate role
         if (!in_array($role, ['user', 'admin'])) {
@@ -49,35 +57,25 @@ class CreateNetIdUser extends Command
         }
 
         // Check if user already exists
-        if (User::where('netid', $netid)->exists()) {
-            $this->error("User with NetID '{$netid}' already exists!");
+        if (User::where('email', $email)->exists()) {
+            $this->error("User with email '{$email}' already exists!");
             return 1;
         }
 
-        $this->info("Looking up NetID '{$netid}' in directory...");
+        // Get password if not provided
+        if (!$password) {
+            $password = $this->secret('Enter password for the user');
+            $passwordConfirm = $this->secret('Confirm password');
 
-        // Look up user in LDAP
-        $ldapData = $this->ldapService->lookupUser($netid);
-
-        if (!$ldapData) {
-            $this->error("NetID '{$netid}' not found in directory.");
-            $this->line('Please verify the NetID is correct.');
-            
-            // Ask if they want to continue anyway
-            if ($this->confirm('Do you want to create the user anyway with minimal info?')) {
-                $ldapData = [
-                    'name' => $netid,
-                    'email' => $netid . '@uconn.edu'
-                ];
-                $this->warn('Creating user with fallback name and email.');
-            } else {
-                $this->info('User creation cancelled.');
+            if ($password !== $passwordConfirm) {
+                $this->error('Passwords do not match!');
                 return 1;
             }
-        } else {
-            $this->info('✓ Found user in directory:');
-            $this->line("  Name: {$ldapData['name']}");
-            $this->line("  Email: {$ldapData['email']}");
+        }
+
+        if (strlen($password) < 8) {
+            $this->error('Password must be at least 8 characters long.');
+            return 1;
         }
 
         // Show what will be created
@@ -85,9 +83,8 @@ class CreateNetIdUser extends Command
         $this->table(
             ['Field', 'Value'],
             [
-                ['NetID', $netid],
-                ['Name', $ldapData['name']],
-                ['Email', $ldapData['email']],
+                ['Name', $name],
+                ['Email', $email],
                 ['Role', $role],
                 ['Active', $active ? 'Yes' : 'No'],
             ]
@@ -102,12 +99,12 @@ class CreateNetIdUser extends Command
         try {
             // Create the user
             $user = User::create([
-                'netid' => $netid,
-                'name' => $ldapData['name'],
-                'email' => $ldapData['email'],
+                'netid' => null,
+                'name' => $name,
+                'email' => $email,
                 'role' => $role,
                 'active' => $active,
-                'password' => '', // Not used for CAS auth
+                'password' => Hash::make($password),
             ]);
 
             $this->info('✓ User created successfully!');
@@ -120,7 +117,7 @@ class CreateNetIdUser extends Command
             if (!$active) {
                 $this->warn('⚠ This user is inactive and cannot log in until activated.');
             } else {
-                $this->info('The user can now log in using their NetID via CAS.');
+                $this->info('The user can now log in using their email and password.');
             }
 
             return 0;
