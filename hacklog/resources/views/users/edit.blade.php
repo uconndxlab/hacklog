@@ -23,40 +23,94 @@
                     @csrf
                     @method('PUT')
 
-                    <div class="mb-3">
-                        <label class="form-label">NetID</label>
-                        <input 
-                            type="text" 
-                            class="form-control" 
-                            value="{{ $user->netid }}" 
-                            readonly>
-                        <div class="form-text">NetID cannot be changed</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Name</label>
-                        <div class="input-group">
+                    @if(config('hacklog_auth.driver') === 'cas')
+                        {{-- CAS Authentication: Show NetID --}}
+                        <div class="mb-3">
+                            <label class="form-label">NetID</label>
                             <input 
                                 type="text" 
                                 class="form-control" 
-                                value="{{ $user->name }}" 
+                                value="{{ $user->netid }}" 
                                 readonly>
-                            <button type="submit" name="refresh_ldap" value="1" class="btn btn-outline-secondary">
-                                Refresh from Directory
-                            </button>
+                            <div class="form-text">NetID cannot be changed</div>
                         </div>
-                        <div class="form-text">Name is managed via directory lookup</div>
-                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input 
-                            type="email" 
-                            class="form-control" 
-                            value="{{ $user->email }}" 
-                            readonly>
-                        <div class="form-text">Email is managed via directory lookup</div>
-                    </div>
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    value="{{ $user->name }}" 
+                                    readonly>
+                                <button type="submit" name="refresh_ldap" value="1" class="btn btn-outline-secondary">
+                                    Refresh from Directory
+                                </button>
+                            </div>
+                            <div class="form-text">Name is managed via directory lookup</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input 
+                                type="email" 
+                                class="form-control" 
+                                value="{{ $user->email }}" 
+                                readonly>
+                            <div class="form-text">Email is managed via directory lookup</div>
+                        </div>
+                    @else
+                        {{-- Local Authentication: Editable fields --}}
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Name</label>
+                            <input 
+                                type="text" 
+                                class="form-control @error('name') is-invalid @enderror" 
+                                id="name" 
+                                name="name" 
+                                value="{{ old('name', $user->name) }}" 
+                                required>
+                            @error('name')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input 
+                                type="email" 
+                                class="form-control @error('email') is-invalid @enderror" 
+                                id="email" 
+                                name="email" 
+                                value="{{ old('email', $user->email) }}" 
+                                required>
+                            @error('email')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">New Password</label>
+                            <input 
+                                type="password" 
+                                class="form-control @error('password') is-invalid @enderror" 
+                                id="password" 
+                                name="password">
+                            @error('password')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">Leave blank to keep current password. Minimum 8 characters if changing.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password_confirmation" class="form-label">Confirm New Password</label>
+                            <input 
+                                type="password" 
+                                class="form-control" 
+                                id="password_confirmation" 
+                                name="password_confirmation">
+                        </div>
+                    @endif
 
                     <div class="mb-3">
                         <label for="role" class="form-label">Role</label>
@@ -102,16 +156,29 @@
             </div>
         </div>
 
-        <div class="card mt-3">
-            <div class="card-body">
-                <h6 class="card-title">Directory Integration</h6>
-                <p class="mb-0">
-                    Name and email are automatically managed through the University directory.
-                    Click "Refresh from Directory" to update these fields with the latest information.
-                    Only role and active status can be changed manually.
-                </p>
+        @if(config('hacklog_auth.driver') === 'cas')
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Directory Integration</h6>
+                    <p class="mb-0">
+                        Name and email are automatically managed through the University directory.
+                        Click "Refresh from Directory" to update these fields with the latest information.
+                        Only role and active status can be changed manually.
+                    </p>
+                </div>
             </div>
-        </div>
+        @else
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">User Management</h6>
+                    <p class="mb-0">
+                        Update the user's information, role, and active status.
+                        Leave the password fields blank to keep the current password.
+                    </p>
+                </div>
+            </div>
+        @endif
+
     </div>
 </div>
 @endsection
