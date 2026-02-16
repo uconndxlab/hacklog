@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\ColumnController;
 use App\Http\Controllers\DashboardController;
@@ -16,10 +15,20 @@ use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
-// CAS Authentication routes - NetID only
-Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::get('/login/cas', [AuthController::class, 'login'])->name('login.cas');
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+/*
+|--------------------------------------------------------------------------
+| Authentication Routes
+|--------------------------------------------------------------------------
+| Load the appropriate authentication routes based on the configured driver.
+*/
+
+$authDriver = config('hacklog_auth.driver', 'local');
+
+if ($authDriver === 'cas') {
+    require __DIR__.'/auth_cas.php';
+} else {
+    require __DIR__.'/auth_local.php';
+}
 
 // Public home
 Route::get('/', function () {

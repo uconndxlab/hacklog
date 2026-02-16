@@ -9,8 +9,11 @@ use Illuminate\Http\Request;
 /**
  * User Management Controller for Admins
  * 
- * Users are identified by NetID, not email/password.
- * LDAP is used to look up user details when creating users.
+ * Supports two authentication modes:
+ * - CAS: Users identified by NetID with LDAP lookup for details
+ * - Local: Users with email/password credentials
+ * 
+ * The controller adapts based on config('hacklog_auth.driver').
  */
 class UsersController extends Controller
 {
@@ -52,43 +55,71 @@ class UsersController extends Controller
 
     /**
      * Store a newly created user.
-     * NetID is required, name/email are looked up via LDAP.
+     * For CAS: NetID is required, name/email are looked up via LDAP.
+     * For Local: Name, email, and password are required.
      */
     public function store(Request $request)
     {
-        \Log::info('User creation attempt', ['request_data' => $request->all()]);
+        \Log::info('User creation attempt', ['request_data' => $request->except('password', 'password_confirmation')]);
 
-        $validated = $request->validate([
-            'netid' => 'required|string|max:255|unique:users',
-            'role' => 'required|in:admin,team,client',
-            'active' => 'nullable|boolean',
-        ]);
+        if (config('hacklog_auth.driver') === 'cas') {
+            // CAS Authentication - NetID + LDAP lookup
+            $validated = $request->validate([
+                'netid' => 'required|string|max:255|unique:users',
+                'role' => 'required|in:admin,team,client',
+                'active' => 'nullable|boolean',
+            ]);
 
-        \Log::info('Validation passed', ['validated' => $validated]);
+            \Log::info('Validation passed (CAS)', ['validated' => $validated]);
 
-        // Look up user details from LDAP
-        $ldapData = $this->ldapService->lookupUser($validated['netid']);
-        
-        if (!$ldapData) {
-            \Log::warning('LDAP lookup failed for user creation', ['netid' => $validated['netid']]);
-            return back()->withErrors([
-                'netid' => 'NetID not found in directory. Please verify the NetID is correct.'
-            ])->withInput();
+            // Look up user details from LDAP
+            $ldapData = $this->ldapService->lookupUser($validated['netid']);
+            
+            if (!$ldapData) {
+                \Log::warning('LDAP lookup failed for user creation', ['netid' => $validated['netid']]);
+                return back()->withErrors([
+                    'netid' => 'NetID not found in directory. Please verify the NetID is correct.'
+                ])->withInput();
+            }
+
+            \Log::info('LDAP lookup succeeded', ['ldap_data' => $ldapData]);
+
+            // Create user with LDAP data
+            $userData = [
+                'netid' => $validated['netid'],
+                'name' => $ldapData['name'],
+                'email' => $ldapData['email'],
+                'role' => $validated['role'],
+                'active' => $request->boolean('active', true),
+                'password' => '', // Not used for CAS authentication
+            ];
+
+            $successMessage = 'User created successfully with details from directory.';
+        } else {
+            // Local Authentication - Manual entry
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|max:255|unique:users',
+                'password' => 'required|string|min:8|confirmed',
+                'role' => 'required|in:admin,team,client',
+                'active' => 'nullable|boolean',
+            ]);
+
+            \Log::info('Validation passed (Local)', ['validated' => array_diff_key($validated, ['password' => ''])]);
+
+            // Create user with manual data
+            $userData = [
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => bcrypt($validated['password']),
+                'role' => $validated['role'],
+                'active' => $request->boolean('active', true),
+            ];
+
+            $successMessage = 'User created successfully.';
         }
 
-        \Log::info('LDAP lookup succeeded', ['ldap_data' => $ldapData]);
-
-        // Create user with LDAP data
-        $userData = [
-            'netid' => $validated['netid'],
-            'name' => $ldapData['name'],
-            'email' => $ldapData['email'],
-            'role' => $validated['role'],
-            'active' => $request->boolean('active', true),
-            'password' => '', // Not used for CAS authentication
-        ];
-
-        \Log::info('Creating user', ['user_data' => $userData]);
+        \Log::info('Creating user', ['user_data' => array_diff_key($userData, ['password' => ''])]);
 
         try {
             $user = User::create($userData);
@@ -96,12 +127,11 @@ class UsersController extends Controller
         } catch (\Exception $e) {
             \Log::error('User creation failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return back()->withErrors([
-                'netid' => 'Failed to create user: ' . $e->getMessage()
+                'email' => 'Failed to create user: ' . $e->getMessage()
             ])->withInput();
         }
 
-        return redirect()->route('users.index')
-            ->with('success', 'User created successfully with details from directory.');
+        return redirect()->route('users.index')->with('success', $successMessage);
     }
 
     /**
@@ -114,38 +144,65 @@ class UsersController extends Controller
 
     /**
      * Update the specified user.
-     * Allow updating role and active status.
-     * Name/email can be refreshed from LDAP.
+     * For CAS: Allow updating role and active status. Name/email can be refreshed from LDAP.
+     * For Local: Allow updating name, email, password, role, and active status.
      */
     public function update(Request $request, User $user)
     {
-        $validated = $request->validate([
-            'role' => 'required|in:admin,team,client',
-            'refresh_ldap' => 'boolean',
-        ]);
+        if (config('hacklog_auth.driver') === 'cas') {
+            // CAS Authentication - limited fields + optional LDAP refresh
+            $validated = $request->validate([
+                'role' => 'required|in:admin,team,client',
+                'refresh_ldap' => 'boolean',
+            ]);
 
-        // Handle active checkbox - if unchecked, it won't be present in request
-        $validated['active'] = $request->has('active');
+            // Handle active checkbox - if unchecked, it won't be present in request
+            $validated['active'] = $request->has('active');
 
-        // Optionally refresh name/email from LDAP
-        if ($request->has('refresh_ldap')) {
-            $ldapData = $this->ldapService->lookupUser($user->netid);
-            if ($ldapData) {
-                $validated['name'] = $ldapData['name'];
-                $validated['email'] = $ldapData['email'];
+            // Optionally refresh name/email from LDAP
+            if ($request->has('refresh_ldap')) {
+                $ldapData = $this->ldapService->lookupUser($user->netid);
+                if ($ldapData) {
+                    $validated['name'] = $ldapData['name'];
+                    $validated['email'] = $ldapData['email'];
+                    $message = 'User updated successfully. Details refreshed from directory.';
+                } else {
+                    return back()->withErrors([
+                        'refresh_ldap' => 'Could not refresh user details from directory.'
+                    ]);
+                }
             } else {
-                return back()->withErrors([
-                    'refresh_ldap' => 'Could not refresh user details from directory.'
-                ]);
+                $message = 'User updated successfully.';
             }
+        } else {
+            // Local Authentication - editable fields
+            $validationRules = [
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+                'role' => 'required|in:admin,team,client',
+            ];
+
+            // Password is optional - only validate if provided
+            if ($request->filled('password')) {
+                $validationRules['password'] = 'string|min:8|confirmed';
+            }
+
+            $validated = $request->validate($validationRules);
+
+            // Handle active checkbox
+            $validated['active'] = $request->has('active');
+
+            // Only update password if provided
+            if ($request->filled('password')) {
+                $validated['password'] = bcrypt($request->password);
+            } else {
+                unset($validated['password']);
+            }
+
+            $message = 'User updated successfully.';
         }
 
         $user->update($validated);
-
-        $message = 'User updated successfully.';
-        if ($request->has('refresh_ldap') && isset($ldapData)) {
-            $message .= ' Details refreshed from directory.';
-        }
 
         return redirect()->route('users.index')->with('success', $message);
     }

@@ -14,7 +14,13 @@
     <div class="col-lg-8">
         <div class="mb-4">
             <h1 class="mb-1">Create User</h1>
-            <p class="text-muted mb-0">Add a new team member using their NetID</p>
+            <p class="text-muted mb-0">
+                @if(config('hacklog_auth.driver') === 'cas')
+                    Add a new team member using their NetID
+                @else
+                    Add a new team member with email and password
+                @endif
+            </p>
         </div>
 
         <div class="card">
@@ -33,51 +39,107 @@
                 <form action="{{ route('users.store') }}" method="POST" id="createUserForm">
                     @csrf
 
-                    <div class="mb-3">
-                        <label for="search" class="form-label">Search User</label>
-                        <div class="input-group">
+                    @if(config('hacklog_auth.driver') === 'cas')
+                        {{-- CAS Authentication: Search for user by NetID --}}
+                        <div class="mb-3">
+                            <label for="search" class="form-label">Search User</label>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id="search" 
+                                    placeholder="Search by name or NetID"
+                                    autocomplete="off">
+                                <button type="button" class="btn btn-outline-secondary" id="searchBtn">
+                                    <i class="bi bi-search"></i> Search
+                                </button>
+                            </div>
+                            <div class="form-text">Search by name or NetID to find users in the directory.</div>
+                        </div>
+
+                        <!-- Search results dropdown -->
+                        <div id="searchResults" class="list-group mb-3 d-none" style="max-height: 400px; overflow-y: auto;">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="netid_display" class="form-label">Selected NetID</label>
                             <input 
                                 type="text" 
-                                class="form-control" 
-                                id="search" 
-                                placeholder="Search by name or NetID"
-                                autocomplete="off">
-                            <button type="button" class="btn btn-outline-secondary" id="searchBtn">
-                                <i class="bi bi-search"></i> Search
-                            </button>
+                                class="form-control @error('netid') is-invalid @enderror" 
+                                id="netid_display" 
+                                value="{{ old('netid') }}" 
+                                readonly
+                                placeholder="Search and select a user above">
+                            <input type="hidden" id="netid" name="netid" value="{{ old('netid') }}" required>
+                            @error('netid')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
                         </div>
-                        <div class="form-text">Search by name or NetID to find users in the directory.</div>
-                    </div>
 
-                    <!-- Search results dropdown -->
-                    <div id="searchResults" class="list-group mb-3 d-none" style="max-height: 400px; overflow-y: auto;">
-                    </div>
+                        <!-- LDAP lookup result display -->
+                        <div id="userPreview" class="alert alert-info d-none">
+                            <h6>Directory Lookup Result:</h6>
+                            <p class="mb-1"><strong>Name:</strong> <span id="previewName"></span></p>
+                            <p class="mb-0"><strong>Email:</strong> <span id="previewEmail"></span></p>
+                        </div>
 
-                    <div class="mb-3">
-                        <label for="netid_display" class="form-label">Selected NetID</label>
-                        <input 
-                            type="text" 
-                            class="form-control @error('netid') is-invalid @enderror" 
-                            id="netid_display" 
-                            value="{{ old('netid') }}" 
-                            readonly
-                            placeholder="Search and select a user above">
-                        <input type="hidden" id="netid" name="netid" value="{{ old('netid') }}" required>
-                        @error('netid')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                        @enderror
-                    </div>
+                        <div id="lookupError" class="alert alert-warning d-none">
+                            <strong>Warning:</strong> <span id="errorMessage"></span>
+                        </div>
+                    @else
+                        {{-- Local Authentication: Manual entry --}}
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Name</label>
+                            <input 
+                                type="text" 
+                                class="form-control @error('name') is-invalid @enderror" 
+                                id="name" 
+                                name="name" 
+                                value="{{ old('name') }}" 
+                                required>
+                            @error('name')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
 
-                    <!-- LDAP lookup result display -->
-                    <div id="userPreview" class="alert alert-info d-none">
-                        <h6>Directory Lookup Result:</h6>
-                        <p class="mb-1"><strong>Name:</strong> <span id="previewName"></span></p>
-                        <p class="mb-0"><strong>Email:</strong> <span id="previewEmail"></span></p>
-                    </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input 
+                                type="email" 
+                                class="form-control @error('email') is-invalid @enderror" 
+                                id="email" 
+                                name="email" 
+                                value="{{ old('email') }}" 
+                                required>
+                            @error('email')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
 
-                    <div id="lookupError" class="alert alert-warning d-none">
-                        <strong>Warning:</strong> <span id="errorMessage"></span>
-                    </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input 
+                                type="password" 
+                                class="form-control @error('password') is-invalid @enderror" 
+                                id="password" 
+                                name="password" 
+                                required>
+                            @error('password')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">Minimum 8 characters</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password_confirmation" class="form-label">Confirm Password</label>
+                            <input 
+                                type="password" 
+                                class="form-control" 
+                                id="password_confirmation" 
+                                name="password_confirmation" 
+                                required>
+                        </div>
+                    @endif
 
                     <div class="mb-3">
                         <label for="role" class="form-label">Role</label>
@@ -111,7 +173,7 @@
                     </div>
 
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                        <button type="submit" class="btn btn-primary" id="submitBtn" @if(config('hacklog_auth.driver') === 'cas') disabled @endif>
                             Create User
                         </button>
                         <a href="{{ route('users.index') }}" class="btn btn-outline-secondary">Cancel</a>
@@ -123,18 +185,28 @@
         <div class="card mt-3">
             <div class="card-body">
                 <h6 class="card-title">How This Works</h6>
-                <ul class="mb-0">
-                    <li>Search for a user by name or NetID</li>
-                    <li>Select the user from the search results</li>
-                    <li>Their name and email will be automatically populated from the directory</li>
-                    <li>Choose their role and activation status</li>
-                    <li>The user will be able to log in using their NetID via CAS authentication</li>
-                </ul>
+                @if(config('hacklog_auth.driver') === 'cas')
+                    <ul class="mb-0">
+                        <li>Search for a user by name or NetID</li>
+                        <li>Select the user from the search results</li>
+                        <li>Their name and email will be automatically populated from the directory</li>
+                        <li>Choose their role and activation status</li>
+                        <li>The user will be able to log in using their NetID via CAS authentication</li>
+                    </ul>
+                @else
+                    <ul class="mb-0">
+                        <li>Enter the user's name and email address</li>
+                        <li>Set a temporary password (user can reset it later)</li>
+                        <li>Choose their role and activation status</li>
+                        <li>The user will be able to log in using their email and password</li>
+                    </ul>
+                @endif
             </div>
         </div>
     </div>
 </div>
 
+@if(config('hacklog_auth.driver') === 'cas')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('search');
@@ -268,4 +340,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+@endif
+
 @endsection

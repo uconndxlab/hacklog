@@ -123,9 +123,19 @@ class AuthController extends Controller
 
         // Check if user exists locally
         if (!$user) {
-            \Log::warning('CAS login denied - no local user found', ['netid' => $netid]);
-            return redirect()->route('login')->with('error', 
-                'Access denied. Your NetID is not authorized for this application. Please contact an administrator.');
+            // Check if auto-create is enabled
+            if (config('hacklog_auth.cas_auto_create_users', false)) {
+                $user = $this->autoCreateUser($netid);
+                
+                if (!$user) {
+                    return redirect()->route('login')->with('error', 
+                        'Failed to create your account. Please contact an administrator.');
+                }
+            } else {
+                \Log::warning('CAS login denied - no local user found', ['netid' => $netid]);
+                return redirect()->route('login')->with('error', 
+                    'Access denied. Your NetID is not authorized for this application. Please contact an administrator.');
+            }
         }
 
         // Check if user account is active
@@ -145,6 +155,39 @@ class AuthController extends Controller
 
         // Redirect to dashboard
         return redirect()->route('dashboard');
+    }
+
+    /**
+     * Auto-create a user from CAS authentication.
+     */
+    protected function autoCreateUser($netid): ?User
+    {
+        try {
+            // Try to get user details from LDAP
+            $ldapData = $this->ldapService->lookupUser($netid);
+            
+            $name = $ldapData['name'] ?? $netid;
+            $email = $ldapData['email'] ?? "{$netid}@example.edu";
+            
+            $user = User::create([
+                'netid' => $netid,
+                'name' => $name,
+                'email' => $email,
+                'role' => config('hacklog_auth.cas_default_role', 'team'),
+                'active' => true,
+            ]);
+            
+            \Log::info('Auto-created CAS user', ['netid' => $netid, 'user_id' => $user->id]);
+            
+            return $user;
+        } catch (\Exception $e) {
+            \Log::error('Failed to auto-create CAS user', [
+                'netid' => $netid,
+                'error' => $e->getMessage()
+            ]);
+            
+            return null;
+        }
     }
 
     /**
