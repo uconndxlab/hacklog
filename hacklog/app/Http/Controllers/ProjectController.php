@@ -604,14 +604,16 @@ class ProjectController extends Controller
             return response($html);
         }
 
-        // Redirect to task detail page if it has a phase, otherwise to board
+        // Redirect to board with task parameter to open edit modal
+        $boardRoute = route('projects.board', $project);
         if ($task->phase_id) {
-            return redirect()->route('projects.phases.tasks.show', [$project, $task->phase, $task])
-                ->with('success', 'Task created successfully.');
+            $boardRoute .= '?phase=' . $task->phase_id . '&task=' . $task->id;
         } else {
-            return redirect()->route('projects.board', $project)
-                ->with('success', 'Task created successfully.');
+            $boardRoute .= '?task=' . $task->id;
         }
+        
+        return redirect($boardRoute)
+            ->with('success', 'Task created successfully.');
     }
 
     /**
@@ -665,14 +667,16 @@ class ProjectController extends Controller
             ]);
         }
 
-        // Redirect to task detail page if it has a phase, otherwise to board
+        // Redirect to board with task parameter to open edit modal
+        $boardRoute = route('projects.board', $project);
         if ($task->phase_id) {
-            return redirect()->route('projects.phases.tasks.show', [$project, $task->phase, $task])
-                ->with('success', 'Task created successfully.');
+            $boardRoute .= '?phase=' . $task->phase_id . '&task=' . $task->id;
         } else {
-            return redirect()->route('projects.board', $project)
-                ->with('success', 'Task created successfully.');
+            $boardRoute .= '?task=' . $task->id;
         }
+        
+        return redirect($boardRoute)
+            ->with('success', 'Task created successfully.');
     }
 
     /**
