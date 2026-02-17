@@ -65,6 +65,14 @@
         <input type="hidden" name="global_modal" value="1">
     @endif
     
+    {{-- Preserve filters for redirect --}}
+    @if(request('phase'))
+        <input type="hidden" name="filter_phase_id" value="{{ request('phase') }}">
+    @endif
+    @if(request('assigned'))
+        <input type="hidden" name="filter_assigned" value="{{ request('assigned') }}">
+    @endif
+    
     {{-- Actions dropdown (for edit mode only) --}}
     @if($isEdit)
     <div class="border-bottom bg-light px-3 py-2" style="flex-shrink: 0;">

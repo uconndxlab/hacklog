@@ -189,7 +189,30 @@ class TaskController extends Controller
 
         // Regular form submission
         $redirectRoute = $fromBoard === '1' ? 'projects.board' : 'projects.board';
-        $redirectParams = $fromBoard === '1' ? [$project] : ['project' => $project, 'phase' => $phase->id];
+        
+        // Build redirect parameters
+        if ($fromBoard === '1') {
+            // Project board: preserve phase and assigned filters
+            $redirectParams = ['project' => $project];
+            
+            // Preserve phase filter
+            if ($request->has('filter_phase_id') || $request->query('phase')) {
+                $redirectParams['phase'] = $request->input('filter_phase_id') ?? $request->query('phase');
+            }
+            
+            // Preserve assigned filter
+            if ($request->has('filter_assigned') || $request->query('assigned')) {
+                $redirectParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
+            }
+        } else {
+            // Phase-specific board
+            $redirectParams = ['project' => $project, 'phase' => $phase->id];
+            
+            // Preserve assigned filter if present
+            if ($request->has('filter_assigned') || $request->query('assigned')) {
+                $redirectParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
+            }
+        }
         
         return redirect()->route($redirectRoute, $redirectParams)
             ->with('success', 'Task updated successfully.');

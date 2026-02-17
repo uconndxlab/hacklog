@@ -605,14 +605,21 @@ class ProjectController extends Controller
         }
 
         // Redirect to board with task parameter to open edit modal
-        $boardRoute = route('projects.board', $project);
-        if ($task->phase_id) {
-            $boardRoute .= '?phase=' . $task->phase_id . '&task=' . $task->id;
-        } else {
-            $boardRoute .= '?task=' . $task->id;
+        $queryParams = ['task' => $task->id];
+        
+        // Preserve phase filter or use task's phase
+        if ($request->has('filter_phase_id') || $request->query('phase')) {
+            $queryParams['phase'] = $request->input('filter_phase_id') ?? $request->query('phase');
+        } elseif ($task->phase_id) {
+            $queryParams['phase'] = $task->phase_id;
         }
         
-        return redirect($boardRoute)
+        // Preserve assigned filter
+        if ($request->has('filter_assigned') || $request->query('assigned')) {
+            $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
+        }
+        
+        return redirect()->route('projects.board', array_merge(['project' => $project], $queryParams))
             ->with('success', 'Task created successfully.');
     }
 
@@ -668,14 +675,21 @@ class ProjectController extends Controller
         }
 
         // Redirect to board with task parameter to open edit modal
-        $boardRoute = route('projects.board', $project);
-        if ($task->phase_id) {
-            $boardRoute .= '?phase=' . $task->phase_id . '&task=' . $task->id;
-        } else {
-            $boardRoute .= '?task=' . $task->id;
+        $queryParams = ['task' => $task->id];
+        
+        // Preserve phase filter or use task's phase
+        if ($request->has('filter_phase_id') || $request->query('phase')) {
+            $queryParams['phase'] = $request->input('filter_phase_id') ?? $request->query('phase');
+        } elseif ($task->phase_id) {
+            $queryParams['phase'] = $task->phase_id;
         }
         
-        return redirect($boardRoute)
+        // Preserve assigned filter
+        if ($request->has('filter_assigned') || $request->query('assigned')) {
+            $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
+        }
+        
+        return redirect()->route('projects.board', array_merge(['project' => $project], $queryParams))
             ->with('success', 'Task created successfully.');
     }
 
@@ -880,8 +894,16 @@ class ProjectController extends Controller
             }
         }
 
-        // Regular form submission: redirect to board
-        return redirect()->route('projects.board', $project)
+        // Regular form submission: redirect to board with filters preserved
+        $queryParams = [];
+        if ($request->has('filter_phase_id') || $request->query('phase')) {
+            $queryParams['phase'] = $request->input('filter_phase_id') ?? $request->query('phase');
+        }
+        if ($request->has('filter_assigned') || $request->query('assigned')) {
+            $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
+        }
+        
+        return redirect()->route('projects.board', array_merge(['project' => $project], $queryParams))
             ->with('success', 'Task updated successfully.');
     }
 
