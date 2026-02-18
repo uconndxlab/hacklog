@@ -119,6 +119,10 @@ body.theme-dark .modal .btn-close:hover {
     background-color: #fff;
     border-bottom-color: #dee2e6;
 }
+.task-form-footer-bg {
+    background-color: #fff;
+    border-top-color: #dee2e6;
+}
 body.theme-dark .task-form-header {
     background-color: #232a36 !important; /* match modal content and tabs */
     border-bottom-color: rgba(255, 255, 255, 0.12) !important;
@@ -158,6 +162,10 @@ body.theme-dark .task-form-header .btn-primary:hover {
 body.theme-dark .task-form-tabs-bg {
     background-color: #232a36 !important;
     border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+}
+body.theme-dark .task-form-footer-bg {
+    background-color: #232a36 !important;
+    border-top-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 /* Dark: top navbar bar */
@@ -338,6 +346,14 @@ body.theme-dark .list-group-item {
     background-color: #232a36;
     border-color: rgba(255, 255, 255, 0.06);
     color: #b8bcc6;
+}
+
+/* Dark: schedule task title links (e.g., "test") */
+body.theme-dark .schedule-task-title {
+    color: #e2e6eb !important;
+}
+body.theme-dark .schedule-task-title:hover {
+    color: #a3c2ff !important;
 }
 
 /* Dark: breadcrumb links */

@@ -187,21 +187,22 @@
                                     <h4 class="h6 mb-1 text-danger fw-semibold">
                                         @if($task->phase)
                                         <a href="{{ route('projects.phases.tasks.show', [$task->phase->project, $task->phase, $task]) }}"
-                                            class="text-danger text-decoration-none">
+                                            class="schedule-task-title text-danger text-decoration-none">
                                             {{ $task->title }}
                                         </a>
                                         @else
                                         <a href="{{ route('projects.board', ['project' => $task->getProject(), 'task' => $task->id]) }}"
-                                            class="text-danger text-decoration-none">
+                                            class="schedule-task-title text-danger text-decoration-none">
                                             {{ $task->title }}
                                         </a>
                                         @endif
                                     </h4>
                                     <div class="small text-muted">
                                         <span class="fw-medium">{{ $task->getProject()->name }}</span>
+                                        
                                         @if($task->phase)
                                         <span class="mx-1">→</span>
-                                        <span>{{ $task->phase->name }}</span>
+                                        <span class="schedule-phase-name">{{ $task->phase->name }}</span>
                                         @endif
                                         <span class="mx-1">•</span>
                                         <span>{{ $task->column->name }}</span>
@@ -257,12 +258,12 @@
                                     <h4 class="h6 mb-1 @if($task->status === 'completed') text-muted @endif">
                                         @if($task->phase)
                                         <a href="{{ route('projects.phases.tasks.show', [$task->phase->project, $task->phase, $task]) }}"
-                                            class="@if($task->status === 'completed') text-muted @else text-body @endif text-decoration-none">
+                                            class="schedule-task-title @if($task->status === 'completed') text-muted @else text-body @endif text-decoration-none">
                                             {{ $task->title }}
                                         </a>
                                         @else
                                         <a href="{{ route('projects.board', ['project' => $task->getProject(), 'task' => $task->id]) }}"
-                                            class="@if($task->status === 'completed') text-muted @else text-body @endif text-decoration-none">
+                                            class="schedule-task-title @if($task->status === 'completed') text-muted @else text-body @endif text-decoration-none">
                                             {{ $task->title }}
                                         </a>
                                         @endif
@@ -272,7 +273,7 @@
                                         <span class="fw-medium">{{ $task->getProject()->name }}</span>
                                         @if($task->phase)
                                         <span class="mx-1">→</span>
-                                        <span>{{ $task->phase->name }}</span>
+                                        <span class="schedule-phase-name">{{ $task->phase->name }}</span>
                                         @endif
                                         <span class="mx-1">•</span>
                                         <span>{{ $task->column->name }}</span>
