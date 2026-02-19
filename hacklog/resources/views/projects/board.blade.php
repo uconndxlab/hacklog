@@ -32,6 +32,8 @@
                         </a>
                     </li>
                 @endforeach
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ route('projects.phases.create', $project) }}">+ Add a Phase</a></li>
             </ul>
         </div>
         <div class="dropdown">
