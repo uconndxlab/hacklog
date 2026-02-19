@@ -437,7 +437,7 @@ class TaskController extends Controller
             });
         }
         
-        $columnTasks = $query->with(['phase', 'users'])->get();
+        $columnTasks = $query->with(['phase', 'users', 'creator'])->get();
         
         return view('projects.partials.board-column-tasks', [
             'column' => $column,

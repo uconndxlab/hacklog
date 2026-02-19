@@ -144,6 +144,13 @@
             </p>
         @endif
         
+        {{-- Created info --}}
+        <p class="card-text mb-2">
+            <small class="text-muted">
+                <strong>Created:</strong> {{ $task->created_at->format('M j, Y') }} by {{ $task->creator?->name ?? 'Unknown' }}
+            </small>
+        </p>
+        
     
         
         {{-- Edit button --}}

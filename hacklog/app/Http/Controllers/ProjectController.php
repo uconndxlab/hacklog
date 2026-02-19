@@ -412,8 +412,8 @@ class ProjectController extends Controller
         }
         
         // Load all tasks for this project (optionally filtered by phase)
-        // Eager load phase and users relationships and order by position within each column
-        $tasks = $tasksQuery->with(['phase', 'users'])->get()->groupBy('column_id');
+        // Eager load phase, users, and creator relationships and order by position within each column
+        $tasks = $tasksQuery->with(['phase', 'users', 'creator'])->get()->groupBy('column_id');
         
         // Get users who have tasks assigned in this project with counts
         $usersWithTasks = \App\Models\User::whereHas('tasks', function ($query) use ($project) {
