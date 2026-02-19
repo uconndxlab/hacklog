@@ -571,7 +571,7 @@
     </div>
     
     {{-- Sticky footer action bar --}}
-    <div class="modal-footer" style="position: sticky; bottom: 0; background: white; border-top: 1px solid #dee2e6; padding: 0.75rem 1rem; flex-shrink: 0; z-index: 10;">
+    <div class="modal-footer task-form-footer-bg" style="position: sticky; bottom: 0; padding: 0.75rem 1rem; flex-shrink: 0; z-index: 10;">
         <div class="d-flex justify-content-between align-items-center w-100">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-primary">
