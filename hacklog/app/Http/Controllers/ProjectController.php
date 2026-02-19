@@ -1107,7 +1107,7 @@ class ProjectController extends Controller
 
         // Check authorization: user owns task or is admin
         $user = auth()->user();
-        if ($task->user_id !== $user->id && !$user->isAdmin()) {
+        if ($task->created_by !== $user->id && !$user->isAdmin()) {
             abort(403, 'You are not authorized to delete this task.');
         }
 
