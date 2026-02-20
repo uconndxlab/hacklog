@@ -11,10 +11,10 @@
     if ($isGlobalModal) {
         $htmxTarget = '#taskCreationModalContent';
         $htmxSwap = 'innerHTML';
-        $htmxSuccess = 'closeModal';
+        $htmxSuccess = 'closeModal()';
     } else {
-        $targetColumnId = $isEdit ? $task->column_id : $columnId;
-        $htmxTarget = "#board-column-{$targetColumnId}-tasks";
+        $targetColumnId = $isEdit ? $task->column_id : ($columnId ?? null);
+        $htmxTarget = $targetColumnId ? "#board-column-{$targetColumnId}-tasks" : '#taskModalContent';
         $htmxSwap = 'outerHTML';
         $htmxSuccess = '';
     }
@@ -913,21 +913,35 @@ function deleteAttachment(deleteUrl, attachmentId) {
 })();
 
 // Trix inline attachment handling
-@if($isEdit)
 (function() {
     const trixEditor = document.querySelector('trix-editor[input="description"]');
-    if (!trixEditor) return;
+    if (!trixEditor) {
+        console.error('Trix editor not found');
+        return;
+    }
+    
+    @if(isset($task))
+    const uploadUrl = '{{ route("projects.board.tasks.attachments.trix", [$project, $task]) }}';
+    const mode = 'edit';
+    @else
+    const uploadUrl = '{{ route("projects.board.tasks.attachments.trix-temp", $project) }}';
+    const mode = 'create';
+    @endif
+    
+    console.log('Trix attachment handler initialized for ' + mode + ' mode. Upload URL:', uploadUrl);
     
     // Handle attachment addition
     trixEditor.addEventListener('trix-attachment-add', function(event) {
         const attachment = event.attachment;
         if (!attachment.file) return;
         
+        console.log('Uploading file to:', uploadUrl);
+        
         // Upload the file
         const formData = new FormData();
         formData.append('file', attachment.file);
         
-        fetch('{{ route("projects.board.tasks.attachments.trix", [$project, $task]) }}', {
+        fetch(uploadUrl, {
             method: 'POST',
             body: formData,
             headers: {
@@ -958,15 +972,19 @@ function deleteAttachment(deleteUrl, attachmentId) {
         });
     });
 })();
-@endif
+</script>
 
-// Update modal title for global modal
 @if($isGlobalModal)
 <script>
+    // Update modal title for global modal
     document.addEventListener('DOMContentLoaded', function() {
         const modalTitle = document.getElementById('taskCreationModalLabel');
         if (modalTitle) {
-            modalTitle.textContent = '{{ $isEdit ? "Edit Task" : "Create Task" }} in {{ $project->name }}';
+            @if(isset($task))
+            modalTitle.textContent = 'Edit Task in {{ addslashes($project->name) }}';
+            @else
+            modalTitle.textContent = 'Create Task in {{ addslashes($project->name) }}';
+            @endif
         }
     });
 </script>

@@ -589,8 +589,13 @@ class ProjectController extends Controller
             }
         }
 
-        // Set position to end of column
-        $validated['position'] = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
+        // Set position to top of column (position 0)
+        $validated['position'] = 0;
+        
+        // Shift existing tasks down
+        \App\Models\Task::where('column_id', $validated['column_id'])
+            ->where('position', '>=', 0)
+            ->increment('position');
 
         // Set creator
         $validated['created_by'] = auth()->id();
@@ -616,34 +621,37 @@ class ProjectController extends Controller
             ]);
         }
 
+        // Process temporary attachments from Trix editor
+        \App\Http\Controllers\TaskAttachmentController::processTempAttachments($task);
+
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
+        $isGlobalModal = $request->input('global_modal');
         
         if (request()->header('HX-Request') && $fromBoardModal) {
-            // HTMX: Return updated column task list
-            $column = $project->columns()->find($validated['column_id']);
-            $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
-                $query->where('project_id', $project->id);
-            })
-            ->with(['phase', 'users'])
-            ->get()
-            ->groupBy('column_id');
+            // Redirect to board with highlight parameter
+            $queryParams = ['highlight' => $task->id];
             
-            $html = view('projects.partials.board-column-tasks', [
-                'column' => $column,
-                'columnTasks' => $tasks->get($validated['column_id'], collect()),
-                'project' => $project,
-                'allColumns' => $project->columns,
-                'isProjectBoard' => true
-            ])->render();
+            // Preserve phase filter or use task's phase
+            if ($request->has('filter_phase_id') || $request->query('phase')) {
+                $queryParams['phase'] = $request->input('filter_phase_id') ?? $request->query('phase');
+            } elseif ($task->phase_id) {
+                $queryParams['phase'] = $task->phase_id;
+            }
             
-            $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
+            // Preserve assigned filter
+            if ($request->has('filter_assigned') || $request->query('assigned')) {
+                $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
+            }
             
-            return response($html);
+            $redirectUrl = route('projects.board', array_merge(['project' => $project], $queryParams));
+            
+            return response('')
+                ->header('HX-Redirect', $redirectUrl);
         }
 
-        // Redirect to board with task parameter to open edit modal
-        $queryParams = ['task' => $task->id];
+        // Redirect to board with highlight parameter
+        $queryParams = ['highlight' => $task->id];
         
         // Preserve phase filter or use task's phase
         if ($request->has('filter_phase_id') || $request->query('phase')) {
@@ -686,8 +694,13 @@ class ProjectController extends Controller
             }
         }
 
-        // Set position to end of column
-        $validated['position'] = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
+        // Set position to top of column (position 0)
+        $validated['position'] = 0;
+        
+        // Shift existing tasks down
+        \App\Models\Task::where('column_id', $validated['column_id'])
+            ->where('position', '>=', 0)
+            ->increment('position');
 
         // Set creator
         $validated['created_by'] = auth()->id();
@@ -712,8 +725,11 @@ class ProjectController extends Controller
             ]);
         }
 
-        // Redirect to board with task parameter to open edit modal
-        $queryParams = ['task' => $task->id];
+        // Process temporary attachments from Trix editor
+        \App\Http\Controllers\TaskAttachmentController::processTempAttachments($task);
+
+        // Redirect to board with highlight parameter
+        $queryParams = ['highlight' => $task->id];
         
         // Preserve phase filter or use task's phase
         if ($request->has('filter_phase_id') || $request->query('phase')) {

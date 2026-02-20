@@ -644,5 +644,39 @@ document.addEventListener('keydown', function(e) {
         window.location.reload();
     }
 })();
+
+// Highlight newly created task
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const highlightTaskId = urlParams.get('highlight');
+    
+    if (highlightTaskId) {
+        // Wait for DOM to be fully loaded
+        setTimeout(function() {
+            const taskCard = document.querySelector(`[data-task-id="${highlightTaskId}"]`);
+            if (taskCard) {
+                // Add highlight with info color
+                taskCard.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease';
+                taskCard.style.boxShadow = '0 0 0 3px rgba(13, 110, 253, 0.4)'; // Bootstrap info color
+                taskCard.style.transform = 'scale(1.02)';
+                
+                // Scroll to the task card
+                taskCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Fade out after 1 second
+                setTimeout(function() {
+                    taskCard.style.transition = 'box-shadow 1s ease, transform 1s ease';
+                    taskCard.style.boxShadow = '';
+                    taskCard.style.transform = '';
+                    
+                    // Clean up the URL parameter after highlight starts fading
+                    const url = new URL(window.location);
+                    url.searchParams.delete('highlight');
+                    window.history.replaceState({}, '', url);
+                }, 1000);
+            }
+        }, 100);
+    }
+})();
 </script>
 @endsection

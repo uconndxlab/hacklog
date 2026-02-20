@@ -69,6 +69,7 @@ Route::delete('projects/{project}/board/tasks/{task}', [ProjectController::class
 Route::post('projects/{project}/board/tasks/{task}/move', [ProjectController::class, 'moveTask'])->name('projects.board.tasks.move');
 Route::post('projects/{project}/board/tasks/{task}/comments', [ProjectController::class, 'storeComment'])->name('projects.board.tasks.comments.store');
 Route::delete('projects/{project}/board/tasks/{task}/comments/{comment}', [ProjectController::class, 'deleteComment'])->name('projects.board.tasks.comments.destroy');
+Route::post('projects/{project}/board/tasks/temp-trix-upload', [TaskAttachmentController::class, 'uploadForTrixTemporary'])->name('projects.board.tasks.attachments.trix-temp');
 Route::post('projects/{project}/board/tasks/{task}/attachments/trix', [TaskAttachmentController::class, 'uploadForTrix'])->name('projects.board.tasks.attachments.trix');
 Route::post('projects/{project}/board/tasks/{task}/attachments', [TaskAttachmentController::class, 'upload'])->name('projects.board.tasks.attachments.upload');
 Route::get('projects/{project}/board/tasks/{task}/attachments/{attachment}/download', [TaskAttachmentController::class, 'download'])->name('projects.board.tasks.attachments.download');

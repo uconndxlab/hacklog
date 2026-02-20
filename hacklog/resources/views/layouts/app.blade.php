@@ -327,6 +327,8 @@
             }
 
             function selectProject(projectId, showBackButton = false) {
+                console.log('selectProject called with projectId:', projectId);
+                
                 // Hide project selection modal if it's open
                 const projectModalInstance = bootstrap.Modal.getInstance(projectSelectionModal);
                 if (projectModalInstance) {
@@ -337,7 +339,7 @@
                 const taskModal = new bootstrap.Modal(taskCreationModal);
                 taskModal.show();
                 
-                // Load task creation form
+                // Load task creation form using HTMX (same as board modal)
                 const taskContent = document.getElementById('taskCreationModalContent');
                 taskContent.innerHTML = `
                     <div class="text-center py-4" style="flex: 1; display: flex; align-items: center; justify-content: center;">
@@ -347,25 +349,22 @@
                     </div>
                 `;
                 
-                fetch(`/projects/${projectId}/board/task-form?global_modal=1`, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-                    }
-                })
-                .then(response => response.text())
-                .then(html => {
-                    taskContent.innerHTML = html;
-                    
-                    // Add "Select a Different Project" button if requested
-                    if (showBackButton) {
-                        addBackToProjectSelectionButton();
-                    }
-                })
-                .catch(error => {
+                const url = `/projects/${projectId}/board/task-form?global_modal=1`;
+                console.log('Loading task form from:', url);
+                
+                // Use HTMX to load and execute scripts properly
+                htmx.ajax('GET', url, {
+                    target: '#taskCreationModalContent',
+                    swap: 'innerHTML'
+                }).catch(error => {
                     console.error('Error loading task form:', error);
-                    taskContent.innerHTML = '<p class="text-danger">Error loading task form.</p>';
+                    taskContent.innerHTML = '<div class="alert alert-danger m-3">Error loading task form. Please try again.</div>';
                 });
+                
+                // Add "Select a Different Project" button if requested
+                if (showBackButton) {
+                    setTimeout(() => addBackToProjectSelectionButton(), 100);
+                }
             }
 
             // Add back button to modal header
