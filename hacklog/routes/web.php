@@ -5,6 +5,7 @@ use App\Http\Controllers\ColumnController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PhaseController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectResourceController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TaskAttachmentController;
@@ -57,6 +58,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::resource('projects', ProjectController::class);
+    Route::post('projects/{project}/favorite', [ProjectFavoriteController::class, 'toggle'])->name('projects.favorites.toggle');
 Route::get('projects/{project}/sharing', [ProjectController::class, 'sharing'])->name('projects.sharing');
 Route::post('projects/{project}/shares', [ProjectController::class, 'shareStore'])->name('projects.shares.store');
 Route::delete('projects/{project}/shares/{share}', [ProjectController::class, 'shareDestroy'])->name('projects.shares.destroy');

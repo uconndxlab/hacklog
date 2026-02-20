@@ -17,6 +17,9 @@ class ProjectController extends Controller
     {
         $user = $request->user();
         
+        // Load current user's favorited project IDs
+        $favoriteProjectIds = $user->favoriteProjects()->pluck('project_id')->toArray();
+        
         // Start with visibility-filtered projects
         $query = Project::visibleTo($user)
             ->with(['phases.tasks.users', 'columns.tasks.users']); // Eager load tasks in phases and standalone tasks
@@ -162,7 +165,7 @@ class ProjectController extends Controller
         }
 
         // Apply sorting
-        $sort = $request->input('sort', 'recent_activity');
+        $sort = $request->input('sort', 'alphabetical');
         if ($sort === 'alphabetical') {
             $projects = $query->orderBy('name', 'asc')->get();
         } elseif ($sort === 'recent_activity') {
@@ -225,10 +228,10 @@ class ProjectController extends Controller
 
         // If this is an HTMX request, return only the projects list partial
         if ($request->header('HX-Request')) {
-            return view('projects.partials.projects-list', compact('projects'));
+            return view('projects.partials.projects-list', compact('projects', 'favoriteProjectIds'));
         }
 
-        return view('projects.index', compact('projects'));
+        return view('projects.index', compact('projects', 'favoriteProjectIds'));
     }
 
     /**

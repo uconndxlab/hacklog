@@ -43,6 +43,11 @@ class Project extends Model
         return $this->hasMany(ProjectActivity::class)->orderBy('created_at', 'desc');
     }
 
+    public function favoritedByUsers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'project_favorites')->withTimestamps();
+    }
+
     /**
      * Visibility scope: filters projects based on user's role and sharing.
      * 

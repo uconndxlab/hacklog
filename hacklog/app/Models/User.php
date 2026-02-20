@@ -189,4 +189,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Task::class)->withTimestamps();
     }
+
+    public function favoriteProjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_favorites')->withTimestamps();
+    }
 }

@@ -23,18 +23,31 @@
     <div class="card-body py-2">
         <div class="d-flex align-items-center gap-3 flex-wrap">
             {{-- Search --}}
-            <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 300px;">
+            <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 360px;">
                 <input type="text" 
                        class="form-control form-control-sm" 
                        id="search" 
                        name="search" 
-                       placeholder="Search..."
+                       placeholder="Type to filter projects…"
+                       autocomplete="off"
+                       autofocus
                        value="{{ request('search') }}"
                        hx-get="{{ route('projects.index') }}"
-                       hx-trigger="input changed delay:500ms, search"
+                       hx-trigger="keyup changed delay:200ms, search"
                        hx-target="#projects-list"
                        hx-include="[name='scope'], [name='status'], [name='time'], [name='owner'], [name='sort']"
                        hx-push-url="true">
+                @if(request('search'))
+                    <button type="button" id="clear-search" class="btn btn-sm btn-outline-secondary"
+                        hx-get="{{ route('projects.index') }}"
+                        hx-target="#projects-list"
+                        hx-include="[name='scope'], [name='status'], [name='time'], [name='owner'], [name='sort']"
+                        hx-push-url="true"
+                        hx-vals='{"search": ""}'
+                        onclick="document.getElementById('search').value=''">
+                        ✕
+                    </button>
+                @endif
             </div>
 
             {{-- Sort Filter --}}
@@ -46,10 +59,10 @@
                         hx-target="#projects-list"
                         hx-include="[name='search'], [name='scope'], [name='status'], [name='time'], [name='owner']"
                         hx-push-url="true">
-                    <option value="recent_activity" {{ request('sort', 'recent_activity') === 'recent_activity' ? 'selected' : '' }}>
+                    <option value="recent_activity" {{ request('sort') === 'recent_activity' ? 'selected' : '' }}>
                         Recent Activity
                     </option>
-                    <option value="alphabetical" {{ request('sort') === 'alphabetical' ? 'selected' : '' }}>
+                    <option value="alphabetical" {{ request('sort', 'alphabetical') === 'alphabetical' ? 'selected' : '' }}>
                         Alphabetical
                     </option>
                     <option value="status" {{ request('sort') === 'status' ? 'selected' : '' }}>
@@ -147,6 +160,34 @@
 
 {{-- Projects List --}}
 <div id="projects-list">
-    @include('projects.partials.projects-list', ['projects' => $projects])
+    @include('projects.partials.projects-list', ['projects' => $projects, 'favoriteProjectIds' => $favoriteProjectIds])
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const search = document.getElementById('search');
+    if (!search) return;
+
+    // Esc clears the search input and re-triggers filtering
+    search.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            if (search.value !== '') {
+                search.value = '';
+                htmx.trigger(search, 'search');
+            }
+        }
+    });
+
+    // Re-focus search after HTMX swaps (e.g., after star toggle)
+    document.body.addEventListener('htmx:afterSwap', function (e) {
+        if (e.detail.target && e.detail.target.id === 'projects-list') {
+            const s = document.getElementById('search');
+            if (s) s.focus();
+        }
+    });
+})();
+</script>
+@endpush
