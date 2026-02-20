@@ -655,19 +655,37 @@ document.addEventListener('keydown', function(e) {
         setTimeout(function() {
             const taskCard = document.querySelector(`[data-task-id="${highlightTaskId}"]`);
             if (taskCard) {
+                const cardBody = taskCard.querySelector('.card-body');
+                
+                // Store original background colors
+                const originalBg = taskCard.style.backgroundColor;
+                const originalBodyBg = cardBody ? cardBody.style.backgroundColor : '';
+                
                 // Add highlight with info color
-                taskCard.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease';
-                taskCard.style.boxShadow = '0 0 0 3px rgba(13, 110, 253, 0.4)'; // Bootstrap info color
-                taskCard.style.transform = 'scale(1.02)';
+                taskCard.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease, background-color 0.3s ease';
+                taskCard.style.boxShadow = '0 0 0 4px rgba(13, 110, 253, 0.5)'; // Bootstrap info color
+                taskCard.style.transform = 'scale(1.03)';
+                taskCard.style.backgroundColor = 'rgba(13, 110, 253, 0.15)'; // Light info background
+                
+                if (cardBody) {
+                    cardBody.style.transition = 'background-color 0.3s ease';
+                    cardBody.style.backgroundColor = 'rgba(13, 110, 253, 0.1)'; // Subtle body tint
+                }
                 
                 // Scroll to the task card
                 taskCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 
                 // Fade out after 1 second
                 setTimeout(function() {
-                    taskCard.style.transition = 'box-shadow 1s ease, transform 1s ease';
+                    taskCard.style.transition = 'box-shadow 1s ease, transform 1s ease, background-color 1s ease';
                     taskCard.style.boxShadow = '';
                     taskCard.style.transform = '';
+                    taskCard.style.backgroundColor = originalBg;
+                    
+                    if (cardBody) {
+                        cardBody.style.transition = 'background-color 1s ease';
+                        cardBody.style.backgroundColor = originalBodyBg;
+                    }
                     
                     // Clean up the URL parameter after highlight starts fading
                     const url = new URL(window.location);
