@@ -309,7 +309,7 @@
                                                     @elseif($item->activity->action === 'column_changed')
                                                         moved task to column: <strong>{{ $item->activity->metadata['to_name'] ?? 'unknown' }}</strong>
                                                     @elseif($item->activity->action === 'assignees_changed')
-                                                        updated task assignees
+                                                        updated task assignment
                                                     @elseif($item->activity->action === 'due_date_changed')
                                                         changed task due date
                                                     @else

@@ -194,6 +194,89 @@
                         @endif
                     </div>
                 </div>
+
+                {{-- Recent Activity --}}
+                <h2 class="h4 mb-3">Recent Activity</h2>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        @if($recentActivity->isEmpty())
+                            <p class="text-muted mb-0">No recent activity to display.</p>
+                        @else
+                            <div class="list-group list-group-flush">
+                                @foreach($recentActivity as $item)
+                                    @php
+                                        $activity = $item['activity'];
+                                        $isTaskActivity = $item['type'] === 'task';
+                                    @endphp
+                                    <div class="list-group-item px-0 py-2">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                @if($isTaskActivity)
+                                                    {{-- Task Activity --}}
+                                                    <div class="small mb-1">
+                                                        <strong>{{ $activity->user ? $activity->user->name : 'System' }}</strong>
+                                                        @if($activity->action === 'status_changed')
+                                                            changed task status from
+                                                            <span class="badge bg-secondary">{{ $activity->metadata['from'] ?? 'unknown' }}</span>
+                                                            to
+                                                            <span class="badge bg-primary">{{ $activity->metadata['to'] ?? 'unknown' }}</span>
+                                                        @elseif($activity->action === 'completed')
+                                                            marked task as completed
+                                                        @elseif($activity->action === 'reopened')
+                                                            reopened task
+                                                        @elseif($activity->action === 'phase_changed')
+                                                            moved task to phase: {{ $activity->metadata['to_name'] ?? 'unknown' }}
+                                                        @elseif($activity->action === 'assignees_changed')
+                                                            updated task assignment
+                                                        @elseif($activity->action === 'due_date_changed')
+                                                            changed due date to {{ $activity->metadata['to'] ?? 'none' }}
+                                                        @elseif($activity->action === 'column_changed')
+                                                            moved task to column: {{ $activity->metadata['to_name'] ?? 'unknown' }}
+                                                        @elseif($activity->action === 'comment_added')
+                                                            added a comment
+                                                        @else
+                                                            {{ $activity->action }}
+                                                        @endif
+                                                    </div>
+                                                    <div class="small text-muted">
+                                                        <a href="{{ route('projects.board', ['project' => $project, 'task' => $activity->task->id]) }}" 
+                                                           class="text-decoration-none text-muted">
+                                                            {{ $activity->task->title }}
+                                                        </a>
+                                                        @if($activity->task->phase)
+                                                            <span class="mx-1">›</span>
+                                                            {{ $activity->task->phase->name }}
+                                                        @endif
+                                                    </div>
+                                                @else
+                                                    {{-- Project Activity --}}
+                                                    <div class="small mb-1">
+                                                        <strong>{{ $activity->user ? $activity->user->name : 'System' }}</strong>
+                                                        @if($activity->action === 'created')
+                                                            created this project
+                                                        @elseif($activity->action === 'updated')
+                                                            updated project details
+                                                        @elseif($activity->action === 'status_changed')
+                                                            changed project status from
+                                                            <span class="badge bg-secondary">{{ $activity->metadata['from'] ?? 'unknown' }}</span>
+                                                            to
+                                                            <span class="badge bg-primary">{{ $activity->metadata['to'] ?? 'unknown' }}</span>
+                                                        @else
+                                                            {{ $activity->action }}
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
+                                            <div class="ms-3">
+                                                <span class="small text-muted text-nowrap">{{ $activity->created_at->diffForHumans() }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
             </div>
         </div>
 

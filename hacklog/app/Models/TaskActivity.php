@@ -68,7 +68,7 @@ class TaskActivity extends Model
                 $this->metadata['to_name'] ?? 'unknown'
             ),
             'assignees_changed' => sprintf(
-                '%s updated assignees',
+                '%s updated task assignment',
                 $userName
             ),
             'due_date_changed' => sprintf(

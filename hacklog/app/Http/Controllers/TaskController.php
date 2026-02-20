@@ -142,7 +142,9 @@ class TaskController extends Controller
         $task->update($validated);
 
         // Only sync assignees if not a simple column change from board
-        $newAssignees = $validated['assignees'] ?? [];
+        $newAssignees = array_map('intval', $validated['assignees'] ?? []);
+        sort($oldAssignees);
+        sort($newAssignees);
         if (!$request->input('column_change_only')) {
             $task->users()->sync($newAssignees);
         }
@@ -164,7 +166,7 @@ class TaskController extends Controller
             }
         }
 
-        // Assignee changes (only if assignees were actually synced)
+        // Assignee changes (only if assignees were actually synced and actually changed)
         if (!$request->input('column_change_only') && $oldAssignees !== $newAssignees) {
             \App\Models\TaskActivity::log($task->id, $userId, 'assignees_changed', [
                 'added' => array_diff($newAssignees, $oldAssignees),

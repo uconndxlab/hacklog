@@ -358,7 +358,45 @@ class ProjectController extends Controller
             $nearestDueDate = $nearestPhaseDate;
         }
 
-        return view('projects.show', compact('project', 'upcomingTasks', 'activePhasesCount', 'overdueTasks', 'awaitingFeedbackTasks', 'nearestDueDate'));
+        // Get recent activity for this project (last 10 entries)
+        $recentActivity = collect();
+        
+        // Get project activities
+        $projectActivities = \App\Models\ProjectActivity::where('project_id', $project->id)
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($activity) {
+                return [
+                    'type' => 'project',
+                    'activity' => $activity,
+                    'created_at' => $activity->created_at,
+                ];
+            });
+        
+        // Get task activities for tasks in this project
+        $taskActivities = \App\Models\TaskActivity::whereHas('task.column', function ($query) use ($project) {
+            $query->where('project_id', $project->id);
+        })
+            ->with(['task.phase', 'task.column', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($activity) {
+                return [
+                    'type' => 'task',
+                    'activity' => $activity,
+                    'created_at' => $activity->created_at,
+                ];
+            });
+        
+        // Merge and sort by created_at, take most recent 10
+        $recentActivity = $projectActivities->concat($taskActivities)
+            ->sortByDesc('created_at')
+            ->take(10);
+
+        return view('projects.show', compact('project', 'upcomingTasks', 'activePhasesCount', 'overdueTasks', 'awaitingFeedbackTasks', 'nearestDueDate', 'recentActivity'));
     }
 
     /**
@@ -745,7 +783,9 @@ class ProjectController extends Controller
         $task->update($validated);
 
         // Sync assignees
-        $newAssignees = $validated['assignees'] ?? [];
+        $newAssignees = array_map('intval', $validated['assignees'] ?? []);
+        sort($oldAssignees);
+        sort($newAssignees);
         $task->users()->sync($newAssignees);
 
         // Log meaningful changes
@@ -775,7 +815,7 @@ class ProjectController extends Controller
             ]);
         }
 
-        // Assignee changes
+        // Assignee changes (only log if there's an actual difference)
         if ($oldAssignees !== $newAssignees) {
             \App\Models\TaskActivity::log($task->id, $userId, 'assignees_changed', [
                 'added' => array_diff($newAssignees, $oldAssignees),
