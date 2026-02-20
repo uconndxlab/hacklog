@@ -23,7 +23,9 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container-fluid">
             <img src="{{ asset('img/hacky-jonny.png') }}" alt="Hacklog Logo" class="me-2" height="30">
-            <a class="navbar-brand" href="/">Hacklog</a>
+            <a class="navbar-brand" href="/">
+                {{ config('app.name', 'Hacklog') }}
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -107,10 +109,10 @@
 
     {{-- Floating Action Button --}}
     @auth
-        <button type="button" class="btn btn-primary position-fixed bottom-0 end-0 m-4 rounded-circle d-flex align-items-center justify-content-center" 
+        <button type="button" 
+                id="fabButton"
+                class="btn btn-primary position-fixed bottom-0 end-0 m-4 rounded-circle d-flex align-items-center justify-content-center" 
                 style="width: 60px; height: 60px; z-index: 1050;" 
-                data-bs-toggle="modal" 
-                data-bs-target="#projectSelectionModal"
                 title="Add Task">
             <svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
                 <path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2z"/>
@@ -229,6 +231,29 @@
             const projectSearch = document.getElementById('projectSearch');
             const projectSort = document.getElementById('projectSort');
             const projectList = document.getElementById('projectList');
+            const fabButton = document.getElementById('fabButton');
+
+            // Detect current project ID from URL
+            function getCurrentProjectId() {
+                const match = window.location.pathname.match(/\/projects\/(\d+)/);
+                return match ? match[1] : null;
+            }
+
+            // Handle FAB button click - smart behavior based on context
+            if (fabButton) {
+                fabButton.addEventListener('click', function() {
+                    const currentProjectId = getCurrentProjectId();
+                    
+                    if (currentProjectId) {
+                        // We're on a project page - directly open task creation for this project
+                        selectProject(currentProjectId, true);
+                    } else {
+                        // Not on a project page - show project selection modal
+                        const modal = new bootstrap.Modal(projectSelectionModal);
+                        modal.show();
+                    }
+                });
+            }
 
             // Load projects when modal opens
             projectSelectionModal.addEventListener('show.bs.modal', function() {
@@ -301,9 +326,12 @@
                 });
             }
 
-            function selectProject(projectId) {
-                // Hide project selection modal
-                bootstrap.Modal.getInstance(projectSelectionModal).hide();
+            function selectProject(projectId, showBackButton = false) {
+                // Hide project selection modal if it's open
+                const projectModalInstance = bootstrap.Modal.getInstance(projectSelectionModal);
+                if (projectModalInstance) {
+                    projectModalInstance.hide();
+                }
                 
                 // Show task creation modal
                 const taskModal = new bootstrap.Modal(taskCreationModal);
@@ -328,11 +356,47 @@
                 .then(response => response.text())
                 .then(html => {
                     taskContent.innerHTML = html;
+                    
+                    // Add "Select a Different Project" button if requested
+                    if (showBackButton) {
+                        addBackToProjectSelectionButton();
+                    }
                 })
                 .catch(error => {
                     console.error('Error loading task form:', error);
                     taskContent.innerHTML = '<p class="text-danger">Error loading task form.</p>';
                 });
+            }
+
+            // Add back button to modal header
+            function addBackToProjectSelectionButton() {
+                const modalHeader = taskCreationModal.querySelector('.modal-header');
+                
+                // Remove existing back button if any
+                const existingBackBtn = modalHeader.querySelector('.back-to-project-selection');
+                if (existingBackBtn) {
+                    existingBackBtn.remove();
+                }
+                
+                // Create back button
+                const backButton = document.createElement('button');
+                backButton.type = 'button';
+                backButton.className = 'btn btn-sm btn-outline-secondary me-2 back-to-project-selection';
+                backButton.innerHTML = '<i class="bi bi-arrow-left"></i> Select a Different Project';
+                backButton.addEventListener('click', function() {
+                    // Hide task creation modal
+                    bootstrap.Modal.getInstance(taskCreationModal).hide();
+                    
+                    // Show project selection modal
+                    setTimeout(() => {
+                        const projectModal = new bootstrap.Modal(projectSelectionModal);
+                        projectModal.show();
+                    }, 300); // Small delay to ensure smooth transition
+                });
+                
+                // Insert before the title
+                const title = modalHeader.querySelector('.modal-title');
+                modalHeader.insertBefore(backButton, title);
             }
 
             // Global function for HTMX events

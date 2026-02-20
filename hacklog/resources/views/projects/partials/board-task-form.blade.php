@@ -22,10 +22,9 @@
     // Determine current phase from request or task
     $currentPhaseId = old('phase_id', $isEdit ? $task->phase_id : request()->query('phase'));
     
-    // If no phase selected and creating new task, pick first active or first available
-    if (!$currentPhaseId && !$isEdit) {
-        $currentPhaseId = $phases->where('status', 'active')->first()?->id ?? $phases->first()?->id;
-    }
+    // Default to no phase for new tasks (removed automatic phase selection)
+    // Previously: would default to first active phase or first available phase
+    // Now: defaults to null (no phase) unless explicitly specified
     
     // Get current phase for date display
     $currentPhase = $phases->firstWhere('id', $currentPhaseId);
@@ -73,14 +72,16 @@
         <input type="hidden" name="filter_assigned" value="{{ request('assigned') }}">
     @endif
     
+    {{-- Project display for global modal (both create and edit) --}}
+    @if($isGlobalModal)
+    <div class="border-bottom bg-light px-3 py-2" style="flex-shrink: 0;">
+        <small class="text-muted">Project: <strong>{{ $project->name }}</strong></small>
+    </div>
+    @endif
+    
     {{-- Actions dropdown (for edit mode only) --}}
     @if($isEdit)
     <div class="border-bottom bg-light px-3 py-2" style="flex-shrink: 0;">
-        @if($isGlobalModal)
-            <div class="mb-2">
-                <small class="text-muted">Project: <strong>{{ $project->name }}</strong></small>
-            </div>
-        @endif
         <div class="d-flex justify-content-end">
             <div class="dropdown">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="taskActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
