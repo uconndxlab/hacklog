@@ -1,9 +1,17 @@
 @php
     $favoriteProjectIds = $favoriteProjectIds ?? [];
     
-    // Split into favorites and others (both sorted A-Z)
-    $favorites = $projects->filter(fn($p) => in_array($p->id, $favoriteProjectIds))->sortBy('name')->values();
-    $others    = $projects->reject(fn($p) => in_array($p->id, $favoriteProjectIds))->sortBy('name')->values();
+    // Split into favorites and others - preserve controller's sort order unless alphabetical
+    $currentSort = request('sort', 'alphabetical');
+    
+    if ($currentSort === 'alphabetical') {
+        $favorites = $projects->filter(fn($p) => in_array($p->id, $favoriteProjectIds))->sortBy('name')->values();
+        $others    = $projects->reject(fn($p) => in_array($p->id, $favoriteProjectIds))->sortBy('name')->values();
+    } else {
+        // Preserve controller's sort order
+        $favorites = $projects->filter(fn($p) => in_array($p->id, $favoriteProjectIds))->values();
+        $others    = $projects->reject(fn($p) => in_array($p->id, $favoriteProjectIds))->values();
+    }
 @endphp
 
 @if($projects->isEmpty())
