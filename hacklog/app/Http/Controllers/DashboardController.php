@@ -82,25 +82,9 @@ class DashboardController extends Controller
                 ->get();
         }
 
-        // Projects you're on: where user has tasks OR is a resource OR directly shared
-        // This applies to all users (clients, team, admin)
-        $activeProjects = \App\Models\Project::visibleTo($user)
+        // Favorited projects for dashboard
+        $activeProjects = $user->favoriteProjects()
             ->where('status', 'active')
-            ->where(function($q) use ($user) {
-                // Has tasks assigned
-                $q->whereHas('phases.tasks.users', function ($taskQuery) use ($user) {
-                    $taskQuery->where('users.id', $user->id);
-                })
-                // OR is a project resource (contributor, manager, viewer)
-                ->orWhereHas('resources', function ($resourceQuery) use ($user) {
-                    $resourceQuery->where('user_id', $user->id);
-                })
-                // OR project is directly shared with this user (not via role)
-                ->orWhereHas('shares', function ($shareQuery) use ($user) {
-                    $shareQuery->where('shareable_type', 'user')
-                               ->where('shareable_id', (string)$user->id);
-                });
-            })
             ->with(['phases' => function($q) {
                 $q->where('status', '!=', 'completed');
             }])
