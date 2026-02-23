@@ -76,7 +76,7 @@
         {{-- Title (Full Width) --}}
         <h6 class="card-title mb-2">
             <a href="{{ route('projects.board.tasks.edit', [$project, $task]) }}" 
-               class="text-dark text-decoration-none fw-semibold"
+               class="text-decoration-none fw-semibold"
                data-bs-toggle="modal" 
                data-bs-target="#taskModal"
                hx-get="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
