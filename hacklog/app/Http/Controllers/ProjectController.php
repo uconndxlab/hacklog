@@ -595,10 +595,11 @@ class ProjectController extends Controller
         // Set position to top of column (position 0)
         $validated['position'] = 0;
         
-        // Shift existing tasks down
-        \App\Models\Task::where('column_id', $validated['column_id'])
+        // Shift existing tasks down (without updating timestamps)
+        \Illuminate\Support\Facades\DB::table('tasks')
+            ->where('column_id', $validated['column_id'])
             ->where('position', '>=', 0)
-            ->increment('position');
+            ->update(['position' => \Illuminate\Support\Facades\DB::raw('position + 1')]);
 
         // Set creator
         $validated['created_by'] = auth()->id();
@@ -700,10 +701,11 @@ class ProjectController extends Controller
         // Set position to top of column (position 0)
         $validated['position'] = 0;
         
-        // Shift existing tasks down
-        \App\Models\Task::where('column_id', $validated['column_id'])
+        // Shift existing tasks down (without updating timestamps)
+        \Illuminate\Support\Facades\DB::table('tasks')
+            ->where('column_id', $validated['column_id'])
             ->where('position', '>=', 0)
-            ->increment('position');
+            ->update(['position' => \Illuminate\Support\Facades\DB::raw('position + 1')]);
 
         // Set creator
         $validated['created_by'] = auth()->id();
@@ -1007,18 +1009,20 @@ class ProjectController extends Controller
             ]);
         }
 
-        // Adjust positions in the old column (if changed)
+        // Adjust positions in the old column (if changed, without updating timestamps)
         if ($oldColumnId !== $validated['column_id']) {
-            \App\Models\Task::where('column_id', $oldColumnId)
+            \Illuminate\Support\Facades\DB::table('tasks')
+                ->where('column_id', $oldColumnId)
                 ->where('position', '>', $oldPosition)
-                ->decrement('position');
+                ->update(['position' => \Illuminate\Support\Facades\DB::raw('position - 1')]);
         }
 
-        // Adjust positions in the new column to make space for the moved task
-        \App\Models\Task::where('column_id', $validated['column_id'])
+        // Adjust positions in the new column to make space for the moved task (without updating timestamps)
+        \Illuminate\Support\Facades\DB::table('tasks')
+            ->where('column_id', $validated['column_id'])
             ->where('id', '!=', $task->id)
             ->where('position', '>=', $validated['position'])
-            ->increment('position');
+            ->update(['position' => \Illuminate\Support\Facades\DB::raw('position + 1')]);
 
         // Return updated column(s) HTML for the affected columns
         $columns = $project->columns;
