@@ -100,52 +100,6 @@
                 </div>
             @endif
 
-            {{-- Awaiting Feedback - For non-clients --}}
-            @if(!Auth::user()->isClient() && $awaitingFeedbackTasks->isNotEmpty())
-                <div class="card mb-4 border-warning">
-                    <div class="card-header bg-warning bg-opacity-10">
-                        <h2 class="h5 mb-0">Awaiting Feedback</h2>
-                    </div>
-                    <div class="card-body">
-                        <p class="text-muted small mb-3">Tasks waiting for client feedback across the organization</p>
-                        <div class="list-group list-group-flush">
-                            @foreach($awaitingFeedbackTasks->take(8) as $task)
-                                <div class="list-group-item px-0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-1">
-                                                <a href="{{ route('projects.board', ['project' => $task->getProject(), 'task' => $task->id]) }}" class="text-decoration-none">
-                                                    {{ $task->title }}
-                                                </a>
-                                            </h6>
-                                            <p class="mb-1 text-muted small">
-                                                <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
-                                                @if($task->phase)
-                                                     › {{ $task->phase->name }}
-                                                @endif
-                                            </p>
-                                            @if($task->users->isNotEmpty())
-                                                <small class="text-muted">
-                                                    Assigned to: {{ $task->users->pluck('name')->join(', ') }}
-                                                </small>
-                                            @endif
-                                        </div>
-                                        <div class="text-muted small text-nowrap ms-3">
-                                            {{ $task->updated_at->diffForHumans() }}
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        @if($awaitingFeedbackTasks->count() > 8)
-                            <div class="mt-2 text-center">
-                                <small class="text-muted">Showing 8 of {{ $awaitingFeedbackTasks->count() }}</small>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            @endif
-
             {{-- Your Assigned Work - Prioritized Groups --}}
             <div class="card mb-4">
                 <div class="card-header">
@@ -157,7 +111,7 @@
                         <div class="mb-4">
                             <h3 class="h6 text-muted mb-3">Due this week</h3>
                             <div class="list-group list-group-flush">
-                                @foreach($dueThisWeek as $task)
+                                @foreach($dueThisWeek->take(5) as $task)
                                     @php
                                         $effectiveDueDate = $task->getEffectiveDueDate();
                                         $isInherited = !$task->due_date && $effectiveDueDate;
@@ -205,7 +159,7 @@
                         <div class="mb-4">
                             <h3 class="h6 text-muted mb-3">Coming up</h3>
                             <div class="list-group list-group-flush">
-                                @foreach($dueNext as $task)
+                                @foreach($dueNext->take(5) as $task)
                                     @php
                                         $effectiveDueDate = $task->getEffectiveDueDate();
                                         $isInherited = !$task->due_date && $effectiveDueDate;
@@ -248,7 +202,7 @@
                         <div>
                             <h3 class="h6 text-muted mb-3">No due date</h3>
                             <div class="list-group list-group-flush">
-                                @foreach($noDueDate as $task)
+                                @foreach($noDueDate->take(5) as $task)
                                     <div class="list-group-item px-0">
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
@@ -280,6 +234,52 @@
                     @endif
                 </div>
             </div>
+
+            {{-- Awaiting Feedback - For non-clients --}}
+            @if(!Auth::user()->isClient() && $awaitingFeedbackTasks->isNotEmpty())
+                <div class="card mb-4 border-warning">
+                    <div class="card-header bg-warning bg-opacity-10">
+                        <h2 class="h5 mb-0">Awaiting Feedback</h2>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">Tasks waiting for feedback across the organization</p>
+                        <div class="list-group list-group-flush">
+                            @foreach($awaitingFeedbackTasks->take(8) as $task)
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                <a href="{{ route('projects.board', ['project' => $task->getProject(), 'task' => $task->id]) }}" class="text-decoration-none">
+                                                    {{ $task->title }}
+                                                </a>
+                                            </h6>
+                                            <p class="mb-1 text-muted small">
+                                                <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
+                                                @if($task->phase)
+                                                     › {{ $task->phase->name }}
+                                                @endif
+                                            </p>
+                                            @if($task->users->isNotEmpty())
+                                                <small class="text-muted">
+                                                    Assigned to: {{ $task->users->pluck('name')->join(', ') }}
+                                                </small>
+                                            @endif
+                                        </div>
+                                        <div class="text-muted small text-nowrap ms-3">
+                                            {{ $task->updated_at->diffForHumans() }}
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        @if($awaitingFeedbackTasks->count() > 8)
+                            <div class="mt-2 text-center">
+                                <small class="text-muted">Showing 8 of {{ $awaitingFeedbackTasks->count() }}</small>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
         </div>
 
         <!-- Sidebar -->
