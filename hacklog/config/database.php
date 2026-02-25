@@ -41,6 +41,7 @@ return [
             'journal_mode' => null,
             'synchronous' => null,
             'transaction_mode' => 'DEFERRED',
+            'use_database_time_zone' => false, // Treat DB timestamps as UTC, convert to app timezone
         ],
 
         'mysql' => [

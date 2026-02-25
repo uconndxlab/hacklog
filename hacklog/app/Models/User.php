@@ -115,7 +115,8 @@ class User extends Authenticatable
             ->where('user_id', $this->id)
             ->max('last_activity');
         
-        return $lastActivity ? \Carbon\Carbon::createFromTimestamp($lastActivity) : null;
+        return $lastActivity ? \Carbon\Carbon::createFromTimestamp($lastActivity, 'UTC')
+            ->setTimezone(config('app.timezone')) : null;
     }
 
     /**
@@ -167,7 +168,9 @@ class User extends Authenticatable
             return null;
         }
         
-        return \Carbon\Carbon::parse(max($timestamps));
+        // Parse as UTC and convert to app timezone
+        return \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', max($timestamps), 'UTC')
+            ->setTimezone(config('app.timezone'));
     }
 
     /**
