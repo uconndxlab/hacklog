@@ -13,9 +13,10 @@ class TeamDashboardController extends Controller
     public function index(Request $request)
     {
         // Parse date range from request or set defaults
+        // Default start date is 90 days ago to capture overdue tasks
         $startDate = $request->input('start_date') 
             ? Carbon::parse($request->input('start_date'))->startOfDay() 
-            : Carbon::today();
+            : Carbon::today()->subDays(90)->startOfDay();
         
         $endDate = $request->input('end_date') 
             ? Carbon::parse($request->input('end_date'))->endOfDay() 
@@ -43,6 +44,7 @@ class TeamDashboardController extends Controller
      * Build comprehensive metrics for a single user within the date range.
      * 
      * Date range logic:
+     * - Overdue tasks (not completed) are ALWAYS included regardless of date range
      * - Tasks are included if their due_date (or phase end_date fallback) falls within the range
      * - OR if they have activity (created, updated, completed) within the range
      */
@@ -55,8 +57,14 @@ class TeamDashboardController extends Controller
 
         // Filter tasks to those relevant to the date range
         $tasksInRange = $allUserTasks->filter(function ($task) use ($startDate, $endDate) {
-            // Get effective due date (task due_date or phase end_date)
+            // Always include overdue tasks that are not completed
             $effectiveDueDate = $task->getEffectiveDueDate();
+            if ($effectiveDueDate && $task->status !== 'completed') {
+                $dueDate = Carbon::parse($effectiveDueDate);
+                if ($dueDate->lt(Carbon::now())) {
+                    return true; // Overdue task - always include
+                }
+            }
             
             // Include if due date is within range
             if ($effectiveDueDate) {
