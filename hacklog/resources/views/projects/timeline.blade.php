@@ -93,10 +93,10 @@
                                         }
                                     @endphp
                                     <tr class="timeline-row @if($phase->status === 'completed') opacity-75 @endif">
-                                        <td class="timeline-phase-label @if($phase->isOverdue()) timeline-overdue @endif">
+                                        <td class="timeline-phase-label @if($phase->isOverdue()) timeline-phase-overdue @endif">
                                             <div class="d-flex flex-column gap-1">
                                                 <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" 
-                                                   class="@if($phase->isOverdue()) text-danger @elseif($phase->status === 'completed') text-muted @else text-body @endif text-decoration-none" style="font-size: 0.875rem;">
+                                                   class="@if($phase->isOverdue()) timeline-phase-overdue-text @elseif($phase->status === 'completed') text-muted @else text-body @endif text-decoration-none" style="font-size: 0.875rem;">
                                                     {{ $phase->name }}
                                                 </a>
                                                 <div class="d-flex flex-column gap-1">
