@@ -436,8 +436,14 @@ body.theme-dark .timeline-phase-label a.text-body,
 body.theme-dark .timeline-phase-label a.text-muted {
     color: #e2e6eb !important;
 }
-body.theme-dark .timeline-phase-label a.text-danger {
-    color: #f5a9a9 !important;
+body.theme-dark .timeline-phase-overdue {
+    border-left-color: #f50b0b !important;
+}
+body.theme-dark .timeline-phase-overdue-text {
+    color: #fb2424 !important;
+}
+body.theme-dark .timeline-bar-overdue {
+    background-color: rgba(245, 158, 11, 0.18) !important;
 }
 body.theme-dark .timeline-phase-label a:hover {
     color: #a3c2ff !important;
@@ -1127,9 +1133,15 @@ body.theme-dark trix-toolbar .trix-input--dialog {
     font-weight: 500;
 }
 
-.timeline-overdue {
-    background-color: rgba(220, 53, 69, 0.03);
+.timeline-phase-overdue {
+    border-left: 3px solid #d90606 !important;
 }
+
+.timeline-phase-overdue-text {
+    color: #b40909;
+    font-weight: 600;
+}
+
 /* Epic bars - soft, muted colors */
 .timeline-bar-active {
     background-color: rgba(100, 130, 180, 0.18) !important;
@@ -1140,7 +1152,7 @@ body.theme-dark trix-toolbar .trix-input--dialog {
 }
 
 .timeline-bar-overdue {
-    background-color: rgba(220, 53, 69, 0.2) !important;
+    background-color: rgba(217, 119, 6, 0.15) !important;
 }
 
 .timeline-cell {

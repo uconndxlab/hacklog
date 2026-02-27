@@ -114,7 +114,7 @@
                                             $showProjectName = $lastProjectId !== $project->id;
                                             $lastProjectId = $project->id;
                                         @endphp
-                                        <tr class="@if($phase->isOverdue()) border-danger border-2 @endif @if($phase->status === 'completed') bg-light @endif">
+                                        <tr class="@if($phase->status === 'completed') bg-light @endif">
                                             <td class="@if($phase->status === 'completed') bg-light @endif">
                                                 @if($showProjectName)
                                                     <div class="d-flex flex-column gap-1">
@@ -139,10 +139,10 @@
                                                     </div>
                                                 @endif
                                             </td>
-                                            <td class="timeline-phase-label @if($phase->isOverdue()) bg-danger-subtle @elseif($phase->status === 'completed') bg-light @endif">
+                                            <td class="timeline-phase-label @if($phase->isOverdue()) timeline-phase-overdue @elseif($phase->status === 'completed') bg-light @endif">
                                                 <div class="d-flex flex-column gap-1">
                                                     <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" 
-                                                       class="@if($phase->isOverdue()) text-danger @elseif($phase->status === 'completed') text-muted @else text-body @endif text-decoration-none" style="font-size: 0.875rem;">
+                                                       class="@if($phase->isOverdue()) timeline-phase-overdue-text @elseif($phase->status === 'completed') text-muted @else text-body @endif text-decoration-none" style="font-size: 0.875rem;">
                                                         {{ $phase->name }}
                                                     </a>
                                                     <div class="d-flex flex-column gap-1">
