@@ -56,6 +56,24 @@
             </div>
 
             <div class="mb-3">
+                <label for="staffing_model" class="form-label">Staffing Model</label>
+                <select 
+                    class="form-select @error('staffing_model') is-invalid @enderror" 
+                    id="staffing_model" 
+                    name="staffing_model" 
+                    required>
+                    <option value="dedicated" {{ old('staffing_model', 'dedicated') === 'dedicated' ? 'selected' : '' }}>Dedicated Team</option>
+                    <option value="shared" {{ old('staffing_model') === 'shared' ? 'selected' : '' }}>Shared</option>
+                </select>
+                <div class="form-text">
+                    Dedicated Team: Tasks remain within the project team. Shared: Unassigned tasks appear in the global task feed.
+                </div>
+                @error('staffing_model')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="mb-3">
                 <div class="form-check">
                     <input 
                         class="form-check-input" 

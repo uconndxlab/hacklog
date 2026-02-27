@@ -8,14 +8,28 @@ use Illuminate\Database\Eloquent\Builder;
 
 class Project extends Model
 {
+    const STAFFING_DEDICATED = 'dedicated';
+    const STAFFING_SHARED = 'shared';
+
+    const STAFFING_MODELS = [
+        self::STAFFING_DEDICATED,
+        self::STAFFING_SHARED,
+    ];
+
     protected $fillable = [
         'name',
         'description',
         'status',
+        'staffing_model',
     ];
 
     protected $casts = [
         'status' => 'string',
+        'staffing_model' => 'string',
+    ];
+
+    protected $attributes = [
+        'staffing_model' => self::STAFFING_DEDICATED,
     ];
 
     public function phases(): HasMany

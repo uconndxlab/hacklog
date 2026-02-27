@@ -176,12 +176,13 @@ class DashboardController extends Controller
                 ->take(30);
         }
 
-        // Unassigned tasks from active projects
+        // Unassigned tasks from active projects with shared staffing model
         $unassignedTasks = Task::whereDoesntHave('users')
             ->where('status', '!=', 'completed')
             ->whereHas('phase', function($query) {
                 $query->whereHas('project', function($projectQuery) {
-                    $projectQuery->where('status', 'active');
+                    $projectQuery->where('status', 'active')
+                                 ->where('staffing_model', 'shared');
                 });
             })
             ->with(['phase.project', 'column'])
