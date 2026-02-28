@@ -287,13 +287,17 @@
                     const projectsContainer = doc.querySelector('#projects-list');
                     
                     if (projectsContainer) {
-                        // Convert project cards to list items
-                        const projectCards = projectsContainer.querySelectorAll('.col-md-6, .col-lg-4');
-                        const projectItems = Array.from(projectCards).map(card => {
-                            const link = card.querySelector('a');
-                            const title = link ? link.textContent.trim() : 'Unknown Project';
-                            const href = link ? link.href : '#';
+                        // Extract all project links from list-group-item elements
+                        const listItems = projectsContainer.querySelectorAll('.list-group-item');
+                        const projectItems = Array.from(listItems).map(item => {
+                            const link = item.querySelector('a[href*="/projects/"]');
+                            if (!link) return null;
+                            
+                            const title = link.textContent.trim();
+                            const href = link.href;
                             const projectId = href.match(/\/projects\/(\d+)/)?.[1];
+                            
+                            if (!projectId) return null;
                             
                             return `
                                 <div class="list-group-item list-group-item-action project-item" 
@@ -302,20 +306,23 @@
                                     <div class="d-flex w-100 justify-content-between">
                                         <h6 class="mb-1">${title}</h6>
                                     </div>
-                                    <small class="text-muted">${card.querySelector('.card-text')?.textContent?.trim() || ''}</small>
                                 </div>
                             `;
-                        }).join('');
+                        }).filter(item => item !== null).join('');
                         
-                        projectList.innerHTML = `<div class="list-group">${projectItems}</div>`;
-                        
-                        // Add click handlers
-                        document.querySelectorAll('.project-item').forEach(item => {
-                            item.addEventListener('click', function() {
-                                const projectId = this.dataset.projectId;
-                                selectProject(projectId);
+                        if (projectItems) {
+                            projectList.innerHTML = `<div class="list-group">${projectItems}</div>`;
+                            
+                            // Add click handlers
+                            document.querySelectorAll('.project-item').forEach(item => {
+                                item.addEventListener('click', function() {
+                                    const projectId = this.dataset.projectId;
+                                    selectProject(projectId);
+                                });
                             });
-                        });
+                        } else {
+                            projectList.innerHTML = '<p class="text-muted">No projects found.</p>';
+                        }
                     } else {
                         projectList.innerHTML = '<p class="text-muted">No projects found.</p>';
                     }

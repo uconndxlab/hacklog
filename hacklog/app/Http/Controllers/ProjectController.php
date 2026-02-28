@@ -251,6 +251,7 @@ class ProjectController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'status' => 'required|in:active,paused,archived',
+            'staffing_model' => 'required|in:dedicated,shared',
             'use_default_columns' => 'boolean',
         ]);
 
@@ -1219,6 +1220,7 @@ class ProjectController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'status' => 'required|in:active,paused,archived',
+            'staffing_model' => 'required|in:dedicated,shared',
         ]);
 
         $oldStatus = $project->status;
