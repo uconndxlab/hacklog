@@ -33,7 +33,7 @@
         <div class="mb-4">
             <div class="d-flex align-items-center gap-2 mb-1 px-1">
                 <span style="color: #f5a623; font-size: 0.85rem;">★</span>
-                <small class="text-muted text-uppercase fw-semibold" style="letter-spacing: 0.07em; font-size: 0.7rem;">Favorites</small>
+                <small class="text-muted text-uppercase fw-semibold" style="letter-spacing: 0.07em; font-size: 0.7rem;">Favorites ({{ $favorites->count() }})</small>
             </div>
             <div class="list-group border rounded" style="overflow: hidden;">
                 @foreach($favorites as $project)
@@ -47,7 +47,11 @@
     @if($others->isNotEmpty())
         @if($favorites->isNotEmpty())
             <div class="d-flex align-items-center gap-2 mb-1 px-1">
-                <small class="text-muted text-uppercase fw-semibold" style="letter-spacing: 0.07em; font-size: 0.7rem;">All Projects</small>
+                <small class="text-muted text-uppercase fw-semibold" style="letter-spacing: 0.07em; font-size: 0.7rem;">All Projects ({{ $others->count() }})</small>
+            </div>
+        @else
+            <div class="d-flex align-items-center gap-2 mb-1 px-1">
+                <small class="text-muted text-uppercase fw-semibold" style="letter-spacing: 0.07em; font-size: 0.7rem;">Projects ({{ $others->count() }})</small>
             </div>
         @endif
         <div class="list-group border rounded" style="overflow: hidden;">
