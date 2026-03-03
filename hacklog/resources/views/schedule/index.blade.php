@@ -15,20 +15,20 @@
         {{-- Filter Form --}}
         <div class="card mb-4">
             <div class="card-body py-2">
-                <form method="GET" action="{{ route('schedule.index') }}" class="d-flex align-items-center gap-3 flex-wrap">
+                <form method="GET" action="{{ route('schedule.index') }}" id="scheduleFilterForm" class="d-flex align-items-center gap-3 flex-wrap">
                     <div class="d-flex align-items-center gap-2">
                         <label for="start" class="form-label mb-0 text-nowrap">From</label>
                         <input type="date" class="form-control form-control-sm" id="start" name="start"
-                            value="{{ $filterStart->format('Y-m-d') }}" onchange="this.form.submit()">
+                            value="{{ $filterStart->format('Y-m-d') }}">
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <label for="end" class="form-label mb-0 text-nowrap">To</label>
                         <input type="date" class="form-control form-control-sm" id="end" name="end"
-                            value="{{ $filterEnd->format('Y-m-d') }}" onchange="this.form.submit()">
+                            value="{{ $filterEnd->format('Y-m-d') }}">
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <label for="project_id" class="form-label mb-0 text-nowrap">Project</label>
-                        <select class="form-select form-select-sm" id="project_id" name="project_id" onchange="this.form.submit()">
+                        <select class="form-select form-select-sm" id="project_id" name="project_id">
                             <option value="">All</option>
                             @foreach($projects as $project)
                             <option value="{{ $project->id }}" {{ request('project_id')==$project->id ? 'selected' : '' }}>
@@ -39,7 +39,7 @@
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <label for="assignee" class="form-label mb-0 text-nowrap">Assignee</label>
-                        <select class="form-select form-select-sm" id="assignee" name="assignee" onchange="this.form.submit()">
+                        <select class="form-select form-select-sm" id="assignee" name="assignee">
                             <option value="">All</option>
                             <option value="unassigned" {{ request('assignee')==='unassigned' ? 'selected' : '' }}>Unassigned</option>
                             @foreach($users as $user)
@@ -49,7 +49,17 @@
                             @endforeach
                         </select>
                     </div>
-                    <a href="{{ route('schedule.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="status" class="form-label mb-0 text-nowrap">Status</label>
+                        <select class="form-select form-select-sm" id="status" name="status">
+                            <option value="">All (not completed)</option>
+                            <option value="planned" {{ request('status')==='planned' ? 'selected' : '' }}>Planned</option>
+                            <option value="active" {{ request('status')==='active' ? 'selected' : '' }}>Active</option>
+                            <option value="awaiting_feedback" {{ request('status')==='awaiting_feedback' ? 'selected' : '' }}>Awaiting Feedback</option>
+                            <option value="completed" {{ request('status')==='completed' ? 'selected' : '' }}>Completed</option>
+                        </select>
+                    </div>
+                    <button type="button" id="resetFilters" class="btn btn-sm btn-outline-secondary">Reset</button>
                 </form>
             </div>
         </div>
@@ -337,6 +347,76 @@
         </div>
     </div>
 </div>
+
+<script>
+// Persist schedule filters across sessions using localStorage
+(function() {
+    const form = document.getElementById('scheduleFilterForm');
+    const filterNames = ['start', 'end', 'project_id', 'assignee', 'status'];
+    const STORAGE_KEY = 'hacklog_schedule_filters';
+    
+    // Function to save current filters to localStorage
+    function saveFilters() {
+        const filters = {};
+        filterNames.forEach(name => {
+            const input = form.querySelector(`[name="${name}"]`);
+            if (input && input.value) {
+                filters[name] = input.value;
+            }
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
+    }
+    
+    // Function to load filters from localStorage and redirect if needed
+    function loadAndApplyFilters() {
+        const savedFilters = localStorage.getItem(STORAGE_KEY);
+        if (!savedFilters) return;
+        
+        const filters = JSON.parse(savedFilters);
+        const currentParams = new URLSearchParams(window.location.search);
+        
+        // Check if we have any query params already
+        const hasQueryParams = currentParams.toString().length > 0;
+        
+        // If no query params, apply saved filters
+        if (!hasQueryParams) {
+            const newParams = new URLSearchParams();
+            let hasFilters = false;
+            
+            filterNames.forEach(name => {
+                if (filters[name]) {
+                    newParams.set(name, filters[name]);
+                    hasFilters = true;
+                }
+            });
+            
+            if (hasFilters) {
+                window.location.search = newParams.toString();
+            }
+        }
+    }
+    
+    // On page load, try to apply saved filters
+    loadAndApplyFilters();
+    
+    // Save filters whenever any input changes
+    filterNames.forEach(name => {
+        const input = form.querySelector(`[name="${name}"]`);
+        if (input) {
+            input.addEventListener('change', function() {
+                saveFilters();
+                form.submit();
+            });
+        }
+    });
+    
+    // Reset button clears localStorage and reloads page without params
+    document.getElementById('resetFilters').addEventListener('click', function() {
+        localStorage.removeItem(STORAGE_KEY);
+        window.location.href = window.location.pathname;
+    });
+})();
+</script>
 
 <script src="https://www.gstatic.com/charts/loader.js"></script>
 <script>

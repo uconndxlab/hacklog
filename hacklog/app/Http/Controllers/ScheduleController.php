@@ -59,7 +59,11 @@ class ScheduleController extends Controller
             });
         
         // Filter by status
-        if (!$showCompleted) {
+        if ($request->filled('status')) {
+            // If a specific status is selected, filter by it
+            $tasksQuery->where('status', $request->input('status'));
+        } else {
+            // Default: exclude completed tasks when no status filter is applied
             $tasksQuery->where('status', '!=', 'completed');
         }
 
