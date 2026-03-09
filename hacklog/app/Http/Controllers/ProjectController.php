@@ -29,7 +29,7 @@ class ProjectController extends Controller
         // Team members default to 'assigned' to reduce noise
         $defaultScope = $user->isClient() ? 'all' : ($user->isAdmin() ? 'all' : 'assigned');
         $scope = $request->input('scope', $defaultScope);
-        $status = $request->input('status', 'active');
+        $status = $request->input('status', 'planning,active');
         $timeFilter = $request->input('time');
         $search = $request->input('search');
         $ownerFilter = $request->input('owner'); // Admin only
@@ -91,9 +91,13 @@ class ProjectController extends Controller
         }
         // 'all' scope - no filtering (but still respects visibility)
 
-        // Status filter: active (default), paused, completed, etc.
-        if ($status && in_array($status, ['planned', 'active', 'paused', 'completed', 'archived'])) {
-            $query->where('status', $status);
+        // Status filter: planning,active (default), or individual statuses
+        if ($status) {
+            $statuses = explode(',', $status);
+            $validStatuses = array_intersect($statuses, Project::STATUS_VALUES);
+            if (!empty($validStatuses)) {
+                $query->whereIn('status', $validStatuses);
+            }
         }
 
         // Time-based filter: Due in 7/14/30 days, Overdue
@@ -213,9 +217,9 @@ class ProjectController extends Controller
         } elseif ($sort === 'status') {
             $projects = $query->orderByRaw("
                 CASE 
-                    WHEN status = 'active' THEN 1 
-                    WHEN status = 'planned' THEN 2 
-                    WHEN status = 'paused' THEN 3 
+                    WHEN status = 'planning' THEN 1 
+                    WHEN status = 'active' THEN 2 
+                    WHEN status = 'on_hold' THEN 3 
                     WHEN status = 'completed' THEN 4 
                     WHEN status = 'archived' THEN 5 
                     ELSE 6 
@@ -250,7 +254,7 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'required|in:active,paused,archived',
+            'status' => ['required', Rule::in(Project::STATUS_VALUES)],
             'staffing_model' => 'required|in:dedicated,shared',
             'use_default_columns' => 'boolean',
         ]);
@@ -1219,7 +1223,7 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'required|in:active,paused,archived',
+            'status' => ['required', Rule::in(Project::STATUS_VALUES)],
             'staffing_model' => 'required|in:dedicated,shared',
         ]);
 

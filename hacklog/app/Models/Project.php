@@ -8,6 +8,20 @@ use Illuminate\Database\Eloquent\Builder;
 
 class Project extends Model
 {
+    const STATUS_PLANNING = 'planning';
+    const STATUS_ACTIVE = 'active';
+    const STATUS_ON_HOLD = 'on_hold';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_ARCHIVED = 'archived';
+
+    const STATUS_VALUES = [
+        self::STATUS_PLANNING,
+        self::STATUS_ACTIVE,
+        self::STATUS_ON_HOLD,
+        self::STATUS_COMPLETED,
+        self::STATUS_ARCHIVED,
+    ];
+
     const STAFFING_DEDICATED = 'dedicated';
     const STAFFING_SHARED = 'shared';
 

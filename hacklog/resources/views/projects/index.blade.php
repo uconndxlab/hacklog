@@ -104,9 +104,10 @@
                         hx-target="#projects-list"
                         hx-include="[name='search'], [name='scope'], [name='time'], [name='owner'], [name='sort']"
                         hx-push-url="true">
-                    <option value="active" {{ request('status', 'active') === 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="planned" {{ request('status') === 'planned' ? 'selected' : '' }}>Planned</option>
-                    <option value="paused" {{ request('status') === 'paused' ? 'selected' : '' }}>On hold</option>
+                    <option value="planning,active" {{ request('status', 'planning,active') === 'planning,active' ? 'selected' : '' }}>Planning + Active</option>
+                    <option value="planning" {{ request('status') === 'planning' ? 'selected' : '' }}>Planning</option>
+                    <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                    <option value="on_hold" {{ request('status') === 'on_hold' ? 'selected' : '' }}>On Hold</option>
                     <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
                     <option value="archived" {{ request('status') === 'archived' ? 'selected' : '' }}>Archived</option>
                 </select>

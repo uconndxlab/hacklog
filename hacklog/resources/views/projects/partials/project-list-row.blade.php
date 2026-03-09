@@ -28,7 +28,7 @@
     {{-- Status badge --}}
     <span class="badge rounded-pill border text-muted bg-transparent fw-normal d-none d-sm-inline"
           style="font-size: 0.7rem;">
-        {{ ucfirst($project->status) }}
+        {{ ucfirst(str_replace('_', ' ', $project->status)) }}
     </span>
 
     {{-- Arrow --}}
