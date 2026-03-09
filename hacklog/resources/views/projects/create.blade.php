@@ -46,8 +46,10 @@
                     id="status" 
                     name="status" 
                     required>
+                    <option value="planning" {{ old('status') === 'planning' ? 'selected' : '' }}>Planning</option>
                     <option value="active" {{ old('status', 'active') === 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="paused" {{ old('status') === 'paused' ? 'selected' : '' }}>Paused</option>
+                    <option value="on_hold" {{ old('status') === 'on_hold' ? 'selected' : '' }}>On Hold</option>
+                    <option value="completed" {{ old('status') === 'completed' ? 'selected' : '' }}>Completed</option>
                     <option value="archived" {{ old('status') === 'archived' ? 'selected' : '' }}>Archived</option>
                 </select>
                 @error('status')

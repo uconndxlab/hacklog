@@ -80,7 +80,14 @@
                         <div id="userPreview" class="alert alert-info d-none">
                             <h6>Directory Lookup Result:</h6>
                             <p class="mb-1"><strong>Name:</strong> <span id="previewName"></span></p>
-                            <p class="mb-0"><strong>Email:</strong> <span id="previewEmail"></span></p>
+                            <p class="mb-1"><strong>Email:</strong> <span id="previewEmail"></span></p>
+                            <p class="mb-1" id="previewDepartmentRow" style="display: none;"><strong>Department:</strong> <span id="previewDepartment"></span></p>
+                            <p class="mb-1" id="previewTitleRow" style="display: none;"><strong>Title:</strong> <span id="previewTitle"></span></p>
+                            <p class="mb-0" id="previewPhoneRow" style="display: none;"><strong>Phone:</strong> <span id="previewPhone"></span></p>
+                            <details class="mt-2">
+                                <summary class="text-muted small" style="cursor: pointer;">Raw LDAP Attributes (for testing)</summary>
+                                <pre id="previewRawAttributes" class="mt-2 mb-0 small" style="max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 4px;"></pre>
+                            </details>
                         </div>
 
                         <div id="lookupError" class="alert alert-warning d-none">
@@ -287,6 +294,39 @@ document.addEventListener('DOMContentLoaded', function() {
         netidDisplay.value = user.netid;
         previewName.textContent = user.name;
         previewEmail.textContent = user.email;
+        
+        // Show department if available
+        if (user.department) {
+            document.getElementById('previewDepartment').textContent = user.department;
+            document.getElementById('previewDepartmentRow').style.display = 'block';
+        } else {
+            document.getElementById('previewDepartmentRow').style.display = 'none';
+        }
+        
+        // Show title if available
+        if (user.title) {
+            document.getElementById('previewTitle').textContent = user.title;
+            document.getElementById('previewTitleRow').style.display = 'block';
+        } else {
+            document.getElementById('previewTitleRow').style.display = 'none';
+        }
+        
+        // Show phone if available
+        if (user.phone) {
+            document.getElementById('previewPhone').textContent = user.phone;
+            document.getElementById('previewPhoneRow').style.display = 'block';
+        } else {
+            document.getElementById('previewPhoneRow').style.display = 'none';
+        }
+        
+        // Show raw attributes for testing
+        if (user._raw_attributes) {
+            document.getElementById('previewRawAttributes').textContent = JSON.stringify(user._raw_attributes, null, 2);
+        } else {
+            // Fallback: show the entire user object
+            document.getElementById('previewRawAttributes').textContent = JSON.stringify(user, null, 2);
+        }
+        
         userPreview.classList.remove('d-none');
         lookupError.classList.add('d-none');
         searchResults.classList.add('d-none');
