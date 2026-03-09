@@ -245,11 +245,7 @@ class UsersController extends Controller
             ], 404);
         }
 
-        return response()->json([
-            'found' => true,
-            'name' => $ldapData['name'],
-            'email' => $ldapData['email']
-        ]);
+        return response()->json(array_merge(['found' => true], $ldapData));
     }
 
     /**

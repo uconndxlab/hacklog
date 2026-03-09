@@ -66,10 +66,38 @@ class LdapService
                 $email = $netid . '@uconn.edu';
             }
 
-            return [
+            // Extract department and other common attributes
+            $department = $this->getAttributeValue($user, 'department')
+                       ?? $this->getAttributeValue($user, 'ou')
+                       ?? $this->getAttributeValue($user, 'departmentNumber');
+
+            $title = $this->getAttributeValue($user, 'title')
+                  ?? $this->getAttributeValue($user, 'jobTitle');
+
+            $phone = $this->getAttributeValue($user, 'telephoneNumber')
+                  ?? $this->getAttributeValue($user, 'phone');
+
+            // Build result array
+            $result = [
                 'name' => $name ?: $netid, // Fallback to NetID if no display name
                 'email' => $email,
             ];
+
+            // Add optional fields if available
+            if ($department) {
+                $result['department'] = $department;
+            }
+            if ($title) {
+                $result['title'] = $title;
+            }
+            if ($phone) {
+                $result['phone'] = $phone;
+            }
+
+            // For testing: include all raw attributes
+            $result['_raw_attributes'] = $user->getAttributes();
+
+            return $result;
 
         } catch (\Exception $e) {
             // Log the error but don't break the flow
@@ -165,11 +193,36 @@ class LdapService
                     $email = $netid . '@uconn.edu';
                 }
 
-                $formattedUsers[] = [
+                // Extract department and other attributes
+                $department = $this->getAttributeValue($user, 'department')
+                           ?? $this->getAttributeValue($user, 'ou')
+                           ?? $this->getAttributeValue($user, 'departmentNumber');
+
+                $title = $this->getAttributeValue($user, 'title')
+                      ?? $this->getAttributeValue($user, 'jobTitle');
+
+                $phone = $this->getAttributeValue($user, 'telephoneNumber')
+                      ?? $this->getAttributeValue($user, 'phone');
+
+                $userData = [
                     'netid' => $netid,
                     'name' => $name,
                     'email' => $email,
+                    '_raw_attributes' => $user->getAttributes(),
                 ];
+
+                // Add optional fields if available
+                if ($department) {
+                    $userData['department'] = $department;
+                }
+                if ($title) {
+                    $userData['title'] = $title;
+                }
+                if ($phone) {
+                    $userData['phone'] = $phone;
+                }
+
+                $formattedUsers[] = $userData;
             }
 
             \Log::info('LDAP search by name', [
