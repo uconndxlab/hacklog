@@ -81,7 +81,7 @@
                                 <li>Add comments & attachments</li>
                                 <li>Add resources</li>
                                 <li>View & edit due dates</li>
-                                <li><em>Cannot delete tasks</em></li>
+                                <li>Delete tasks they created</li>
                                 <li><em>Cannot manage assignments</em></li>
                                 <li><em>Cannot see/edit start dates</em></li>
                                 <li><em>No access to Sharing or Settings</em></li>

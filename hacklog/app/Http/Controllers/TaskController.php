@@ -292,6 +292,17 @@ class TaskController extends Controller
      */
     public function destroy(Project $project, Phase $phase, Task $task)
     {
+        // Check authorization: user owns task or is admin
+        // Clients can only delete tasks they created
+        $user = auth()->user();
+        if ($user->isClient() && $task->created_by !== $user->id) {
+            abort(403, 'You are not authorized to delete this task.');
+        }
+        
+        if (!$user->isClient() && $task->created_by !== $user->id && !$user->isAdmin()) {
+            abort(403, 'You are not authorized to delete this task.');
+        }
+
         $task->delete();
 
         // HTMX request - return empty to remove the task card
