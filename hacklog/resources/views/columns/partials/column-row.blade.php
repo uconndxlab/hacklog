@@ -18,7 +18,7 @@
             class="btn btn-sm btn-outline-danger"
             hx-delete="{{ route('projects.columns.destroy', [$project, $column]) }}"
             hx-target="#column-{{ $column->id }}"
-            hx-swap="outerHTML"
+            hx-swap="delete"
             hx-confirm="Are you sure you want to delete this column?">
             Delete
         </button>
