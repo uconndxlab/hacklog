@@ -82,6 +82,7 @@
                hx-get="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
                hx-target="#taskModalContent"
                style="display: block;">
+                <span class="badge bg-secondary text-white me-1" style="font-size: 0.65rem; font-weight: normal;">#{{ $task->id }}</span>
                 {{ $task->title }}
             </a>
         </h6>
@@ -110,7 +111,7 @@
 
         {{-- Last Updated (subtle) --}}
         <div class="text-muted" style="font-size: 0.65rem;">
-            Updated {{ $task->updated_at->diffForHumans() }}
+            Updated {{ $task->updated_at->diffForHumans() }}@if($task->creator) • Created by {{ $task->creator->name }}@endif
         </div>
 
         {{-- Column selector with HTMX enhancement --}}

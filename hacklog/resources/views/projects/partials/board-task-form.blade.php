@@ -72,6 +72,13 @@
         <input type="hidden" name="filter_assigned" value="{{ request('assigned') }}">
     @endif
     
+    {{-- Task ID display for edit mode --}}
+    @if($isEdit)
+    <div class="border-bottom bg-light px-3 py-2" style="flex-shrink: 0;">
+        <span class="badge bg-secondary text-white" style="font-size: 0.75rem;">Task #{{ $task->id }}</span>
+    </div>
+    @endif
+    
     {{-- Project display for global modal (both create and edit) --}}
     @if($isGlobalModal)
     <div class="border-bottom bg-light px-3 py-2" style="flex-shrink: 0;">

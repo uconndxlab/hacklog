@@ -1,6 +1,9 @@
 {{-- Task details for board modal --}}
 <div class="mb-3">
-    <h5 class="mb-2">{{ $task->title }}</h5>
+    <h5 class="mb-2">
+        <span class="badge bg-secondary text-white me-2" style="font-size: 0.75rem;">#{{ $task->id }}</span>
+        {{ $task->title }}
+    </h5>
     <span class="badge 
         @if($task->status === 'planned') bg-secondary
         @elseif($task->status === 'active') bg-success
