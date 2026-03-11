@@ -404,7 +404,46 @@ class ProjectController extends Controller
             ->sortByDesc('created_at')
             ->take(10);
 
-        return view('projects.show', compact('project', 'upcomingTasks', 'activePhasesCount', 'overdueTasks', 'awaitingFeedbackTasks', 'nearestDueDate', 'recentActivity'));
+        // Get team members: users with tasks + users with shared access
+        $usersWithTasks = User::whereHas('tasks', function ($query) use ($project) {
+            $query->whereHas('column', function ($q) use ($project) {
+                $q->where('project_id', $project->id);
+            });
+        })->withCount(['tasks' => function ($query) use ($project) {
+            $query->whereHas('column', function ($q) use ($project) {
+                $q->where('project_id', $project->id);
+            });
+        }])->select('id', 'name', 'role')->get();
+
+        // Get users with shared access
+        $sharedUsers = User::whereHas('projectShares', function ($query) use ($project) {
+            $query->where('project_id', $project->id);
+        })->select('id', 'name', 'role')->get();
+
+        // Merge and deduplicate team members
+        $teamMembers = $usersWithTasks->merge($sharedUsers)
+            ->unique('id')
+            ->sortBy('name')
+            ->map(function ($user) use ($usersWithTasks) {
+                // Get task count if user has tasks
+                $userWithTasks = $usersWithTasks->firstWhere('id', $user->id);
+                $taskCount = $userWithTasks ? $userWithTasks->tasks_count : 0;
+                
+                // Generate initials
+                $nameParts = explode(' ', $user->name);
+                $initials = strtoupper(
+                    substr($nameParts[0], 0, 1) . 
+                    (isset($nameParts[1]) ? substr($nameParts[1], 0, 1) : '')
+                );
+                
+                return [
+                    'user' => $user,
+                    'initials' => $initials,
+                    'tasks_count' => $taskCount,
+                ];
+            });
+
+        return view('projects.show', compact('project', 'upcomingTasks', 'activePhasesCount', 'overdueTasks', 'awaitingFeedbackTasks', 'nearestDueDate', 'recentActivity', 'teamMembers'));
     }
 
     /**

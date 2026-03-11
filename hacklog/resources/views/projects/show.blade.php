@@ -56,6 +56,23 @@
             </div>
         </div>
 
+        {{-- Team Members --}}
+        @if($teamMembers->isNotEmpty())
+            <h2 class="h4 mb-3">Team Members</h2>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach($teamMembers as $member)
+                            <span class="badge {{ $member['user']->isClient() ? 'bg-info' : 'bg-secondary' }} text-white px-3 py-2" 
+                                  style="font-size: 0.9rem;">
+                                {{ $member['user']->name }}
+                            </span>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="row">
             <div class="col-md-6">
                 {{-- Upcoming Work --}}
