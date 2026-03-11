@@ -45,6 +45,7 @@
             <a href="{{ route('projects.phases.tasks.edit', [$project, $phase, $task]) }}" 
                class="btn btn-sm btn-outline-secondary">Edit</a>
             
+            @if(!Auth::user()->isClient() || $task->created_by === Auth::id())
             <form 
                 action="{{ route('projects.phases.tasks.destroy', [$project, $phase, $task]) }}" 
                 method="POST" 
@@ -57,6 +58,7 @@
                 @method('DELETE')
                 <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
             </form>
+            @endif
         </div>
     </div>
 </div>

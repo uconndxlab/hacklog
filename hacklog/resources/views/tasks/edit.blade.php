@@ -139,6 +139,7 @@
             </div>
         </form>
 
+        @if(!Auth::user()->isClient() || $task->created_by === Auth::id())
         <hr class="my-4">
 
         <form action="{{ route('projects.phases.tasks.destroy', [$project, $phase, $task]) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');">
@@ -146,6 +147,7 @@
             @method('DELETE')
             <button type="submit" class="btn btn-danger btn-sm">Delete Task</button>
         </form>
+        @endif
     </div>
 </div>
 @endsection

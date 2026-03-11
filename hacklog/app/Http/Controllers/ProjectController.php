@@ -1163,19 +1163,19 @@ class ProjectController extends Controller
      */
     public function deleteTask(Request $request, Project $project, \App\Models\Task $task)
     {
-        // Clients cannot delete tasks
-        if (auth()->user()->isClient()) {
-            abort(403, 'Clients cannot delete tasks.');
-        }
-
         // Verify task belongs to this project
         if ($task->column->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
         }
 
         // Check authorization: user owns task or is admin
+        // Clients can only delete tasks they created
         $user = auth()->user();
-        if ($task->created_by !== $user->id && !$user->isAdmin()) {
+        if ($user->isClient() && $task->created_by !== $user->id) {
+            abort(403, 'You are not authorized to delete this task.');
+        }
+        
+        if (!$user->isClient() && $task->created_by !== $user->id && !$user->isAdmin()) {
             abort(403, 'You are not authorized to delete this task.');
         }
 

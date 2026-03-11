@@ -93,7 +93,7 @@
                             View Details
                         </a>
                     </li>
-                    @if(!Auth::user()->isClient())
+                    @if(!Auth::user()->isClient() || $task->created_by === Auth::id())
                     <li><hr class="dropdown-divider"></li>
                     <li>
                         <button type="button" 
