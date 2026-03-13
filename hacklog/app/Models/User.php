@@ -197,4 +197,10 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Project::class, 'project_favorites')->withTimestamps();
     }
+
+    public function projectShares(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ProjectShare::class, 'shareable_id', 'id')
+            ->where('shareable_type', 'user');
+    }
 }

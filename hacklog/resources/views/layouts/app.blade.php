@@ -174,6 +174,14 @@
     @stack('scripts')
 
     <script>
+        // Add CSRF token to all HTMX requests globally
+        document.body.addEventListener('htmx:configRequest', function(evt) {
+            const token = document.querySelector('meta[name="csrf-token"]');
+            if (token) {
+                evt.detail.headers['X-CSRF-TOKEN'] = token.getAttribute('content');
+            }
+        });
+        
         (function() {
             var THEME_KEY = 'hacklog-theme';
             try {
