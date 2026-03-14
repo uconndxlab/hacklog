@@ -706,4 +706,26 @@ document.addEventListener('keydown', function(e) {
     }
 })();
 </script>
+
+@if(session('open_task_id'))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var editUrl = '{{ route('projects.board.tasks.edit', [$project, session('open_task_id', 0)]) }}';
+    var boardUrl = '{{ route('projects.board', $project) }}';
+    var modalEl = document.getElementById('taskModal');
+    var modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    history.replaceState(null, '', editUrl);
+    modalEl.addEventListener('shown.bs.modal', function () {
+        htmx.ajax('GET', editUrl, {
+            target: '#taskModalContent',
+            swap: 'innerHTML'
+        });
+    }, { once: true });
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        history.replaceState(null, '', boardUrl);
+    }, { once: true });
+});
+</script>
+@endif
 @endsection

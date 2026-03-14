@@ -566,6 +566,13 @@ class ProjectController extends Controller
             abort(403, 'Task does not belong to this project.');
         }
 
+        // Direct browser visit (not HTMX) — redirect to the board and auto-open the modal there
+        if (!request()->header('HX-Request')) {
+            return redirect()
+                ->route('projects.board', $project)
+                ->with('open_task_id', $task->id);
+        }
+
         // Check for activeTab in session (set by attachment actions)
         if (session()->has('activeTab')) {
             $activeTab = session('activeTab');
