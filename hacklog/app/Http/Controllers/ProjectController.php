@@ -504,11 +504,11 @@ class ProjectController extends Controller
         $usersWithTasks = \App\Models\User::whereHas('tasks', function ($query) use ($project) {
             $query->whereHas('column', function ($q) use ($project) {
                 $q->where('project_id', $project->id);
-            });
+            })->where('status', '!=', 'completed');
         })->withCount(['tasks' => function ($query) use ($project) {
             $query->whereHas('column', function ($q) use ($project) {
                 $q->where('project_id', $project->id);
-            });
+            })->where('status', '!=', 'completed');
         }])->orderBy('name')->get();
         
         return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks'));
