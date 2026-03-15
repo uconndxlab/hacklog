@@ -157,9 +157,18 @@
 <div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
-            <div class="modal-header" style="flex-shrink: 0;">
-                <h5 class="modal-title" id="taskModalLabel">Task</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header py-2" style="flex-shrink: 0;">
+                <div class="d-flex flex-column">
+                    <div class="d-flex align-items-baseline gap-2">
+                        <h5 class="modal-title mb-0" id="taskModalLabel">Task</h5>
+                        <div id="taskModalIdentifier" style="display: none;"></div>
+                    </div>
+                    <div id="taskModalProject" style="display: none;"></div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div id="taskModalActions" style="display: none;"></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
             </div>
             <div class="modal-body p-0" id="taskModalContent" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
                 {{-- Content loaded via HTMX --}}
@@ -697,4 +706,26 @@ document.addEventListener('keydown', function(e) {
     }
 })();
 </script>
+
+@if(session('open_task_id'))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var editUrl = '{{ route('projects.board.tasks.edit', [$project, session('open_task_id', 0)]) }}';
+    var boardUrl = '{{ route('projects.board', $project) }}';
+    var modalEl = document.getElementById('taskModal');
+    var modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    history.replaceState(null, '', editUrl);
+    modalEl.addEventListener('shown.bs.modal', function () {
+        htmx.ajax('GET', editUrl, {
+            target: '#taskModalContent',
+            swap: 'innerHTML'
+        });
+    }, { once: true });
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        history.replaceState(null, '', boardUrl);
+    }, { once: true });
+});
+</script>
+@endif
 @endsection

@@ -81,8 +81,9 @@
                data-bs-target="#taskModal"
                hx-get="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
                hx-target="#taskModalContent"
+               hx-push-url="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
                style="display: block;">
-                <span class="badge bg-secondary text-white me-1" style="font-size: 0.65rem; font-weight: normal;">#{{ $task->id }}</span>
+                <span class="badg text-dark me-1" style="font-size: 0.65rem; font-weight: normal;">#{{ $task->id }}</span>
                 {{ $task->title }}
             </a>
         </h6>

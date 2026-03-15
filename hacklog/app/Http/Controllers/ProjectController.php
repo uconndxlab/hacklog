@@ -504,11 +504,11 @@ class ProjectController extends Controller
         $usersWithTasks = \App\Models\User::whereHas('tasks', function ($query) use ($project) {
             $query->whereHas('column', function ($q) use ($project) {
                 $q->where('project_id', $project->id);
-            });
+            })->where('status', '!=', 'completed');
         })->withCount(['tasks' => function ($query) use ($project) {
             $query->whereHas('column', function ($q) use ($project) {
                 $q->where('project_id', $project->id);
-            });
+            })->where('status', '!=', 'completed');
         }])->orderBy('name')->get();
         
         return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks'));
@@ -564,6 +564,13 @@ class ProjectController extends Controller
         // Verify task belongs to this project via column
         if ($task->column->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
+        }
+
+        // Direct browser visit (not HTMX) — redirect to the board and auto-open the modal there
+        if (!request()->header('HX-Request')) {
+            return redirect()
+                ->route('projects.board', $project)
+                ->with('open_task_id', $task->id);
         }
 
         // Check for activeTab in session (set by attachment actions)

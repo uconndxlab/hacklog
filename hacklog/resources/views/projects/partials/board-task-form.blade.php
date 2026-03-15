@@ -72,24 +72,21 @@
         <input type="hidden" name="filter_assigned" value="{{ request('assigned') }}">
     @endif
     
-    {{-- Task ID display for edit mode --}}
-    @if($isEdit)
-    <div class="border-bottom bg-light px-3 py-2" style="flex-shrink: 0;">
-        <span class="badge bg-secondary text-white" style="font-size: 0.75rem;">Task #{{ $task->id }}</span>
+    {{-- Header placeholders (out-of-band swaps) --}}
+    <div id="taskModalIdentifier" hx-swap-oob="true" style="{{ $isEdit ? '' : 'display: none;' }}">
+        @if($isEdit)
+            <small class="text-muted">#{{ $task->id }}</small>
+        @endif
     </div>
-    @endif
-    
-    {{-- Project display for global modal (both create and edit) --}}
-    @if($isGlobalModal)
-    <div class="border-bottom bg-light px-3 py-2" style="flex-shrink: 0;">
-        <small class="text-muted">Project: <strong>{{ $project->name }}</strong></small>
+
+    <div id="taskModalProject" hx-swap-oob="true" style="{{ $isGlobalModal ? '' : 'display: none;' }}">
+        @if($isGlobalModal)
+            <small class="text-muted">Project: <strong>{{ $project->name }}</strong></small>
+        @endif
     </div>
-    @endif
-    
-    {{-- Actions dropdown (for edit mode only) --}}
-    @if($isEdit)
-    <div class="border-bottom bg-light px-3 py-2" style="flex-shrink: 0;">
-        <div class="d-flex justify-content-end">
+
+    <div id="taskModalActions" hx-swap-oob="true" style="{{ $isEdit ? '' : 'display: none;' }}">
+        @if($isEdit)
             <div class="dropdown">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="taskActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     Actions
@@ -117,10 +114,9 @@
                     @endif
                 </ul>
             </div>
-        </div>
+        @endif
     </div>
-    @endif
-    
+
     {{-- Tabs - sticky at top --}}
     @if($isEdit)
     <div class="border-bottom px-3 task-form-tabs-bg overflow-x-auto" style="position: sticky; top: 0; z-index: 10; flex-shrink: 0;">
