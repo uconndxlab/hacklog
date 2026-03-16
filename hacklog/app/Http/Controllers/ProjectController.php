@@ -922,7 +922,9 @@ class ProjectController extends Controller
                     'project' => $project,
                     'task' => $task,
                     'allColumns' => $project->columns,
-                    'isProjectBoard' => true
+                    'isProjectBoard' => true,
+                    'filterPhaseId' => $request->input('filter_phase_id'),
+                    'filterAssigned' => $request->input('filter_assigned')
                 ]);
             }
             
@@ -986,7 +988,17 @@ class ProjectController extends Controller
                 
                 $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
                 
-                return response($html);
+                // Build URL with filter parameters
+                $queryParams = [];
+                if ($filterPhaseId) {
+                    $queryParams['phase'] = $filterPhaseId;
+                }
+                if ($filterAssigned) {
+                    $queryParams['assigned'] = $filterAssigned;
+                }
+                $boardUrl = route('projects.board', array_merge(['project' => $project], $queryParams));
+                
+                return response($html)->header('HX-Push-Url', $boardUrl);
             } else {
                 // Same column, just update it
                 $column = $columns->firstWhere('id', $validated['column_id']);
@@ -1002,7 +1014,17 @@ class ProjectController extends Controller
                 
                 $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
                 
-                return response($html);
+                // Build URL with filter parameters
+                $queryParams = [];
+                if ($filterPhaseId) {
+                    $queryParams['phase'] = $filterPhaseId;
+                }
+                if ($filterAssigned) {
+                    $queryParams['assigned'] = $filterAssigned;
+                }
+                $boardUrl = route('projects.board', array_merge(['project' => $project], $queryParams));
+                
+                return response($html)->header('HX-Push-Url', $boardUrl);
             }
         }
 

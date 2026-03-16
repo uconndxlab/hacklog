@@ -48,6 +48,12 @@
             @foreach($task->users as $user)
                 <input type="hidden" name="assignees[]" value="{{ $user->id }}">
             @endforeach
+            @if(isset($filterPhaseId) && $filterPhaseId)
+                <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}">
+            @endif
+            @if(isset($filterAssigned) && $filterAssigned)
+                <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}">
+            @endif
             
             <select 
                 name="status" 
@@ -134,8 +140,8 @@
             @if(isset($filterPhaseId) && $filterPhaseId)
                 <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}">
             @endif
-            @if(request('assigned'))
-                <input type="hidden" name="filter_assigned" value="{{ request('assigned') }}">
+            @if(isset($filterAssigned) && $filterAssigned)
+                <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}">
             @endif
             @foreach($task->users as $user)
                 <input type="hidden" name="assignees[]" value="{{ $user->id }}">
