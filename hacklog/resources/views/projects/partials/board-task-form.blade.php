@@ -975,7 +975,79 @@ function deleteAttachment(deleteUrl, attachmentId) {
         });
     });
 })();
+
+// Check for unsaved comments before task save
+(function() {
+    const taskForm = document.getElementById('taskForm');
+    const commentTextarea = document.getElementById('commentBody');
+    
+    if (!taskForm || !commentTextarea) return;
+    
+    let confirmPending = false;
+    let htmxEvent = null;
+    
+    // Intercept HTMX confirm event
+    taskForm.addEventListener('htmx:confirm', function(e) {
+        // If we're already handling confirmation, let it through
+        if (confirmPending) {
+            confirmPending = false;
+            return;
+        }
+        
+        // Check if there's unsaved comment text
+        const commentText = commentTextarea.value.trim();
+        if (commentText.length > 0) {
+            // Prevent the default HTMX submission
+            e.preventDefault();
+            
+            // Store the event so we can re-issue it after confirmation
+            htmxEvent = e;
+            
+            // Show our custom confirmation modal
+            const confirmModal = new bootstrap.Modal(document.getElementById('unsavedCommentModal'));
+            confirmModal.show();
+        }
+    });
+    
+    // Handle confirmation modal buttons
+    document.getElementById('confirmSaveWithoutComment')?.addEventListener('click', function() {
+        confirmPending = true;
+        
+        // Hide the modal
+        const confirmModal = bootstrap.Modal.getInstance(document.getElementById('unsavedCommentModal'));
+        confirmModal.hide();
+        
+        // Re-trigger the form submission
+        if (htmxEvent) {
+            // Issue the request that was prevented
+            htmxEvent.detail.issueRequest(true);
+            htmxEvent = null;
+        }
+    });
+    
+    // Cancel button just closes modal (no action needed)
+})();
 </script>
+
+{{-- Confirmation modal for unsaved comments --}}
+<div class="modal fade" id="unsavedCommentModal" tabindex="-1" aria-labelledby="unsavedCommentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="unsavedCommentModalLabel">Unsaved Comment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>You have an unsaved comment in the Discussion tab.</p>
+                <p class="mb-0">Do you want to save the task without posting your comment? Your comment will be lost.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSaveWithoutComment">Save Without Comment</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @if($isGlobalModal)
 <script>
