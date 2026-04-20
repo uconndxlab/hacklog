@@ -82,98 +82,138 @@ class DashboardController extends Controller
                 ->get();
         }
 
-        // Favorited projects for dashboard
-        $activeProjects = $user->favoriteProjects()
-            ->where('status', 'active')
-            ->with(['phases' => function($q) {
-                $q->where('status', '!=', 'completed');
-            }])
-            ->orderBy('name')
-            ->get()
-            ->map(function($project) use ($user, $excludedStatuses) {
-                // Count active tasks assigned to user
-                $taskCount = Task::whereHas('phase', function($q) use ($project) {
-                    $q->where('project_id', $project->id);
-                })
-                ->whereHas('users', function($q) use ($user) {
-                    $q->where('users.id', $user->id);
-                })
-                ->whereNotIn('status', $excludedStatuses)
-                ->count();
-                
-                // Find next phase date
-                $nextEpicDate = $project->phases
-                    ->filter(fn($phase) => $phase->end_date && $phase->end_date->gte(today()))
-                    ->sortBy('end_date')
-                    ->first()?->end_date;
-                
-                $project->user_task_count = $taskCount;
-                $project->next_epic_date = $nextEpicDate;
-                
-                return $project;
-            });
+        // Projects for dashboard
+        // Clients: Show ALL their shared projects (they only have a few)
+        // Team/Admin: Show favorited projects only to reduce noise
+        if ($user->isClient()) {
+            $activeProjects = \App\Models\Project::visibleTo($user)
+                ->whereIn('status', ['planning', 'active'])
+                ->with(['phases' => function($q) {
+                    $q->where('status', '!=', 'completed');
+                }])
+                ->orderBy('name')
+                ->get()
+                ->map(function($project) use ($user, $excludedStatuses) {
+                    // Count all active tasks in project (tasks belong to columns, columns belong to projects)
+                    $totalTaskCount = Task::whereHas('column', function($q) use ($project) {
+                        $q->where('project_id', $project->id);
+                    })
+                    ->whereNotIn('status', $excludedStatuses)
+                    ->count();
+                    
+                    // Count awaiting feedback tasks
+                    $feedbackCount = Task::whereHas('column', function($q) use ($project) {
+                        $q->where('project_id', $project->id);
+                    })
+                    ->where('status', 'awaiting_feedback')
+                    ->count();
+                    
+                    // Find next phase date
+                    $nextEpicDate = $project->phases
+                        ->filter(fn($phase) => $phase->end_date && $phase->end_date->gte(today()))
+                        ->sortBy('end_date')
+                        ->first()?->end_date;
+                    
+                    $project->user_task_count = $totalTaskCount;
+                    $project->feedback_task_count = $feedbackCount;
+                    $project->next_epic_date = $nextEpicDate;
+                    
+                    return $project;
+                });
+        } else {
+            $activeProjects = $user->favoriteProjects()
+                ->where('status', 'active')
+                ->with(['phases' => function($q) {
+                    $q->where('status', '!=', 'completed');
+                }])
+                ->orderBy('name')
+                ->get()
+                ->map(function($project) use ($user, $excludedStatuses) {
+                    // Count active tasks assigned to user
+                    $taskCount = Task::whereHas('column', function($q) use ($project) {
+                        $q->where('project_id', $project->id);
+                    })
+                    ->whereHas('users', function($q) use ($user) {
+                        $q->where('users.id', $user->id);
+                    })
+                    ->whereNotIn('status', $excludedStatuses)
+                    ->count();
+                    
+                    // Find next phase date
+                    $nextEpicDate = $project->phases
+                        ->filter(fn($phase) => $phase->end_date && $phase->end_date->gte(today()))
+                        ->sortBy('end_date')
+                        ->first()?->end_date;
+                    
+                    $project->user_task_count = $taskCount;
+                    $project->next_epic_date = $nextEpicDate;
+                    
+                    return $project;
+                });
+        }
 
-        // Recent activities - only from projects in activeProjects, excluding current user's own actions
+        // Recent activities - show for all users from their visible projects
         $recentActivities = collect();
-        $activeProjectIds = $activeProjects->pluck('id')->toArray();
         
-        if (!empty($activeProjectIds)) {
-            // Get recent project activities (excluding current user)
-            $projectActivities = \App\Models\ProjectActivity::whereIn('project_id', $activeProjectIds)
-                ->where('user_id', '!=', $user->id)
-                ->where('created_at', '>=', now()->subDays(7))
+        // For clients: Use their shared projects
+        // For team/admin: Use their favorited projects only
+        $visibleProjectIds = $user->isClient() 
+            ? $activeProjects->pluck('id')->toArray()
+            : $activeProjects->pluck('id')->toArray();
+        
+        if (!empty($visibleProjectIds)) {
+            // Get recent project activities
+            $projectActivities = \App\Models\ProjectActivity::whereIn('project_id', $visibleProjectIds)
                 ->with(['project', 'user'])
                 ->orderBy('created_at', 'desc')
                 ->limit(15)
                 ->get()
                 ->map(function($activity) {
-                    return (object)[
+                    return [
                         'type' => 'project',
                         'activity' => $activity,
                         'created_at' => $activity->created_at,
                     ];
                 });
             
-            // Get recent task activities from these projects (excluding current user)
-            $taskActivities = \App\Models\TaskActivity::whereHas('task.column', function($query) use ($activeProjectIds) {
-                    $query->whereIn('project_id', $activeProjectIds);
+            // Get task activities for tasks in these projects
+            $taskActivities = \App\Models\TaskActivity::whereHas('task.column', function($query) use ($visibleProjectIds) {
+                    $query->whereIn('project_id', $visibleProjectIds);
                 })
-                ->where('user_id', '!=', $user->id)
-                ->where('created_at', '>=', now()->subDays(7))
                 ->with(['task.column.project', 'task.phase', 'user'])
                 ->orderBy('created_at', 'desc')
                 ->limit(15)
                 ->get()
                 ->map(function($activity) {
-                    return (object)[
+                    return [
                         'type' => 'task',
                         'activity' => $activity,
                         'created_at' => $activity->created_at,
                     ];
                 });
             
-            // Get recent task comments from these projects (excluding current user)
-            $taskComments = \App\Models\TaskComment::whereHas('task.column', function($query) use ($activeProjectIds) {
-                    $query->whereIn('project_id', $activeProjectIds);
+            // Get task comments from these projects
+            $taskComments = \App\Models\TaskComment::whereHas('task.column', function($query) use ($visibleProjectIds) {
+                    $query->whereIn('project_id', $visibleProjectIds);
                 })
-                ->where('user_id', '!=', $user->id)
-                ->where('created_at', '>=', now()->subDays(7))
                 ->with(['task.column.project', 'task.phase', 'user'])
                 ->orderBy('created_at', 'desc')
                 ->limit(15)
                 ->get()
                 ->map(function($comment) {
-                    return (object)[
+                    return [
                         'type' => 'comment',
                         'activity' => $comment,
                         'created_at' => $comment->created_at,
                     ];
                 });
             
-            // Merge and sort
-            $recentActivities = $projectActivities->concat($taskActivities)->concat($taskComments)
+            // Merge and sort by created_at, take most recent 15
+            $recentActivities = collect($projectActivities)
+                ->concat($taskActivities)
+                ->concat($taskComments)
                 ->sortByDesc('created_at')
-                ->take(30);
+                ->take(15);
         }
 
         // Unassigned tasks from active projects with shared staffing model

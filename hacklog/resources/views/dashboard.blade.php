@@ -21,6 +21,120 @@
     <div class="row">
         <!-- Main Content -->
         <div class="col-lg-8">
+            {{-- Recent Activity --}}
+            @if($recentActivities->isNotEmpty())
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Recent Activity</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="activity-timeline">
+                            @php
+                                $lastDate = null;
+                            @endphp
+                            @foreach($recentActivities as $activity)
+                                @php
+                                    $currentDate = $activity['activity']->created_at->format('Y-m-d');
+                                    $showDateHeader = $lastDate !== $currentDate;
+                                    $lastDate = $currentDate;
+                                @endphp
+
+                                @if($showDateHeader)
+                                    <div class="date-header mt-3 mb-3">
+                                        <h6 class="text-muted mb-1">{{ $activity['activity']->created_at->format('l, F j, Y') }}</h6>
+                                        <hr class="mt-1">
+                                    </div>
+                                @endif
+
+                                <div class="activity-item mb-3 pb-3 border-bottom">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            @if($activity['type'] === 'project')
+                                                {{-- Project Activity --}}
+                                                <div class="activity-content">
+                                                    <strong>{{ $activity['activity']->user ? $activity['activity']->user->name : 'System' }}</strong>
+                                                    @if($activity['activity']->action === 'created')
+                                                        created project
+                                                    @elseif($activity['activity']->action === 'updated')
+                                                        updated project
+                                                    @elseif($activity['activity']->action === 'status_changed')
+                                                        changed status of
+                                                    @else
+                                                        {{ $activity['activity']->action }} on
+                                                    @endif
+                                                    @if($activity['activity']->project)
+                                                        <a href="{{ route('projects.show', $activity['activity']->project) }}">{{ $activity['activity']->project->name }}</a>
+                                                    @endif
+                                                    @if($activity['activity']->action === 'status_changed' && isset($activity['activity']->metadata['from']) && isset($activity['activity']->metadata['to']))
+                                                        from <span class="badge bg-secondary">{{ $activity['activity']->metadata['from'] }}</span>
+                                                        to <span class="badge bg-primary">{{ $activity['activity']->metadata['to'] }}</span>
+                                                    @endif
+                                                </div>
+                                            @elseif($activity['type'] === 'task')
+                                                {{-- Task Activity --}}
+                                                <div class="activity-content">
+                                                    <strong>{{ $activity['activity']->user ? $activity['activity']->user->name : 'System' }}</strong>
+                                                    @if($activity['activity']->action === 'created')
+                                                        created task
+                                                    @elseif($activity['activity']->action === 'status_changed')
+                                                        changed task status
+                                                        @if(isset($activity['activity']->metadata['from']) && isset($activity['activity']->metadata['to']))
+                                                            from <span class="badge bg-secondary">{{ $activity['activity']->metadata['from'] }}</span>
+                                                            to <span class="badge bg-primary">{{ $activity['activity']->metadata['to'] }}</span>
+                                                        @endif
+                                                    @elseif($activity['activity']->action === 'completed')
+                                                        marked task as completed
+                                                    @elseif($activity['activity']->action === 'phase_changed')
+                                                        moved task to phase: <strong>{{ $activity['activity']->metadata['to_name'] ?? 'unknown' }}</strong>
+                                                    @elseif($activity['activity']->action === 'column_changed')
+                                                        moved task to column: <strong>{{ $activity['activity']->metadata['to_name'] ?? 'unknown' }}</strong>
+                                                    @elseif($activity['activity']->action === 'assignees_changed')
+                                                        updated task assignment
+                                                    @else
+                                                        {{ $activity['activity']->action }} on task
+                                                    @endif
+                                                    @if($activity['activity']->task)
+                                                        on <a href="{{ route('projects.board', ['project' => $activity['activity']->task->column->project, 'task' => $activity['activity']->task->id]) }}">{{ $activity['activity']->task->column->project->name }}</a>
+                                                        <span class="text-muted small">• {{ $activity['activity']->task->title }}</span>
+                                                    @endif
+                                                </div>
+                                            @elseif($activity['type'] === 'comment')
+                                                {{-- Comment Activity --}}
+                                                <div class="activity-content">
+                                                    <strong>{{ $activity['activity']->user ? $activity['activity']->user->name : 'System' }}</strong>
+                                                    commented on task
+                                                    @if($activity['activity']->task)
+                                                        on <a href="{{ route('projects.board', ['project' => $activity['activity']->task->column->project, 'task' => $activity['activity']->task->id]) }}">{{ $activity['activity']->task->column->project->name }}</a>
+                                                        <span class="text-muted small">• {{ $activity['activity']->task->title }}</span>
+                                                    @endif
+                                                    <div class="mt-1 text-muted small fst-italic">
+                                                        "{{ Str::limit($activity['activity']->body, 100) }}"
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="text-muted small text-nowrap ms-2">
+                                            {{ $activity['activity']->created_at->format('g:i A') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @elseif(!Auth::user()->isClient())
+                {{-- Show message for team/admin users with no favorited projects --}}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Recent Activity</h2>
+                    </div>
+                    <div class="card-body text-center py-5">
+                        <p class="text-muted mb-3">No recent activity to display.</p>
+                        <p class="text-muted">Browse <a href="{{ route('projects.index') }}">projects</a> to add favorites and see activity here.</p>
+                    </div>
+                </div>
+            @endif
+
             {{-- Awaiting Feedback - Priority for Clients --}}
             @if(Auth::user()->isClient() && $awaitingFeedbackTasks->isNotEmpty())
                 <div class="card mb-4 border-warning">
@@ -100,12 +214,13 @@
                 </div>
             @endif
 
-            {{-- Your Assigned Work - Prioritized Groups --}}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h2 class="h5 mb-0">Your Assigned Work</h2>
-                </div>
-                <div class="card-body">
+            {{-- Your Assigned Work - Prioritized Groups (hide for clients with no tasks) --}}
+            @if(!Auth::user()->isClient() || $overdueTasks->isNotEmpty() || $dueThisWeek->isNotEmpty() || $dueNext->isNotEmpty() || $noDueDate->isNotEmpty())
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Your Assigned Work</h2>
+                    </div>
+                    <div class="card-body">
                     {{-- Due This Week --}}
                     @if($dueThisWeek->isNotEmpty())
                         <div class="mb-4">
@@ -234,6 +349,7 @@
                     @endif
                 </div>
             </div>
+            @endif
 
             {{-- Awaiting Feedback - For non-clients --}}
             @if(!Auth::user()->isClient() && $awaitingFeedbackTasks->isNotEmpty())
@@ -284,14 +400,24 @@
 
         <!-- Sidebar -->
         <div class="col-lg-4">
-            {{-- Projects You're On --}}
+            {{-- Projects Section --}}
             <div class="card mb-4">
                 <div class="card-header">
-                    <h3 class="h5 mb-0">My Favorited Projects</h3>
+                    <h3 class="h5 mb-0">
+                        @if(Auth::user()->isClient())
+                            My Projects
+                        @else
+                            My Favorited Projects
+                        @endif
+                    </h3>
                 </div>
                 <div class="card-body">
                     @if($activeProjects->isEmpty())
-                        <p class="text-muted mb-0 small">No favorited projects yet. <a href="{{ route('projects.index') }}">Browse projects</a> to add favorites.</p>
+                        @if(Auth::user()->isClient())
+                            <p class="text-muted mb-0 small">No projects shared with you yet.</p>
+                        @else
+                            <p class="text-muted mb-0 small">No favorited projects yet. <a href="{{ route('projects.index') }}">Browse projects</a> to add favorites.</p>
+                        @endif
                     @else
                         <div class="list-group list-group-flush">
                             @foreach($activeProjects as $project)
@@ -304,7 +430,14 @@
                                                 </a>
                                             </h6>
                                             <div class="d-flex gap-2 flex-wrap">
-                                                <small class="text-muted">{{ $project->user_task_count }} task{{ $project->user_task_count === 1 ? '' : 's' }}</small>
+                                                @if(Auth::user()->isClient())
+                                                    <small class="text-muted">{{ $project->user_task_count }} active task{{ $project->user_task_count === 1 ? '' : 's' }}</small>
+                                                    @if(isset($project->feedback_task_count) && $project->feedback_task_count > 0)
+                                                        <small class="text-warning">· {{ $project->feedback_task_count }} awaiting feedback</small>
+                                                    @endif
+                                                @else
+                                                    <small class="text-muted">{{ $project->user_task_count }} task{{ $project->user_task_count === 1 ? '' : 's' }}</small>
+                                                @endif
                                                 @if($project->next_epic_date)
                                                     <small class="text-muted">
                                                         @if($project->next_epic_date->isPast())
@@ -364,99 +497,6 @@
                                 </div>
                             @endforeach
                         </div>
-                    </div>
-                </div>
-            @endif
-            
-            {{-- Recent Activity --}}
-            @if($recentActivities->isNotEmpty())
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h3 class="h5 mb-0">Recent Activity</h3>
-                    </div>
-                    <div class="card-body">
-                        <p class="text-muted small mb-3">Latest updates from the last 7 days</p>
-                        <div class="activity-timeline">
-                            @foreach($recentActivities->take(8) as $item)
-                                <div class="activity-item mb-3 pb-3 border-bottom">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            @if($item->type === 'project')
-                                                {{-- Project Activity --}}
-                                                <div class="activity-content small">
-                                                    <strong>{{ $item->activity->user ? $item->activity->user->name : 'System' }}</strong>
-                                                    @if($item->activity->action === 'created')
-                                                        created project
-                                                        @if($item->activity->project)
-                                                            <a href="{{ route('projects.show', $item->activity->project) }}">{{ $item->activity->project->name }}</a>
-                                                        @endif
-                                                    @elseif($item->activity->action === 'updated')
-                                                        updated
-                                                        @if($item->activity->project)
-                                                            <a href="{{ route('projects.show', $item->activity->project) }}">{{ $item->activity->project->name }}</a>
-                                                        @endif
-                                                    @elseif($item->activity->action === 'status_changed')
-                                                        changed status of
-                                                        @if($item->activity->project)
-                                                            <a href="{{ route('projects.show', $item->activity->project) }}">{{ $item->activity->project->name }}</a>
-                                                        @endif
-                                                    @else
-                                                        {{ $item->activity->action }} on
-                                                        @if($item->activity->project)
-                                                            <a href="{{ route('projects.show', $item->activity->project) }}">{{ $item->activity->project->name }}</a>
-                                                        @endif
-                                                    @endif
-                                                </div>
-                                            @elseif($item->type === 'task')
-                                                {{-- Task Activity --}}
-                                                <div class="activity-content small">
-                                                    <strong>{{ $item->activity->user ? $item->activity->user->name : 'System' }}</strong>
-                                                    @if($item->activity->action === 'status_changed')
-                                                        changed task status
-                                                    @elseif($item->activity->action === 'completed')
-                                                        completed task
-                                                    @elseif($item->activity->action === 'phase_changed')
-                                                        moved task
-                                                    @elseif($item->activity->action === 'column_changed')
-                                                        moved task
-                                                    @elseif($item->activity->action === 'assignees_changed')
-                                                        updated assignment
-                                                    @else
-                                                        {{ $item->activity->action }}
-                                                    @endif
-                                                    @if($item->activity->task && $item->activity->task->column && $item->activity->task->column->project)
-                                                        on
-                                                        <a href="{{ route('projects.board', ['project' => $item->activity->task->column->project, 'task' => $item->activity->task->id]) }}">
-                                                            {{ $item->activity->task->column->project->name }}
-                                                        </a>
-                                                    @endif
-                                                </div>
-                                            @elseif($item->type === 'comment')
-                                                {{-- Comment Activity --}}
-                                                <div class="activity-content small">
-                                                    <strong>{{ $item->activity->user ? $item->activity->user->name : 'System' }}</strong>
-                                                    commented
-                                                    @if($item->activity->task && $item->activity->task->column && $item->activity->task->column->project)
-                                                        on
-                                                        <a href="{{ route('projects.board', ['project' => $item->activity->task->column->project, 'task' => $item->activity->task->id]) }}">
-                                                            {{ $item->activity->task->column->project->name }}
-                                                        </a>
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        </div>
-                                        <div class="text-muted small text-nowrap ms-2" style="font-size: 0.75rem;">
-                                            {{ $item->activity->created_at->diffForHumans(null, true, true) }}
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        @if($recentActivities->count() > 8)
-                            <div class="mt-2 text-center">
-                                <small class="text-muted">Showing 8 recent items</small>
-                            </div>
-                        @endif
                     </div>
                 </div>
             @endif

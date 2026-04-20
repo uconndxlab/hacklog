@@ -80,10 +80,10 @@
                         hx-target="#projects-list"
                         hx-include="[name='search'], [name='status'], [name='time'], [name='owner'], [name='sort']"
                         hx-push-url="true">
-                    <option value="all" {{ request('scope', Auth::user()->isAdmin() ? 'all' : 'assigned') === 'all' ? 'selected' : '' }}>
+                    <option value="all" {{ request('scope', 'all') === 'all' ? 'selected' : '' }}>
                         All
                     </option>
-                    <option value="assigned" {{ request('scope', Auth::user()->isAdmin() ? 'all' : 'assigned') === 'assigned' ? 'selected' : '' }}>
+                    <option value="assigned" {{ request('scope', 'all') === 'assigned' ? 'selected' : '' }}>
                         Assigned to me
                     </option>
                     <option value="member" {{ request('scope') === 'member' ? 'selected' : '' }}>

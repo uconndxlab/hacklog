@@ -17,7 +17,16 @@ class ProjectFavoriteController extends Controller
             $user->favoriteProjects()->attach($project->id);
         }
 
+        // Create a new request with all the query parameters preserved
+        // This ensures filters are maintained when toggling favorites
+        $indexRequest = Request::create(
+            route('projects.index'),
+            'GET',
+            $request->only(['search', 'scope', 'status', 'time', 'owner', 'sort'])
+        );
+        $indexRequest->setUserResolver($request->getUserResolver());
+        
         // Return updated projects list partial (HTMX will swap)
-        return app(ProjectController::class)->index($request);
+        return app(ProjectController::class)->index($indexRequest);
     }
 }

@@ -24,9 +24,10 @@ class ProjectController extends Controller
         $query = Project::visibleTo($user)
             ->with(['phases.tasks.users', 'columns.tasks.users']); // Eager load tasks in phases and standalone tasks
 
-        // Default scope: Admin and Team see all projects, Clients see only assigned
-        // (Clients only see shared projects anyway due to visibleTo() scope)
-        $defaultScope = ($user->isAdmin() || $user->isTeam()) ? 'all' : 'assigned';
+        // Default scope logic:
+        // - Clients: 'all' (they only see shared projects anyway via visibleTo() scope)
+        // - Team/Admin: 'all' (they can see all projects and want the full list)
+        $defaultScope = 'all';
         $scope = $request->input('scope', $defaultScope);
         $status = $request->input('status', 'planning,active');
         $timeFilter = $request->input('time');
