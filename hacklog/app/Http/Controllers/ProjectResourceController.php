@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\ProjectResource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ProjectResourceController extends Controller
 {
@@ -78,6 +80,48 @@ class ProjectResourceController extends Controller
 
         return redirect()->route('projects.resources.index', $project)
             ->with('success', 'Resource updated successfully.');
+    }
+
+    /**
+     * Upload file for Trix inline attachment during resource creation (no resource ID yet).
+     */
+    public function uploadForTrixTemporary(Request $request, Project $project)
+    {
+        $request->validate([
+            'file' => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,pdf,doc,docx,txt,csv,xlsx,xls',
+        ]);
+
+        $file = $request->file('file');
+        $extension = $file->getClientOriginalExtension();
+        $filename = Str::random(40) . '.' . $extension;
+
+        $path = $file->storeAs('resource_attachments/temp', $filename, 'public');
+
+        return response()->json([
+            'url' => Storage::disk('public')->url($path),
+            'href' => Storage::disk('public')->url($path),
+        ]);
+    }
+
+    /**
+     * Upload file for Trix inline attachment during resource editing.
+     */
+    public function uploadForTrix(Request $request, Project $project, ProjectResource $resource)
+    {
+        $request->validate([
+            'file' => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,pdf,doc,docx,txt,csv,xlsx,xls',
+        ]);
+
+        $file = $request->file('file');
+        $extension = $file->getClientOriginalExtension();
+        $filename = Str::random(40) . '.' . $extension;
+
+        $path = $file->storeAs('resource_attachments/' . $resource->id, $filename, 'public');
+
+        return response()->json([
+            'url' => Storage::disk('public')->url($path),
+            'href' => Storage::disk('public')->url($path),
+        ]);
     }
 
     /**

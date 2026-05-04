@@ -87,6 +87,8 @@ Route::post('projects/{project}/phases/{phase}/tasks/{task}/move-down', [TaskCon
     ->name('projects.phases.tasks.move-down');
 Route::resource('projects.columns', ColumnController::class)->except(['show']);
 Route::resource('projects.resources', ProjectResourceController::class)->except(['show']);
+Route::post('projects/{project}/resources/temp-trix-upload', [ProjectResourceController::class, 'uploadForTrixTemporary'])->name('projects.resources.trix-temp');
+Route::post('projects/{project}/resources/{resource}/trix-upload', [ProjectResourceController::class, 'uploadForTrix'])->name('projects.resources.trix');
 Route::post('projects/{project}/resources/{resource}/move-up', [ProjectResourceController::class, 'moveUp'])
     ->name('projects.resources.move-up');
 Route::post('projects/{project}/resources/{resource}/move-down', [ProjectResourceController::class, 'moveDown'])

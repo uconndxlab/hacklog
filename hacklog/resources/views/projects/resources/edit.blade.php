@@ -98,6 +98,47 @@
     
     // Initialize on page load
     toggleFields();
+
+    // Trix attachment upload handler
+    (function() {
+        const trixEditor = document.querySelector('trix-editor[input="content"]');
+        if (!trixEditor) return;
+
+        const uploadUrl = '{{ route("projects.resources.trix", [$project, $resource]) }}';
+
+        trixEditor.addEventListener('trix-attachment-add', function(event) {
+            const attachment = event.attachment;
+            if (!attachment.file) return;
+
+            const formData = new FormData();
+            formData.append('file', attachment.file);
+
+            fetch(uploadUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Upload failed: ' + response.statusText);
+                return response.json();
+            })
+            .then(data => {
+                if (data.url && data.href) {
+                    attachment.setAttributes({ url: data.url, href: data.href });
+                } else {
+                    throw new Error('Invalid response from server');
+                }
+            })
+            .catch(error => {
+                console.error('Trix upload error:', error);
+                attachment.remove();
+                alert('Failed to upload file: ' + error.message);
+            });
+        });
+    })();
 </script>
 @endpush
 @endsection
