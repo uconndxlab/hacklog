@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\LdapService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Subfission\Cas\Facades\Cas;
 
 /**
@@ -44,7 +45,7 @@ class AuthController extends Controller
     {
         $masqueradeNetid = config('cas.cas_masquerade');
         
-        \Log::info('Login attempt', [
+        Log::info('Login attempt', [
             'masquerade_enabled' => !empty($masqueradeNetid),
             'masquerade_netid' => $masqueradeNetid
         ]);
@@ -52,12 +53,12 @@ class AuthController extends Controller
         // Check if masquerade is enabled (dev environment only)
         if ($masqueradeNetid) {
             // In masquerade mode, skip CAS and use the configured NetID
-            \Log::info('Using CAS masquerade mode', ['netid' => $masqueradeNetid]);
+            Log::info('Using CAS masquerade mode', ['netid' => $masqueradeNetid]);
             
             return $this->handleMasqueradeLogin($masqueradeNetid);
         }
         
-        \Log::info('Proceeding with real CAS authentication');
+        Log::info('Proceeding with real CAS authentication');
         
         // Force authentication with CAS server
         Cas::authenticate();
@@ -76,14 +77,14 @@ class AuthController extends Controller
 
         // Check if user exists locally
         if (!$user) {
-            \Log::warning('Masquerade login denied - no local user found', ['netid' => $netid]);
+            Log::warning('Masquerade login denied - no local user found', ['netid' => $netid]);
             return redirect()->route('login')->with('error', 
                 'Access denied. NetID "' . $netid . '" is not authorized for this application. Please create this user first.');
         }
 
         // Check if user account is active
         if (!$user->isActive()) {
-            \Log::warning('Masquerade login denied - inactive user', ['netid' => $netid, 'user_id' => $user->id]);
+            Log::warning('Masquerade login denied - inactive user', ['netid' => $netid, 'user_id' => $user->id]);
             return redirect()->route('login')->with('error', 
                 'Your account is inactive. Please contact an administrator.');
         }
@@ -91,10 +92,10 @@ class AuthController extends Controller
         // Optionally refresh user details from LDAP on login
         $this->refreshUserFromLdap($user);
 
-        // Log user in with Laravel Auth
-        Auth::login($user, true); // true = remember user
+        // Avoid persistent remember cookies while debugging oversized request headers.
+        Auth::login($user, false);
 
-        \Log::info('Successful masquerade login', ['netid' => $netid, 'user_id' => $user->id]);
+        Log::info('Successful masquerade login', ['netid' => $netid, 'user_id' => $user->id]);
 
         // Redirect to dashboard
         return redirect()->route('dashboard');
@@ -132,7 +133,7 @@ class AuthController extends Controller
                         'Failed to create your account. Please contact an administrator.');
                 }
             } else {
-                \Log::warning('CAS login denied - no local user found', ['netid' => $netid]);
+                Log::warning('CAS login denied - no local user found', ['netid' => $netid]);
                 return redirect()->route('login')->with('error', 
                     'Access denied. Your NetID is not authorized for this application. Please contact an administrator.');
             }
@@ -140,7 +141,7 @@ class AuthController extends Controller
 
         // Check if user account is active
         if (!$user->isActive()) {
-            \Log::warning('CAS login denied - inactive user', ['netid' => $netid, 'user_id' => $user->id]);
+            Log::warning('CAS login denied - inactive user', ['netid' => $netid, 'user_id' => $user->id]);
             return redirect()->route('login')->with('error', 
                 'Your account is inactive. Please contact an administrator.');
         }
@@ -148,10 +149,10 @@ class AuthController extends Controller
         // Optionally refresh user details from LDAP on login
         $this->refreshUserFromLdap($user);
 
-        // Log user in with Laravel Auth
-        Auth::login($user, true); // true = remember user
+        // Avoid persistent remember cookies while debugging oversized request headers.
+        Auth::login($user, false);
 
-        \Log::info('Successful CAS login', ['netid' => $netid, 'user_id' => $user->id]);
+        Log::info('Successful CAS login', ['netid' => $netid, 'user_id' => $user->id]);
 
         // Redirect to dashboard
         return redirect()->route('dashboard');
@@ -177,11 +178,11 @@ class AuthController extends Controller
                 'active' => true,
             ]);
             
-            \Log::info('Auto-created CAS user', ['netid' => $netid, 'user_id' => $user->id]);
+            Log::info('Auto-created CAS user', ['netid' => $netid, 'user_id' => $user->id]);
             
             return $user;
         } catch (\Exception $e) {
-            \Log::error('Failed to auto-create CAS user', [
+            Log::error('Failed to auto-create CAS user', [
                 'netid' => $netid,
                 'error' => $e->getMessage()
             ]);
@@ -199,7 +200,7 @@ class AuthController extends Controller
         
         // Log the logout
         if ($user) {
-            \Log::info('User logout', ['netid' => $user->netid, 'user_id' => $user->id]);
+            Log::info('User logout', ['netid' => $user->netid, 'user_id' => $user->id]);
         }
 
         // Logout from Laravel
@@ -240,12 +241,12 @@ class AuthController extends Controller
                 
                 if ($needsUpdate) {
                     $user->save();
-                    \Log::info('Updated user details from LDAP', ['netid' => $user->netid]);
+                    Log::info('Updated user details from LDAP', ['netid' => $user->netid]);
                 }
             }
         } catch (\Exception $e) {
             // Don't fail login if LDAP refresh fails
-            \Log::warning('Failed to refresh user from LDAP', [
+            Log::warning('Failed to refresh user from LDAP', [
                 'netid' => $user->netid,
                 'error' => $e->getMessage()
             ]);
