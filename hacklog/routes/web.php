@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AboutController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\ColumnController;
 use App\Http\Controllers\DashboardController;
@@ -42,6 +43,7 @@ Route::get('/', function () {
 // Protected application routes
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/about', AboutController::class)->name('about');
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
     Route::get('/timeline', [TimelineController::class, 'index'])->name('timeline.index');
     Route::get('/team', [TeamDashboardController::class, 'index'])->name('team.dashboard');

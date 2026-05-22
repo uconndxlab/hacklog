@@ -43,6 +43,9 @@
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('timeline.*') ? 'active' : '' }}" href="{{ route('timeline.index') }}">Timeline</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('about') ? 'active' : '' }}" href="{{ route('about') }}">About</a>
+                    </li>
                     @if(Auth::check() && Auth::user()->isAdmin())
 
 
