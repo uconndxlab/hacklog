@@ -138,6 +138,20 @@
                                                     <div class="small text-muted">Weighted Load <span class="text-muted">(XS=1 S=2 M=3 L=5 XL=8)</span></div>
                                                 </div>
                                             </div>
+                                            @if(($metrics['weighted_completion_pct'] ?? null) !== null)
+                                            <div class="col-12">
+                                                <div class="border rounded p-2">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <small class="text-muted">Weighted completion</small>
+                                                        <small class="fw-semibold">{{ $metrics['weighted_completion_pct'] }}%</small>
+                                                    </div>
+                                                    <div class="progress" style="height: 5px;">
+                                                        <div class="progress-bar bg-success" role="progressbar"
+                                                             style="width: {{ $metrics['weighted_completion_pct'] }}%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            @endif
                                         </div>
                                     </div>
 

@@ -109,7 +109,15 @@ class TeamDashboardController extends Controller
         $weightedLoad = $openActiveTasks->sum(function ($task) {
             return \App\Models\Task::WEIGHT_SCORES[$task->weight] ?? 0;
         });
-        
+
+        // Weighted completion percentage for tasks in range
+        $rangeWeightTotal = $tasksInRange->sum(fn($t) => \App\Models\Task::WEIGHT_SCORES[$t->weight] ?? 0);
+        $rangeWeightDone  = $tasksInRange->where('status', 'completed')
+            ->sum(fn($t) => \App\Models\Task::WEIGHT_SCORES[$t->weight] ?? 0);
+        $weightedCompletionPct = $rangeWeightTotal > 0
+            ? round(($rangeWeightDone / $rangeWeightTotal) * 100)
+            : null;
+
         // Distinct projects (via phase -> project relationship)
         $distinctProjects = $tasksInRange
             ->pluck('phase.project_id')
@@ -217,6 +225,7 @@ class TeamDashboardController extends Controller
                 'low' => $lowPriorityCount,
             ],
             'weighted_load' => $weightedLoad,
+            'weighted_completion_pct' => $weightedCompletionPct ?? null,
             'projects' => $projectDetails,
             'due_pressure' => [
                 'overdue' => $overdueTasks,

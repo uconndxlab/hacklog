@@ -443,7 +443,26 @@ class ProjectController extends Controller
                 ];
             });
 
-        return view('projects.show', compact('project', 'upcomingTasks', 'activePhasesCount', 'overdueTasks', 'awaitingFeedbackTasks', 'nearestDueDate', 'recentActivity', 'teamMembers'));
+        // Compute workload summary for the project
+        $allProjectTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
+            $query->where('project_id', $project->id);
+        })->with(['phase', 'users'])->get();
+
+        $projectWorkload = \App\Services\WorkloadSummaryService::summarize($allProjectTasks);
+        $phaseWorkloads  = \App\Services\WorkloadSummaryService::summarizeByPhase($allProjectTasks);
+
+        return view('projects.show', compact(
+            'project',
+            'upcomingTasks',
+            'activePhasesCount',
+            'overdueTasks',
+            'awaitingFeedbackTasks',
+            'nearestDueDate',
+            'recentActivity',
+            'teamMembers',
+            'projectWorkload',
+            'phaseWorkloads'
+        ));
     }
 
     /**

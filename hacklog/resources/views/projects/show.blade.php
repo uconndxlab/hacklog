@@ -19,42 +19,150 @@
         {{-- Project Health Summary --}}
         <h2 class="h4 mb-3">Project Health</h2>
         <div class="card mb-4">
-            <div class="card-header bg-light">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h3 class="h6 mb-0 fw-semibold">Current Status</h3>
+                @if($projectWorkload['weighted_completion_pct'] !== null)
+                    <small class="text-muted">{{ $projectWorkload['weighted_completion_pct'] }}% weighted complete</small>
+                @endif
             </div>
             <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-4">
-                        <div class="mb-2">
-                            <span class="fs-2 fw-semibold">{{ $activePhasesCount }}</span>
-                        </div>
-                        <div class="text-muted small">Active Phases</div>
+                {{-- Weighted completion progress bar --}}
+                @if($projectWorkload['has_weight_data'])
+                <div class="mb-3">
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-success"
+                             role="progressbar"
+                             style="width: {{ $projectWorkload['weighted_completion_pct'] ?? 0 }}%"
+                             aria-valuenow="{{ $projectWorkload['weighted_completion_pct'] ?? 0 }}"
+                             aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="mb-2">
-                            <span class="fs-2 fw-semibold @if($overdueTasks > 0) text-danger @endif">{{ $overdueTasks }}</span>
-                        </div>
-                        <div class="text-muted small">
-                            @if($overdueTasks > 0)
-                                <span class="text-danger">Overdue Tasks</span>
-                            @else
-                                Overdue Tasks
-                            @endif
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">{{ $projectWorkload['completed_weight'] }} pts done</small>
+                        <small class="text-muted">{{ $projectWorkload['remaining_weight'] }} pts remaining</small>
+                    </div>
+                </div>
+                @endif
+
+                {{-- Stats row --}}
+                <div class="row text-center g-2">
+                    <div class="col-md-3 col-6">
+                        <div class="border rounded p-2">
+                            <div class="fs-5 fw-semibold">{{ $activePhasesCount }}</div>
+                            <div class="text-muted small">Active Phases</div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="mb-2">
+                    <div class="col-md-3 col-6">
+                        <div class="border rounded p-2">
+                            <div class="fs-5 fw-semibold @if($overdueTasks > 0) text-danger @endif">{{ $overdueTasks }}</div>
+                            <div class="text-muted small @if($overdueTasks > 0) text-danger @endif">Overdue</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="border rounded p-2">
+                            <div class="fs-5 fw-semibold @if($projectWorkload['open_high_priority'] > 0) text-danger @endif">
+                                {{ $projectWorkload['open_high_priority'] }}
+                            </div>
+                            <div class="text-muted small">↑ High Priority</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="border rounded p-2">
                             @if($nearestDueDate)
-                                <span class="fs-5 fw-semibold">{{ $nearestDueDate->format('M j') }}</span>
+                                <div class="fs-5 fw-semibold">{{ $nearestDueDate->format('M j') }}</div>
                             @else
-                                <span class="fs-5 text-muted">—</span>
+                                <div class="fs-5 text-muted">—</div>
                             @endif
+                            <div class="text-muted small">Next Due</div>
                         </div>
-                        <div class="text-muted small">Next Due Date</div>
                     </div>
+                    @if($projectWorkload['unassigned_high_priority'] > 0)
+                    <div class="col-12">
+                        <div class="alert alert-warning py-1 px-2 mb-0 d-flex align-items-center gap-2" style="font-size: 0.82rem;">
+                            <span>⚠</span>
+                            <span>{{ $projectWorkload['unassigned_high_priority'] }} high-priority task{{ $projectWorkload['unassigned_high_priority'] > 1 ? 's' : '' }} with no assignee</span>
+                        </div>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>
+
+        {{-- Workload Breakdown --}}
+        @if($projectWorkload['has_weight_data'] && ($phaseWorkloads->isNotEmpty() || $projectWorkload['assignee_load']->isNotEmpty()))
+        <div class="row g-4 mb-4">
+            @if($projectWorkload['assignee_load']->isNotEmpty())
+            <div class="col-md-6">
+                <h2 class="h5 mb-3">Workload by Assignee</h2>
+                <div class="card">
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0" style="font-size: 0.82rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Assignee</th>
+                                    <th class="text-end">Tasks</th>
+                                    <th class="text-end">Load</th>
+                                    <th class="text-end pe-3">↑ High</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($projectWorkload['assignee_load'] as $entry)
+                                <tr>
+                                    <td class="ps-3">{{ $entry['user']->name }}</td>
+                                    <td class="text-end text-muted">{{ $entry['task_count'] }}</td>
+                                    <td class="text-end fw-semibold">{{ $entry['load'] }}</td>
+                                    <td class="text-end pe-3 {{ $entry['high_count'] > 0 ? 'text-danger' : 'text-muted' }}">
+                                        {{ $entry['high_count'] ?: '—' }}
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            @endif
+            @if($phaseWorkloads->isNotEmpty())
+            <div class="col-md-6">
+                <h2 class="h5 mb-3">Workload by Phase</h2>
+                <div class="card">
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0" style="font-size: 0.82rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Phase</th>
+                                    <th class="text-end">Remaining</th>
+                                    <th class="text-end">Done %</th>
+                                    <th class="text-end pe-3">↑ High</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($phaseWorkloads as $pw)
+                                <tr>
+                                    <td class="ps-3">
+                                        @if($pw['phase'])
+                                            <a href="{{ route('projects.board', ['project' => $project, 'phase' => $pw['phase']->id]) }}"
+                                               class="text-decoration-none text-body">{{ $pw['phase']->name }}</a>
+                                        @else
+                                            <span class="text-muted fst-italic">No phase</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end fw-semibold">{{ $pw['remaining_weight'] }}</td>
+                                    <td class="text-end text-muted">
+                                        {{ $pw['weighted_completion_pct'] !== null ? $pw['weighted_completion_pct'].'%' : '—' }}
+                                    </td>
+                                    <td class="text-end pe-3 {{ $pw['open_high_priority'] > 0 ? 'text-danger' : 'text-muted' }}">
+                                        {{ $pw['open_high_priority'] ?: '—' }}
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            @endif
+        </div>
+        @endif
 
         {{-- Team Members --}}
         @if($teamMembers->isNotEmpty())

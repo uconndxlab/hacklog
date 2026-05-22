@@ -51,11 +51,17 @@ class PhaseController extends Controller
     {
         // Load columns ordered by position
         $columns = $project->columns()->orderBy('position')->get();
-        
-        // Load tasks for this phase, grouped by column_id
-        $tasks = $phase->tasks()->with('phase')->get()->groupBy('column_id');
-        
-        return view('phases.show', compact('project', 'phase', 'columns', 'tasks'));
+
+        // Load tasks with users for workload aggregation
+        $allPhaseTasks = $phase->tasks()->with(['phase', 'users'])->get();
+
+        // Group by column_id for the kanban board
+        $tasks = $allPhaseTasks->groupBy('column_id');
+
+        // Compute workload summary for this phase
+        $workloadSummary = \App\Services\WorkloadSummaryService::summarize($allPhaseTasks);
+
+        return view('phases.show', compact('project', 'phase', 'columns', 'tasks', 'workloadSummary'));
     }
 
     /**

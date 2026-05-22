@@ -41,6 +41,99 @@
     </div>
 </div>
 
+{{-- Phase Workload Summary --}}
+@if($workloadSummary['has_weight_data'] || $workloadSummary['open_high_priority'] > 0)
+<div class="card mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h3 class="h6 mb-0 fw-semibold">Workload</h3>
+        @if($workloadSummary['weighted_completion_pct'] !== null)
+            <small class="text-muted">{{ $workloadSummary['weighted_completion_pct'] }}% weighted complete</small>
+        @endif
+    </div>
+    <div class="card-body">
+
+        {{-- Weighted completion progress bar --}}
+        @if($workloadSummary['has_weight_data'])
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <small class="text-muted">Weighted completion</small>
+                <small class="fw-semibold">{{ $workloadSummary['weighted_completion_pct'] ?? 0 }}%</small>
+            </div>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-success"
+                     role="progressbar"
+                     style="width: {{ $workloadSummary['weighted_completion_pct'] ?? 0 }}%"
+                     aria-valuenow="{{ $workloadSummary['weighted_completion_pct'] ?? 0 }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-1">
+                <small class="text-muted">{{ $workloadSummary['completed_weight'] }} pts done</small>
+                <small class="text-muted">{{ $workloadSummary['remaining_weight'] }} pts remaining</small>
+            </div>
+        </div>
+        @endif
+
+        {{-- Key signals row --}}
+        <div class="row g-2 mb-3">
+            @if($workloadSummary['open_high_priority'] > 0)
+            <div class="col-auto">
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                    ↑ {{ $workloadSummary['open_high_priority'] }} high-priority open
+                </span>
+            </div>
+            @endif
+            @if($workloadSummary['unassigned_high_priority'] > 0)
+            <div class="col-auto">
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                    {{ $workloadSummary['unassigned_high_priority'] }} high-priority unassigned
+                </span>
+            </div>
+            @endif
+            @if($workloadSummary['heavy_task_count'] > 0)
+            <div class="col-auto">
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                    {{ $workloadSummary['heavy_task_count'] }} L/XL tasks
+                </span>
+            </div>
+            @endif
+        </div>
+
+        {{-- Assignee workload table --}}
+        @if($workloadSummary['assignee_load']->isNotEmpty())
+        <div>
+            <div class="text-muted small fw-semibold text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 0.05em;">Assignee Load</div>
+            <div class="table-responsive">
+                <table class="table table-sm table-borderless mb-0" style="font-size: 0.82rem;">
+                    <thead>
+                        <tr class="text-muted" style="font-size: 0.72rem;">
+                            <th class="fw-normal ps-0">Assignee</th>
+                            <th class="fw-normal text-end">Tasks</th>
+                            <th class="fw-normal text-end">Load</th>
+                            <th class="fw-normal text-end">↑ High</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($workloadSummary['assignee_load'] as $entry)
+                        <tr>
+                            <td class="ps-0">{{ $entry['user']->name }}</td>
+                            <td class="text-end text-muted">{{ $entry['task_count'] }}</td>
+                            <td class="text-end fw-semibold">{{ $entry['load'] }}</td>
+                            <td class="text-end {{ $entry['high_count'] > 0 ? 'text-danger' : 'text-muted' }}">
+                                {{ $entry['high_count'] ?: '—' }}
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
+
+    </div>
+</div>
+@endif
+
 <h2 class="h4 mb-3">Tasks</h2>
 <div class="card mb-4">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
