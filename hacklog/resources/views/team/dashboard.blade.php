@@ -110,6 +110,37 @@
                                         </div>
                                     </div>
 
+                                    <!-- Priority & Workload -->
+                                    <div class="mb-4">
+                                        <h6 class="text-uppercase text-muted mb-2" style="font-size: 0.75rem; font-weight: 600;">Open Work</h6>
+                                        <div class="row g-2">
+                                            <div class="col-4">
+                                                <div class="border rounded p-2 text-center">
+                                                    <div class="fw-bold text-danger">{{ $metrics['priority']['high'] }}</div>
+                                                    <div class="small text-muted">↑ High</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="border rounded p-2 text-center">
+                                                    <div class="fw-bold" style="color: #fd7e14;">{{ $metrics['priority']['medium'] }}</div>
+                                                    <div class="small text-muted">~ Medium</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="border rounded p-2 text-center">
+                                                    <div class="fw-bold text-secondary">{{ $metrics['priority']['low'] }}</div>
+                                                    <div class="small text-muted">↓ Low</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="border rounded p-2 text-center">
+                                                    <div class="fw-bold">{{ $metrics['weighted_load'] ?: '—' }}</div>
+                                                    <div class="small text-muted">Weighted Load <span class="text-muted">(XS=1 S=2 M=3 L=5 XL=8)</span></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <!-- Status Breakdown Chart -->
                                     <div class="mb-4">
                                         <h6 class="text-uppercase text-muted mb-3"

@@ -47,6 +47,8 @@ class TaskController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'status' => ['required', Rule::in(Task::STATUSES)],
+            'priority' => ['nullable', Rule::in(Task::PRIORITY_VALUES)],
+            'weight' => ['nullable', Rule::in(Task::WEIGHT_VALUES)],
             'start_date' => 'nullable|date',
             'due_date' => 'nullable|date|after_or_equal:start_date',
             'assignees' => 'nullable|array',
@@ -116,6 +118,8 @@ class TaskController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'status' => ['required', Rule::in(Task::STATUSES)],
+            'priority' => ['nullable', Rule::in(Task::PRIORITY_VALUES)],
+            'weight' => ['nullable', Rule::in(Task::WEIGHT_VALUES)],
             'assignees' => 'nullable|array',
             'assignees.*' => 'exists:users,id',
         ]);
@@ -255,6 +259,14 @@ class TaskController extends Controller
                     $query->where('users.id', $assigned);
                 });
             }
+
+            // Apply priority/weight filters if provided in request
+            if (request('priority') && in_array(request('priority'), \App\Models\Task::PRIORITY_VALUES)) {
+                $tasksQuery->where('priority', request('priority'));
+            }
+            if (request('weight') && in_array(request('weight'), \App\Models\Task::WEIGHT_VALUES)) {
+                $tasksQuery->where('weight', request('weight'));
+            }
             
             $tasks = $tasksQuery->with(['phase', 'users'])->get()->groupBy('column_id');
         } else {
@@ -331,7 +343,9 @@ class TaskController extends Controller
                     $project, 
                     $task->column_id, 
                     $request->input('filter_phase_id'),
-                    $request->input('filter_assigned')
+                    $request->input('filter_assigned'),
+                    $request->input('filter_priority'),
+                    $request->input('filter_weight')
                 );
             } else {
                 // Phase context: return phase column-tasks partial
@@ -366,7 +380,9 @@ class TaskController extends Controller
                     $project, 
                     $task->column_id, 
                     $request->input('filter_phase_id'),
-                    $request->input('filter_assigned')
+                    $request->input('filter_assigned'),
+                    $request->input('filter_priority'),
+                    $request->input('filter_weight')
                 );
             } else {
                 // Phase context: return phase column-tasks partial
@@ -424,7 +440,7 @@ class TaskController extends Controller
     /**
      * Helper method to return board column tasks for HTMX
      */
-    protected function returnBoardColumnTasks(Project $project, int $columnId, $filterPhaseId = null, $filterAssigned = null)
+    protected function returnBoardColumnTasks(Project $project, int $columnId, $filterPhaseId = null, $filterAssigned = null, $filterPriority = null, $filterWeight = null)
     {
         $columns = $project->columns;
         $column = $columns->firstWhere('id', $columnId);
@@ -449,6 +465,16 @@ class TaskController extends Controller
                 $q->where('users.id', $filterAssigned);
             });
         }
+
+        // Apply priority filter if provided
+        if ($filterPriority) {
+            $query->where('priority', $filterPriority);
+        }
+
+        // Apply weight filter if provided
+        if ($filterWeight) {
+            $query->where('weight', $filterWeight);
+        }
         
         $columnTasks = $query->with(['phase', 'users', 'creator'])->get();
         
@@ -458,7 +484,9 @@ class TaskController extends Controller
             'project' => $project,
             'allColumns' => $columns,
             'isProjectBoard' => true,
-            'filterPhaseId' => $filterPhaseId
+            'filterPhaseId' => $filterPhaseId,
+            'filterPriority' => $filterPriority,
+            'filterWeight' => $filterWeight,
         ]);
     }
 

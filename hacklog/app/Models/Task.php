@@ -18,12 +18,45 @@ class Task extends Model
         'completed',
     ];
 
+    /**
+     * Available priority values for tasks (business urgency)
+     */
+    const PRIORITY_VALUES = [
+        'high',
+        'medium',
+        'low',
+    ];
+
+    /**
+     * Available weight values for tasks (estimated effort)
+     */
+    const WEIGHT_VALUES = [
+        'xs',
+        's',
+        'm',
+        'l',
+        'xl',
+    ];
+
+    /**
+     * Numeric effort scores for weight (used for workload aggregation)
+     */
+    const WEIGHT_SCORES = [
+        'xs' => 1,
+        's'  => 2,
+        'm'  => 3,
+        'l'  => 5,
+        'xl' => 8,
+    ];
+
     protected $fillable = [
         'phase_id',
         'column_id',
         'title',
         'description',
         'status',
+        'priority',
+        'weight',
         'position',
         'start_date',
         'due_date',
@@ -34,6 +67,8 @@ class Task extends Model
 
     protected $casts = [
         'status' => 'string',
+        'priority' => 'string',
+        'weight' => 'string',
         'position' => 'integer',
         'start_date' => 'date',
         'due_date' => 'date',
@@ -117,6 +152,38 @@ class Task extends Model
             ->whereHas('column', function ($q) {
                 $q->where('counts_as_active', true);
             });
+    }
+
+    /**
+     * Scope: High priority tasks
+     */
+    public function scopeHighPriority($query)
+    {
+        return $query->where('priority', 'high');
+    }
+
+    /**
+     * Get formatted priority display name
+     */
+    public function getPriorityDisplayAttribute(): ?string
+    {
+        return $this->priority ? ucfirst($this->priority) : null;
+    }
+
+    /**
+     * Get formatted weight display name
+     */
+    public function getWeightDisplayAttribute(): ?string
+    {
+        return $this->weight ? strtoupper($this->weight) : null;
+    }
+
+    /**
+     * Get the numeric effort score for this task's weight.
+     */
+    public function getWeightScoreAttribute(): int
+    {
+        return self::WEIGHT_SCORES[$this->weight] ?? 0;
     }
 
     /**

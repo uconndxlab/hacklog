@@ -37,6 +37,8 @@
             <input type="hidden" name="description" value="{{ $task->description }}">
             <input type="hidden" name="phase_id" value="{{ $task->phase_id }}">
             <input type="hidden" name="column_id" value="{{ $task->column_id }}">
+            <input type="hidden" name="priority" value="{{ $task->priority }}">
+            <input type="hidden" name="weight" value="{{ $task->weight }}">
             <input type="hidden" name="from_board_modal" value="1">
             <input type="hidden" name="status_change_only" value="1">
             @if($task->start_date)
@@ -114,6 +116,73 @@
                     @endif
                 </span>
             @endif
+
+            {{-- Priority chip (inline editable) --}}
+            <form class="d-inline"
+                  hx-put="{{ route('projects.board.tasks.update', [$project, $task]) }}"
+                  hx-target="[data-task-id='{{ $task->id }}']"
+                  hx-swap="outerHTML"
+                  hx-trigger="change from:select[name='priority']">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="title" value="{{ $task->title }}">
+                <input type="hidden" name="description" value="{{ $task->description }}">
+                <input type="hidden" name="column_id" value="{{ $task->column_id }}">
+                <input type="hidden" name="status" value="{{ $task->status }}">
+                <input type="hidden" name="weight" value="{{ $task->weight }}">
+                <input type="hidden" name="phase_id" value="{{ $task->phase_id }}">
+                <input type="hidden" name="from_board_modal" value="1">
+                <input type="hidden" name="status_change_only" value="1">
+                @foreach($task->users as $u) <input type="hidden" name="assignees[]" value="{{ $u->id }}"> @endforeach
+                @if(isset($filterPhaseId) && $filterPhaseId) <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}"> @endif
+                @if(isset($filterAssigned) && $filterAssigned) <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}"> @endif
+                @if(isset($filterPriority) && $filterPriority) <input type="hidden" name="filter_priority" value="{{ $filterPriority }}"> @endif
+                @if(isset($filterWeight) && $filterWeight) <input type="hidden" name="filter_weight" value="{{ $filterWeight }}"> @endif
+                <select name="priority"
+                        class="border-0 bg-transparent p-0 me-1 mb-1"
+                        style="font-size: 0.7rem; cursor: pointer; appearance: none; -webkit-appearance: none; outline: none;
+                               color: {{ $task->priority === 'high' ? '#dc3545' : ($task->priority === 'medium' ? '#fd7e14' : ($task->priority === 'low' ? '#6c757d' : '#adb5bd')) }};"
+                        title="Priority">
+                    <option value="">— priority</option>
+                    <option value="high"   {{ $task->priority === 'high'   ? 'selected' : '' }} style="color:#dc3545;">↑ High</option>
+                    <option value="medium" {{ $task->priority === 'medium' ? 'selected' : '' }} style="color:#fd7e14;">~ Medium</option>
+                    <option value="low"    {{ $task->priority === 'low'    ? 'selected' : '' }} style="color:#6c757d;">↓ Low</option>
+                </select>
+            </form>
+
+            {{-- Weight chip (inline editable) --}}
+            <form class="d-inline"
+                  hx-put="{{ route('projects.board.tasks.update', [$project, $task]) }}"
+                  hx-target="[data-task-id='{{ $task->id }}']"
+                  hx-swap="outerHTML"
+                  hx-trigger="change from:select[name='weight']">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="title" value="{{ $task->title }}">
+                <input type="hidden" name="description" value="{{ $task->description }}">
+                <input type="hidden" name="column_id" value="{{ $task->column_id }}">
+                <input type="hidden" name="status" value="{{ $task->status }}">
+                <input type="hidden" name="priority" value="{{ $task->priority }}">
+                <input type="hidden" name="phase_id" value="{{ $task->phase_id }}">
+                <input type="hidden" name="from_board_modal" value="1">
+                <input type="hidden" name="status_change_only" value="1">
+                @foreach($task->users as $u) <input type="hidden" name="assignees[]" value="{{ $u->id }}"> @endforeach
+                @if(isset($filterPhaseId) && $filterPhaseId) <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}"> @endif
+                @if(isset($filterAssigned) && $filterAssigned) <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}"> @endif
+                @if(isset($filterPriority) && $filterPriority) <input type="hidden" name="filter_priority" value="{{ $filterPriority }}"> @endif
+                @if(isset($filterWeight) && $filterWeight) <input type="hidden" name="filter_weight" value="{{ $filterWeight }}"> @endif
+                <select name="weight"
+                        class="border-0 bg-transparent p-0 me-1 mb-1"
+                        style="font-size: 0.7rem; cursor: pointer; appearance: none; -webkit-appearance: none; outline: none; color: #495057; font-family: monospace;"
+                        title="Effort weight">
+                    <option value="">— weight</option>
+                    <option value="xs" {{ $task->weight === 'xs' ? 'selected' : '' }}>XS</option>
+                    <option value="s"  {{ $task->weight === 's'  ? 'selected' : '' }}>S</option>
+                    <option value="m"  {{ $task->weight === 'm'  ? 'selected' : '' }}>M</option>
+                    <option value="l"  {{ $task->weight === 'l'  ? 'selected' : '' }}>L</option>
+                    <option value="xl" {{ $task->weight === 'xl' ? 'selected' : '' }}>XL</option>
+                </select>
+            </form>
         </div>
 
         {{-- Last Updated (subtle) --}}
@@ -133,6 +202,8 @@
             <input type="hidden" name="title" value="{{ $task->title }}">
             <input type="hidden" name="description" value="{{ $task->description }}">
             <input type="hidden" name="status" value="{{ $task->status }}">
+            <input type="hidden" name="priority" value="{{ $task->priority }}">
+            <input type="hidden" name="weight" value="{{ $task->weight }}">
             <input type="hidden" name="phase_id" value="{{ $task->phase_id }}">
             <input type="hidden" name="from_board_modal" value="1">
             <input type="hidden" name="old_column_id" value="{{ $task->column_id }}">

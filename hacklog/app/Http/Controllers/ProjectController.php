@@ -495,6 +495,18 @@ class ProjectController extends Controller
                 $query->where('users.id', $assigned);
             });
         }
+
+        // Apply priority filter if requested
+        $filterPriority = $request->query('priority');
+        if ($filterPriority && in_array($filterPriority, \App\Models\Task::PRIORITY_VALUES)) {
+            $tasksQuery->where('priority', $filterPriority);
+        }
+
+        // Apply weight filter if requested
+        $filterWeight = $request->query('weight');
+        if ($filterWeight && in_array($filterWeight, \App\Models\Task::WEIGHT_VALUES)) {
+            $tasksQuery->where('weight', $filterWeight);
+        }
         
         // Load all tasks for this project (optionally filtered by phase)
         // Eager load phase, users, and creator relationships and order by position within each column
@@ -623,6 +635,8 @@ class ProjectController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'status' => ['required', Rule::in(Task::STATUSES)],
+            'priority' => ['nullable', Rule::in(Task::PRIORITY_VALUES)],
+            'weight' => ['nullable', Rule::in(Task::WEIGHT_VALUES)],
             'start_date' => 'nullable|date',
             'due_date' => 'nullable|date|after_or_equal:start_date',
             'assignees' => 'nullable|array',
@@ -821,6 +835,8 @@ class ProjectController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'status' => ['required', Rule::in(Task::STATUSES)],
+            'priority' => ['nullable', Rule::in(Task::PRIORITY_VALUES)],
+            'weight' => ['nullable', Rule::in(Task::WEIGHT_VALUES)],
             'start_date' => 'nullable|date',
             'due_date' => 'nullable|date|after_or_equal:start_date',
             'assignees' => 'nullable|array',

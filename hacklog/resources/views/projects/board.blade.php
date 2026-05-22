@@ -72,6 +72,38 @@
                 @endforeach
             </ul>
         </div>
+
+        {{-- Priority filter --}}
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle {{ request('priority') ? 'active' : '' }}" type="button" data-bs-toggle="dropdown" aria-label="Filter by priority">
+                @if(request('priority') === 'high') ↑ High
+                @elseif(request('priority') === 'medium') ~ Medium
+                @elseif(request('priority') === 'low') ↓ Low
+                @else Priority
+                @endif
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item {{ !request('priority') ? 'active' : '' }}" href="{{ request()->fullUrlWithQuery(['priority' => null]) }}">All Priorities</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item {{ request('priority') === 'high'   ? 'active' : '' }}" href="{{ request()->fullUrlWithQuery(['priority' => 'high']) }}">↑ High</a></li>
+                <li><a class="dropdown-item {{ request('priority') === 'medium' ? 'active' : '' }}" href="{{ request()->fullUrlWithQuery(['priority' => 'medium']) }}">~ Medium</a></li>
+                <li><a class="dropdown-item {{ request('priority') === 'low'    ? 'active' : '' }}" href="{{ request()->fullUrlWithQuery(['priority' => 'low']) }}">↓ Low</a></li>
+            </ul>
+        </div>
+
+        {{-- Weight filter --}}
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle {{ request('weight') ? 'active' : '' }}" type="button" data-bs-toggle="dropdown" aria-label="Filter by weight">
+                {{ request('weight') ? strtoupper(request('weight')) : 'Weight' }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item {{ !request('weight') ? 'active' : '' }}" href="{{ request()->fullUrlWithQuery(['weight' => null]) }}">All Weights</a></li>
+                <li><hr class="dropdown-divider"></li>
+                @foreach(['xs' => 'XS – trivial', 's' => 'S – small', 'm' => 'M – medium', 'l' => 'L – large', 'xl' => 'XL – heavy'] as $val => $label)
+                    <li><a class="dropdown-item {{ request('weight') === $val ? 'active' : '' }}" href="{{ request()->fullUrlWithQuery(['weight' => $val]) }}">{{ $label }}</a></li>
+                @endforeach
+            </ul>
+        </div>
     </div>
 </div>
 

@@ -217,6 +217,7 @@ class DashboardController extends Controller
         }
 
         // Unassigned tasks from active projects with shared staffing model
+        // Prioritize high-priority tasks first
         $unassignedTasks = Task::whereDoesntHave('users')
             ->where('status', '!=', 'completed')
             ->whereHas('phase', function($query) {
@@ -226,6 +227,7 @@ class DashboardController extends Controller
                 });
             })
             ->with(['phase.project', 'column'])
+            ->orderByRaw("CASE WHEN priority = 'high' THEN 1 WHEN priority = 'medium' THEN 2 WHEN priority = 'low' THEN 3 ELSE 4 END")
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();

@@ -277,6 +277,32 @@
             @endif
         </div>
 
+        {{-- Priority and Weight --}}
+        <div class="row mb-3">
+            <div class="col-6">
+                <label for="priority" class="form-label">Priority <span class="text-muted fw-normal">(optional)</span></label>
+                <select class="form-select form-select-sm @error('priority') is-invalid @enderror" id="priority" name="priority">
+                    <option value="">— none</option>
+                    <option value="high"   {{ old('priority', $isEdit ? $task->priority : '') === 'high'   ? 'selected' : '' }}>↑ High</option>
+                    <option value="medium" {{ old('priority', $isEdit ? $task->priority : '') === 'medium' ? 'selected' : '' }}>~ Medium</option>
+                    <option value="low"    {{ old('priority', $isEdit ? $task->priority : '') === 'low'    ? 'selected' : '' }}>↓ Low</option>
+                </select>
+                @error('priority') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-6">
+                <label for="weight" class="form-label">Weight <span class="text-muted fw-normal">(optional)</span></label>
+                <select class="form-select form-select-sm @error('weight') is-invalid @enderror" id="weight" name="weight">
+                    <option value="">— none</option>
+                    <option value="xs" {{ old('weight', $isEdit ? $task->weight : '') === 'xs' ? 'selected' : '' }}>XS – trivial</option>
+                    <option value="s"  {{ old('weight', $isEdit ? $task->weight : '') === 's'  ? 'selected' : '' }}>S – small</option>
+                    <option value="m"  {{ old('weight', $isEdit ? $task->weight : '') === 'm'  ? 'selected' : '' }}>M – medium</option>
+                    <option value="l"  {{ old('weight', $isEdit ? $task->weight : '') === 'l'  ? 'selected' : '' }}>L – large</option>
+                    <option value="xl" {{ old('weight', $isEdit ? $task->weight : '') === 'xl' ? 'selected' : '' }}>XL – heavy</option>
+                </select>
+                @error('weight') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+        </div>
+
         {{-- Dates in columnar layout --}}
         <div class="row mb-3">
             @if(!Auth::user()->isClient())

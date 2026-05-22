@@ -98,6 +98,17 @@ class TeamDashboardController extends Controller
         $openTasks = $tasksInRange->where('status', 'planned')->count();
         $inProgressTasks = $tasksInRange->where('status', 'active')->count();
         $completedTasks = $tasksInRange->where('status', 'completed')->count();
+
+        // Priority breakdown (open/active tasks only)
+        $openActiveTasks = $tasksInRange->whereIn('status', ['planned', 'active']);
+        $highPriorityCount = $openActiveTasks->where('priority', 'high')->count();
+        $mediumPriorityCount = $openActiveTasks->where('priority', 'medium')->count();
+        $lowPriorityCount = $openActiveTasks->where('priority', 'low')->count();
+
+        // Weighted workload score for open/active tasks
+        $weightedLoad = $openActiveTasks->sum(function ($task) {
+            return \App\Models\Task::WEIGHT_SCORES[$task->weight] ?? 0;
+        });
         
         // Distinct projects (via phase -> project relationship)
         $distinctProjects = $tasksInRange
@@ -200,6 +211,12 @@ class TeamDashboardController extends Controller
                 'completed_tasks' => $completedTasks,
                 'distinct_projects' => $distinctProjects,
             ],
+            'priority' => [
+                'high' => $highPriorityCount,
+                'medium' => $mediumPriorityCount,
+                'low' => $lowPriorityCount,
+            ],
+            'weighted_load' => $weightedLoad,
             'projects' => $projectDetails,
             'due_pressure' => [
                 'overdue' => $overdueTasks,

@@ -476,14 +476,21 @@
                                 @endphp
                                 <div class="list-group-item px-0 py-2">
                                     <div class="d-flex flex-column">
-                                        <h6 class="mb-1">
+                                        <h6 class="mb-1 d-flex align-items-center gap-2">
                                             <a href="{{ route('projects.board', ['project' => $task->getProject(), 'task' => $task->id]) }}" class="text-decoration-none">
                                                 {{ $task->title }}
                                             </a>
+                                            @if($task->priority === 'high')
+                                                <span class="text-danger" style="font-size:0.75rem;" title="High priority">↑ High</span>
+                                            @elseif($task->priority === 'medium')
+                                                <span style="font-size:0.75rem; color:#fd7e14;" title="Medium priority">~ Med</span>
+                                            @endif
+                                            @if($task->weight)
+                                                <span class="text-muted" style="font-size:0.7rem; font-family:monospace;">{{ strtoupper($task->weight) }}</span>
+                                            @endif
                                         </h6>
                                         <small class="text-muted mb-1">
                                             <a href="{{ route('projects.board', $task->getProject()) }}" class="text-decoration-none text-muted">{{ $task->getProject()->name }}</a>
-
                                         </small>
                                         @if($effectiveDueDate)
                                             <small class="text-muted">
