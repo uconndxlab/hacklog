@@ -335,18 +335,43 @@
 @endif
 
 <script>
+// Board filter state captured at page render time.
+// Using PHP-rendered values avoids losing filters when hx-push-url changes the
+// browser URL (e.g. when a task title is clicked to open the detail modal).
+const boardFilterPhase    = '{{ request('phase') }}';
+const boardFilterAssigned = '{{ request('assigned') }}';
+
+// Restore the board URL (with filters) whenever the task modal closes, undoing
+// any URL change caused by hx-push-url on task title links.
+(function () {
+    const boardBaseUrl = '{{ route('projects.board', $project) }}';
+    const filterParts  = [];
+    if (boardFilterPhase)    filterParts.push('phase='    + encodeURIComponent(boardFilterPhase));
+    if (boardFilterAssigned) filterParts.push('assigned=' + encodeURIComponent(boardFilterAssigned));
+    @if(request('priority'))
+    filterParts.push('priority=' + encodeURIComponent('{{ request('priority') }}'));
+    @endif
+    @if(request('weight'))
+    filterParts.push('weight=' + encodeURIComponent('{{ request('weight') }}'));
+    @endif
+    const boardUrl = boardBaseUrl + (filterParts.length ? '?' + filterParts.join('&') : '');
+
+    document.getElementById('taskModal').addEventListener('hidden.bs.modal', function () {
+        history.replaceState(null, '', boardUrl);
+    });
+})();
+
 // Add current filter parameters and CSRF token to HTMX requests
 document.body.addEventListener('htmx:configRequest', function(evt) {
-    const params = new URLSearchParams(window.location.search);
-    
-    // Add phase filter if present
-    if (params.get('phase')) {
-        evt.detail.parameters['phase'] = params.get('phase');
+    // Use the PHP-rendered filter variables instead of window.location.search so
+    // that filters are preserved even when the URL has changed (e.g. after opening
+    // a task detail modal which pushes its own URL via hx-push-url).
+    if (boardFilterPhase) {
+        evt.detail.parameters['phase'] = boardFilterPhase;
     }
     
-    // Add assigned filter if present
-    if (params.get('assigned')) {
-        evt.detail.parameters['assigned'] = params.get('assigned');
+    if (boardFilterAssigned) {
+        evt.detail.parameters['assigned'] = boardFilterAssigned;
     }
     
     // Add CSRF token to all HTMX requests
@@ -606,17 +631,15 @@ document.addEventListener('keydown', function(e) {
             position: position
         };
         
-        // Include phase filter if active
-        const urlParams = new URLSearchParams(window.location.search);
-        const filterPhaseId = urlParams.get('phase');
-        if (filterPhaseId) {
-            requestBody.filter_phase_id = filterPhaseId;
+        // Include phase/assignee filters using the PHP-rendered variables captured at
+        // page load, not window.location.search (which may have changed if the user
+        // opened a task detail modal before dragging).
+        if (boardFilterPhase) {
+            requestBody.filter_phase_id = boardFilterPhase;
         }
         
-        // Include assignee filter if active
-        const filterAssigned = urlParams.get('assigned');
-        if (filterAssigned) {
-            requestBody.filter_assigned = filterAssigned;
+        if (boardFilterAssigned) {
+            requestBody.filter_assigned = boardFilterAssigned;
         }
         
         fetch(`/projects/{{ $project->id }}/board/tasks/${draggedTask.dataset.taskId}/move`, {
