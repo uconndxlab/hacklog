@@ -46,6 +46,11 @@
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('about') ? 'active' : '' }}" href="{{ route('about') }}">About</a>
                     </li>
+                    @if(Auth::check() && !Auth::user()->isClient())
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('tags.*') ? 'active' : '' }}" href="{{ route('tags.index') }}">Tags</a>
+                        </li>
+                    @endif
                     @if(Auth::check() && Auth::user()->isAdmin())
 
 
