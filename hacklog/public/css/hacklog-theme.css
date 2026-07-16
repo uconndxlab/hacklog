@@ -1469,3 +1469,67 @@ body.theme-dark trix-toolbar .trix-input--dialog {
 }
 
 /* ============================================
+
+/* ============================================
+   TIMELINE FILTER BAR
+   ============================================ */
+
+.timeline-filter-bar .dropdown-menu.timeline-filter-menu {
+    min-width: 260px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.timeline-filter-chips .badge {
+    font-size: 0.72rem;
+}
+
+@media (max-width: 768px) {
+    .timeline-filter-bar {
+        gap: 0.35rem !important;
+    }
+
+    .timeline-filter-bar > * {
+        width: 100%;
+    }
+
+    .timeline-filter-bar .dropdown,
+    .timeline-filter-bar .dropdown > .btn {
+        width: 100%;
+    }
+
+    .timeline-filter-bar .form-check.form-switch {
+        width: auto;
+    }
+
+    .timeline-filter-bar .btn {
+        min-height: 40px;
+    }
+
+    .timeline-filter-chips {
+        overflow-x: auto;
+        white-space: nowrap;
+        flex-wrap: nowrap !important;
+        padding-bottom: 2px;
+    }
+}
+
+body.theme-dark .timeline-filter-bar .dropdown-menu.timeline-filter-menu {
+    background-color: #232a36;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.theme-dark .timeline-filter-bar .form-check-label {
+    color: #e2e6eb;
+}
+
+body.theme-dark .timeline-filter-bar .btn-outline-secondary {
+    color: #c3cedd;
+    border-color: rgba(255, 255, 255, 0.24);
+}
+
+body.theme-dark .timeline-filter-bar .btn-outline-secondary:hover {
+    background-color: #334057;
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #f5f8ff;
+}
