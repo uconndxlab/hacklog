@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\Tag;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\ProjectSlackNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -271,6 +272,7 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'status' => ['required', Rule::in(Project::STATUS_VALUES)],
             'staffing_model' => 'required|in:dedicated,shared',
+            'slack_webhook_url' => 'nullable|url|max:2048',
             'use_default_columns' => 'boolean',
             'tags_sync' => 'nullable|boolean',
             'tags' => 'nullable|array',
@@ -283,8 +285,10 @@ class ProjectController extends Controller
         }
 
         $projectData = collect($validated)
-            ->only(['name', 'description', 'status', 'staffing_model'])
+            ->only(['name', 'description', 'status', 'staffing_model', 'slack_webhook_url'])
             ->all();
+
+        $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
 
         $project = Project::create($projectData);
 
@@ -743,6 +747,8 @@ class ProjectController extends Controller
         // Process temporary attachments from Trix editor
         \App\Http\Controllers\TaskAttachmentController::processTempAttachments($task);
 
+        app(ProjectSlackNotificationService::class)->queueTaskCreated($task);
+
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
         $isGlobalModal = $request->input('global_modal');
@@ -847,6 +853,8 @@ class ProjectController extends Controller
 
         // Process temporary attachments from Trix editor
         \App\Http\Controllers\TaskAttachmentController::processTempAttachments($task);
+
+        app(ProjectSlackNotificationService::class)->queueTaskCreated($task);
 
         // Redirect to board with highlight parameter
         $queryParams = ['highlight' => $task->id];
@@ -975,6 +983,8 @@ class ProjectController extends Controller
             $task->position = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
             $task->save();
         }
+
+        app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
 
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
@@ -1135,6 +1145,8 @@ class ProjectController extends Controller
         $task->position = $validated['position'];
         $task->updated_by = auth()->id();
         $task->save();
+
+        app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
 
         // Log column change activity
         if ($oldColumnId !== $validated['column_id']) {
@@ -1363,6 +1375,7 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'status' => ['required', Rule::in(Project::STATUS_VALUES)],
             'staffing_model' => 'required|in:dedicated,shared',
+            'slack_webhook_url' => 'nullable|url|max:2048',
             'tags_sync' => 'nullable|boolean',
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
@@ -1375,8 +1388,10 @@ class ProjectController extends Controller
 
         $oldStatus = $project->status;
         $projectData = collect($validated)
-            ->only(['name', 'description', 'status', 'staffing_model'])
+            ->only(['name', 'description', 'status', 'staffing_model', 'slack_webhook_url'])
             ->all();
+
+        $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
 
         $project->update($projectData);
 
@@ -1411,6 +1426,13 @@ class ProjectController extends Controller
     protected function canManageProjectTags(?User $user): bool
     {
         return (bool) $user && ($user->isAdmin() || $user->isTeam());
+    }
+
+    protected function normalizeSlackWebhookUrl(?string $url): ?string
+    {
+        $normalized = trim((string) $url);
+
+        return $normalized !== '' ? $normalized : null;
     }
 
     protected function syncProjectTagsFromRequest(Project $project, Request $request): array

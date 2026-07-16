@@ -36,11 +36,13 @@ class Project extends Model
         'description',
         'status',
         'staffing_model',
+        'slack_webhook_url',
     ];
 
     protected $casts = [
         'status' => 'string',
         'staffing_model' => 'string',
+        'slack_webhook_url' => 'string',
     ];
 
     protected $attributes = [
