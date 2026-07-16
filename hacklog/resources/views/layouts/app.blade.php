@@ -178,6 +178,9 @@
     
     <!-- Trix Editor JS -->
     <script type="text/javascript" src="https://unpkg.com/trix@2.0.0/dist/trix.umd.min.js"></script>
+
+    <!-- Tag Picker Enhancement -->
+    <script src="{{ asset('js/tag-picker.js') }}"></script>
     
     @stack('scripts')
 

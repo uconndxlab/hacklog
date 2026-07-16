@@ -86,43 +86,13 @@
                             $selectedTagIds = collect(old('tags', $project->tags->pluck('id')->all()))->map(fn($id) => (int) $id)->all();
                         @endphp
                         <input type="hidden" name="tags_sync" value="1">
-                        <div class="mb-3">
-                            <label for="tags" class="form-label">Tags</label>
-                            <select
-                                class="form-select @error('tags') is-invalid @enderror"
-                                id="tags"
-                                name="tags[]"
-                                multiple
-                                size="6">
-                                @foreach($availableTags as $tag)
-                                    <option value="{{ $tag->id }}" {{ in_array($tag->id, $selectedTagIds, true) ? 'selected' : '' }}>
-                                        {{ $tag->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <div class="form-text">Pick existing tags and optionally add new tags below.</div>
-                            @error('tags')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                            @error('tags.*')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="new_tags" class="form-label">Add New Tags</label>
-                            <input
-                                type="text"
-                                class="form-control @error('new_tags') is-invalid @enderror"
-                                id="new_tags"
-                                name="new_tags"
-                                value="{{ old('new_tags') }}"
-                                placeholder="Comma-separated, e.g. Security, Frontend">
-                            <div class="form-text">New tags are created automatically when you save.</div>
-                            @error('new_tags')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
+                        @include('projects.partials.tag-picker', [
+                            'availableTags' => $availableTags,
+                            'selectedTagIds' => $selectedTagIds,
+                            'newTagsValue' => old('new_tags', ''),
+                            'selectId' => 'tags',
+                            'newTagsId' => 'new_tags',
+                        ])
                     @endif
 
                     <button type="submit" class="btn btn-primary">Save Changes</button>
