@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Tag;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\ProjectSlackNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -22,7 +24,7 @@ class ProjectController extends Controller
         
         // Start with visibility-filtered projects
         $query = Project::visibleTo($user)
-            ->with(['phases.tasks.users', 'columns.tasks.users']); // Eager load tasks in phases and standalone tasks
+            ->with(['phases.tasks.users', 'columns.tasks.users', 'tags']); // Eager load tasks and tags
 
         // Default scope logic:
         // - Clients: 'all' (they only see shared projects anyway via visibleTo() scope)
@@ -33,6 +35,7 @@ class ProjectController extends Controller
         $timeFilter = $request->input('time');
         $search = $request->input('search');
         $ownerFilter = $request->input('owner'); // Admin only
+        $tagFilter = $request->input('tag');
 
         // Scope filter: All / Assigned to me / I'm a contributor / Projects I'm on
         if ($scope === 'assigned') {
@@ -162,6 +165,11 @@ class ProjectController extends Controller
             });
         }
 
+        // Tag filter
+        if ($tagFilter && is_numeric($tagFilter)) {
+            $query->withTag((int) $tagFilter);
+        }
+
         // Limit for modal
         $limit = $request->input('limit');
         if ($limit && is_numeric($limit)) {
@@ -235,7 +243,11 @@ class ProjectController extends Controller
             return view('projects.partials.projects-list', compact('projects', 'favoriteProjectIds'));
         }
 
-        return view('projects.index', compact('projects', 'favoriteProjectIds'));
+        $tagOptions = Tag::whereHas('projects', function ($projectQuery) use ($user) {
+            $projectQuery->visibleTo($user);
+        })->orderBy('name')->get();
+
+        return view('projects.index', compact('projects', 'favoriteProjectIds', 'tagOptions'));
     }
 
     /**
@@ -243,7 +255,11 @@ class ProjectController extends Controller
      */
     public function create()
     {
-        return view('projects.create');
+        $availableTags = auth()->user()->isClient()
+            ? collect()
+            : Tag::orderBy('name')->get();
+
+        return view('projects.create', compact('availableTags'));
     }
 
     /**
@@ -256,10 +272,29 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'status' => ['required', Rule::in(Project::STATUS_VALUES)],
             'staffing_model' => 'required|in:dedicated,shared',
+            'slack_webhook_url' => 'nullable|url|max:2048',
             'use_default_columns' => 'boolean',
+            'tags_sync' => 'nullable|boolean',
+            'tags' => 'nullable|array',
+            'tags.*' => 'integer|exists:tags,id',
+            'new_tags' => 'nullable|string|max:1000',
         ]);
 
-        $project = Project::create($validated);
+        if ($request->has('tags_sync') && !$this->canManageProjectTags(auth()->user())) {
+            abort(403, 'You are not authorized to modify project tags.');
+        }
+
+        $projectData = collect($validated)
+            ->only(['name', 'description', 'status', 'staffing_model', 'slack_webhook_url'])
+            ->all();
+
+        $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
+
+        $project = Project::create($projectData);
+
+        if ($request->has('tags_sync') && $this->canManageProjectTags(auth()->user())) {
+            $this->syncProjectTagsFromRequest($project, $request);
+        }
 
         // Log project creation
         \App\Models\ProjectActivity::log($project->id, auth()->id(), 'created', null);
@@ -305,7 +340,7 @@ class ProjectController extends Controller
             $query->where('status', '!=', 'completed')
                   ->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
                   ->orderBy('start_date', 'asc');
-        }, 'columns']);
+        }, 'columns', 'tags']);
 
         // Get upcoming tasks (next 5, ordered by due date)
         $upcomingTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
@@ -712,6 +747,8 @@ class ProjectController extends Controller
         // Process temporary attachments from Trix editor
         \App\Http\Controllers\TaskAttachmentController::processTempAttachments($task);
 
+        app(ProjectSlackNotificationService::class)->queueTaskCreated($task);
+
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
         $isGlobalModal = $request->input('global_modal');
@@ -816,6 +853,8 @@ class ProjectController extends Controller
 
         // Process temporary attachments from Trix editor
         \App\Http\Controllers\TaskAttachmentController::processTempAttachments($task);
+
+        app(ProjectSlackNotificationService::class)->queueTaskCreated($task);
 
         // Redirect to board with highlight parameter
         $queryParams = ['highlight' => $task->id];
@@ -944,6 +983,8 @@ class ProjectController extends Controller
             $task->position = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
             $task->save();
         }
+
+        app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
 
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
@@ -1104,6 +1145,8 @@ class ProjectController extends Controller
         $task->position = $validated['position'];
         $task->updated_by = auth()->id();
         $task->save();
+
+        app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
 
         // Log column change activity
         if ($oldColumnId !== $validated['column_id']) {
@@ -1315,7 +1358,11 @@ class ProjectController extends Controller
         if (auth()->user()->isClient()) {
             abort(403, 'Clients cannot access project settings.');
         }
-        return view('projects.edit', compact('project'));
+
+        $project->load('tags');
+        $availableTags = Tag::orderBy('name')->get();
+
+        return view('projects.edit', compact('project', 'availableTags'));
     }
 
     /**
@@ -1328,10 +1375,30 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'status' => ['required', Rule::in(Project::STATUS_VALUES)],
             'staffing_model' => 'required|in:dedicated,shared',
+            'slack_webhook_url' => 'nullable|url|max:2048',
+            'tags_sync' => 'nullable|boolean',
+            'tags' => 'nullable|array',
+            'tags.*' => 'integer|exists:tags,id',
+            'new_tags' => 'nullable|string|max:1000',
         ]);
 
+        if ($request->has('tags_sync') && !$this->canManageProjectTags(auth()->user())) {
+            abort(403, 'You are not authorized to modify project tags.');
+        }
+
         $oldStatus = $project->status;
-        $project->update($validated);
+        $projectData = collect($validated)
+            ->only(['name', 'description', 'status', 'staffing_model', 'slack_webhook_url'])
+            ->all();
+
+        $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
+
+        $project->update($projectData);
+
+        $tagChanges = null;
+        if ($request->has('tags_sync') && $this->canManageProjectTags(auth()->user())) {
+            $tagChanges = $this->syncProjectTagsFromRequest($project, $request);
+        }
 
         // Log project update
         if ($oldStatus !== $validated['status']) {
@@ -1339,12 +1406,68 @@ class ProjectController extends Controller
                 'from' => $oldStatus,
                 'to' => $validated['status'],
             ]);
-        } else {
+        }
+
+        if ($tagChanges && (!empty($tagChanges['added']) || !empty($tagChanges['removed']))) {
+            \App\Models\ProjectActivity::log($project->id, auth()->id(), 'tags_updated', [
+                'added' => $tagChanges['added'],
+                'removed' => $tagChanges['removed'],
+            ]);
+        }
+
+        if ($oldStatus === $validated['status'] && (!$tagChanges || (empty($tagChanges['added']) && empty($tagChanges['removed'])))) {
             \App\Models\ProjectActivity::log($project->id, auth()->id(), 'updated', null);
         }
 
         return redirect()->route('projects.show', $project)
             ->with('success', 'Project updated successfully.');
+    }
+
+    protected function canManageProjectTags(?User $user): bool
+    {
+        return (bool) $user && ($user->isAdmin() || $user->isTeam());
+    }
+
+    protected function normalizeSlackWebhookUrl(?string $url): ?string
+    {
+        $normalized = trim((string) $url);
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    protected function syncProjectTagsFromRequest(Project $project, Request $request): array
+    {
+        $selectedTagIds = collect($request->input('tags', []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $newTagNames = Tag::normalizeNames((string) $request->input('new_tags', ''));
+
+        foreach ($newTagNames as $name) {
+            $slug = Tag::slugifyName($name);
+            if ($slug === '') {
+                continue;
+            }
+
+            $tag = Tag::firstOrCreate(
+                ['slug' => $slug],
+                ['name' => $name]
+            );
+
+            $selectedTagIds[] = $tag->id;
+        }
+
+        $newTagIds = array_values(array_unique($selectedTagIds));
+        $existingTagIds = $project->tags()->pluck('tags.id')->map(fn ($id) => (int) $id)->all();
+
+        $project->tags()->sync($newTagIds);
+
+        return [
+            'added' => array_values(array_diff($newTagIds, $existingTagIds)),
+            'removed' => array_values(array_diff($existingTagIds, $newTagIds)),
+        ];
     }
 
     /**

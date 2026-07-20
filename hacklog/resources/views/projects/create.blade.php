@@ -76,6 +76,37 @@
             </div>
 
             <div class="mb-3">
+                <label for="slack_webhook_url" class="form-label">Slack Webhook URL (optional)</label>
+                <input
+                    type="url"
+                    class="form-control @error('slack_webhook_url') is-invalid @enderror"
+                    id="slack_webhook_url"
+                    name="slack_webhook_url"
+                    value="{{ old('slack_webhook_url') }}"
+                    placeholder="https://hooks.slack.com/services/...">
+                <div class="form-text">
+                    When set, task creations are sent as one summary message every 5 minutes for this project.
+                </div>
+                @error('slack_webhook_url')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            @if(!auth()->user()->isClient())
+                @php
+                    $selectedTagIds = collect(old('tags', []))->map(fn($id) => (int) $id)->all();
+                @endphp
+                <input type="hidden" name="tags_sync" value="1">
+                @include('projects.partials.tag-picker', [
+                    'availableTags' => $availableTags,
+                    'selectedTagIds' => $selectedTagIds,
+                    'newTagsValue' => old('new_tags', ''),
+                    'selectId' => 'tags',
+                    'newTagsId' => 'new_tags',
+                ])
+            @endif
+
+            <div class="mb-3">
                 <div class="form-check">
                     <input 
                         class="form-check-input" 

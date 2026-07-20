@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Phase;
 use App\Models\Project;
 use App\Models\Task;
+use App\Services\ProjectSlackNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -79,6 +80,8 @@ class TaskController extends Controller
                 'added' => $newAssignees,
             ]);
         }
+
+        app(ProjectSlackNotificationService::class)->queueTaskCreated($task);
 
         return redirect()->route('projects.board', ['project' => $project, 'phase' => $phase->id])
             ->with('success', 'Task created successfully.');
@@ -177,6 +180,8 @@ class TaskController extends Controller
                 'removed' => array_diff($oldAssignees, $newAssignees),
             ]);
         }
+
+        app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
 
         // Check if this is from the board view
         $fromBoard = $request->input('from_board');

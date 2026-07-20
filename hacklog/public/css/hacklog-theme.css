@@ -817,6 +817,142 @@ thead th {
     border-color: #DEE2E6;
 }
 
+
+/* ============================================
+   TAG PICKER COMPONENT
+   ============================================ */
+
+.hl-tag-picker {
+    position: relative;
+}
+
+.hl-tag-picker-shell {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.4rem 0.55rem;
+    cursor: text;
+}
+
+.hl-tag-chip-list {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.hl-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background-color: #eef4ff;
+    border: 1px solid #c9daf7;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.82rem;
+    color: #1f3b69;
+}
+
+.hl-tag-chip-label {
+    line-height: 1.2;
+}
+
+.hl-tag-chip-remove {
+    border: 0;
+    background: transparent;
+    border-radius: 50%;
+    width: 1.1rem;
+    height: 1.1rem;
+    padding: 0;
+    color: #6b7ea1;
+    line-height: 1;
+}
+
+.hl-tag-chip-remove:hover,
+.hl-tag-chip-remove:focus-visible {
+    background-color: rgba(31, 59, 105, 0.12);
+    color: #132746;
+}
+
+.hl-tag-picker-input {
+    border: 0;
+    flex: 1 1 220px;
+    min-width: 180px;
+    outline: none;
+    padding: 0.2rem 0;
+    font-size: 0.95rem;
+    color: inherit;
+    background: transparent;
+}
+
+.hl-tag-picker-input::placeholder {
+    color: #6c757d;
+}
+
+.hl-tag-suggestions {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    right: 0;
+    z-index: 25;
+    max-height: 220px;
+    overflow-y: auto;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+    border-radius: 0.5rem;
+}
+
+.hl-tag-suggestions .list-group-item {
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.hl-tag-suggestions .list-group-item.active {
+    background-color: #557099;
+    border-color: #557099;
+}
+
+body.theme-dark .hl-tag-chip {
+    background-color: #2f3d52;
+    border-color: rgba(163, 194, 255, 0.35);
+    color: #d4e5ff;
+}
+
+body.theme-dark .hl-tag-chip-remove {
+    color: #a9bddf;
+}
+
+body.theme-dark .hl-tag-chip-remove:hover,
+body.theme-dark .hl-tag-chip-remove:focus-visible {
+    background-color: rgba(212, 229, 255, 0.14);
+    color: #ebf4ff;
+}
+
+body.theme-dark .hl-tag-picker-input::placeholder {
+    color: #98a2b2;
+}
+
+body.theme-dark .hl-tag-suggestions {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
+}
+
+body.theme-dark .hl-tag-suggestions .list-group-item {
+    background-color: #2a3342;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #e2e6eb;
+}
+
+body.theme-dark .hl-tag-suggestions .list-group-item:hover {
+    background-color: #334057;
+}
+
+body.theme-dark .hl-tag-suggestions .list-group-item.active {
+    background-color: #7ba3ff;
+    border-color: #7ba3ff;
+    color: #0f1830;
+}
+
 /**
  * Alert links inherit proper weight
  */
@@ -1333,3 +1469,67 @@ body.theme-dark trix-toolbar .trix-input--dialog {
 }
 
 /* ============================================
+
+/* ============================================
+   TIMELINE FILTER BAR
+   ============================================ */
+
+.timeline-filter-bar .dropdown-menu.timeline-filter-menu {
+    min-width: 260px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.timeline-filter-chips .badge {
+    font-size: 0.72rem;
+}
+
+@media (max-width: 768px) {
+    .timeline-filter-bar {
+        gap: 0.35rem !important;
+    }
+
+    .timeline-filter-bar > * {
+        width: 100%;
+    }
+
+    .timeline-filter-bar .dropdown,
+    .timeline-filter-bar .dropdown > .btn {
+        width: 100%;
+    }
+
+    .timeline-filter-bar .form-check.form-switch {
+        width: auto;
+    }
+
+    .timeline-filter-bar .btn {
+        min-height: 40px;
+    }
+
+    .timeline-filter-chips {
+        overflow-x: auto;
+        white-space: nowrap;
+        flex-wrap: nowrap !important;
+        padding-bottom: 2px;
+    }
+}
+
+body.theme-dark .timeline-filter-bar .dropdown-menu.timeline-filter-menu {
+    background-color: #232a36;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.theme-dark .timeline-filter-bar .form-check-label {
+    color: #e2e6eb;
+}
+
+body.theme-dark .timeline-filter-bar .btn-outline-secondary {
+    color: #c3cedd;
+    border-color: rgba(255, 255, 255, 0.24);
+}
+
+body.theme-dark .timeline-filter-bar .btn-outline-secondary:hover {
+    background-color: #334057;
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #f5f8ff;
+}

@@ -9,6 +9,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectResourceController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaskAttachmentController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TeamDashboardController;
@@ -59,6 +60,7 @@ Route::middleware('auth')->group(function () {
         Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
     });
 
+    Route::resource('tags', TagController::class)->except(['show']);
     Route::resource('projects', ProjectController::class);
     Route::post('projects/{project}/favorite', [ProjectFavoriteController::class, 'toggle'])->name('projects.favorites.toggle');
 Route::get('projects/{project}/sharing', [ProjectController::class, 'sharing'])->name('projects.sharing');

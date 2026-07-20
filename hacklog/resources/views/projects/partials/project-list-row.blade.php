@@ -10,7 +10,7 @@
             hx-post="{{ route('projects.favorites.toggle', $project) }}"
             hx-target="#projects-list"
             hx-swap="innerHTML"
-            hx-include="[name='search'], [name='sort'], [name='scope'], [name='status'], [name='time'], [name='owner']"
+            hx-include="[name='search'], [name='sort'], [name='scope'], [name='status'], [name='time'], [name='owner'], [name='tag']"
             title="{{ $isFavorited ? 'Remove from favorites' : 'Add to favorites' }}"
             onmouseover="this.style.color='#f5a623'"
             onmouseout="this.style.color='{{ $isFavorited ? '#f5a623' : '#ccc' }}'">
@@ -30,6 +30,19 @@
           style="font-size: 0.7rem;">
         {{ ucfirst(str_replace('_', ' ', $project->status)) }}
     </span>
+
+    @if($project->tags->isNotEmpty())
+        <div class="d-none d-md-flex align-items-center gap-1">
+            @foreach($project->tags->take(3) as $tag)
+                <span class="badge rounded-pill text-bg-light border" style="font-size: 0.65rem;">
+                    {{ $tag->name }}
+                </span>
+            @endforeach
+            @if($project->tags->count() > 3)
+                <span class="text-muted" style="font-size: 0.7rem;">+{{ $project->tags->count() - 3 }}</span>
+            @endif
+        </div>
+    @endif
 
     {{-- Arrow --}}
     <span class="text-muted" style="font-size: 0.8rem; opacity: 0.4;">›</span>

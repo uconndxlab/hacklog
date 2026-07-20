@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
             User::factory()->create([
                 'name' => 'Admin User',
                 'email' => 'admin@hacklog.com',
-                'role' => 'admin',
+                'role' => User::ROLE_ADMIN,
             ]);
         }
 
@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
             User::factory()->create([
                 'name' => 'Jane Developer',
                 'email' => 'jane@hacklog.com',
-                'role' => 'user',
+                'role' => User::ROLE_TEAM,
             ]);
         }
 
@@ -36,7 +36,7 @@ class DatabaseSeeder extends Seeder
             User::factory()->create([
                 'name' => 'John Designer',
                 'email' => 'john@hacklog.com',
-                'role' => 'user',
+                'role' => User::ROLE_TEAM,
             ]);
         }
     }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Builder;
 
 class Project extends Model
@@ -35,11 +36,13 @@ class Project extends Model
         'description',
         'status',
         'staffing_model',
+        'slack_webhook_url',
     ];
 
     protected $casts = [
         'status' => 'string',
         'staffing_model' => 'string',
+        'slack_webhook_url' => 'string',
     ];
 
     protected $attributes = [
@@ -74,6 +77,18 @@ class Project extends Model
     public function favoritedByUsers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(User::class, 'project_favorites')->withTimestamps();
+    }
+
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class)->withTimestamps();
+    }
+
+    public function scopeWithTag(Builder $query, int $tagId): Builder
+    {
+        return $query->whereHas('tags', function (Builder $tagQuery) use ($tagId) {
+            $tagQuery->where('tags.id', $tagId);
+        });
     }
 
     /**

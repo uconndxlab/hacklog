@@ -5,7 +5,7 @@
 --}}
 <div class="mb-3">
     <h1 class="mb-2">{{ $project->name }}</h1>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
         <span class="badge 
             @if($project->status === 'planning') bg-info
             @elseif($project->status === 'active') bg-success
@@ -18,5 +18,11 @@
         <span class="text-muted small">
             Created {{ $project->created_at->format('M j, Y') }}
         </span>
+
+        @foreach($project->tags as $tag)
+            <span class="badge rounded-pill text-bg-light border">
+                {{ $tag->name }}
+            </span>
+        @endforeach
     </div>
 </div>
