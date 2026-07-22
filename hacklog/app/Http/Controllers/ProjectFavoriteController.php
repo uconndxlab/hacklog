@@ -22,9 +22,10 @@ class ProjectFavoriteController extends Controller
         $indexRequest = Request::create(
             route('projects.index'),
             'GET',
-            $request->only(['search', 'scope', 'status', 'time', 'owner', 'sort'])
+            $request->only(['search', 'scope', 'status', 'time', 'owner', 'sort', 'tag'])
         );
         $indexRequest->setUserResolver($request->getUserResolver());
+        $indexRequest->headers->set('HX-Request', 'true');
         
         // Return updated projects list partial (HTMX will swap)
         return app(ProjectController::class)->index($indexRequest);
