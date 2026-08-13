@@ -50,6 +50,9 @@
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('tags.*') ? 'active' : '' }}" href="{{ route('tags.index') }}">Tags</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('ollama.*') ? 'active' : '' }}" href="{{ route('ollama.index') }}">AI Test</a>
+                        </li>
                     @endif
                     @if(Auth::check() && Auth::user()->isAdmin())
 

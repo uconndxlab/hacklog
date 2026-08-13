@@ -38,6 +38,11 @@
         </a>
     </li>
     <li class="nav-item">
+        <a class="nav-link @if($currentView === 'intake') active @endif" href="{{ route('projects.intake.index', $project) }}">
+            AI Intake
+        </a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link @if($currentView === 'settings') active @endif" href="{{ route('projects.edit', $project) }}">
             Settings
         </a>
