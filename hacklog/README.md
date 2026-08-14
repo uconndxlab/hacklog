@@ -73,6 +73,30 @@ Or just the server:
 php artisan serve
 ```
 
+## Local Ollama Configuration (Phase 1)
+
+Hacklog can send a prompt to a locally hosted Ollama server and display the response in the app.
+
+Add these values to your `.env` file:
+
+```bash
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=gemma4
+OLLAMA_TIMEOUT_SECONDS=30
+OLLAMA_CONNECT_TIMEOUT_SECONDS=5
+OLLAMA_GENERATE_PATH=/api/generate
+OLLAMA_CHAT_PATH=/api/chat
+OLLAMA_MAX_TOOL_ROUNDS=4
+```
+
+Then ensure Ollama is running locally and the selected model is available.
+
+Phase 1 UI path after login:
+
+- Open `/ollama` (AI Test)
+- Enter a prompt
+- Submit to see the model response rendered in Hacklog
+
 ## License
 
 MIT

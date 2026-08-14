@@ -1376,6 +1376,8 @@ class ProjectController extends Controller
             'status' => ['required', Rule::in(Project::STATUS_VALUES)],
             'staffing_model' => 'required|in:dedicated,shared',
             'slack_webhook_url' => 'nullable|url|max:2048',
+            'slack_channel_id' => 'nullable|string|max:30',
+            'slack_bot_enabled' => 'nullable|boolean',
             'tags_sync' => 'nullable|boolean',
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
@@ -1388,10 +1390,12 @@ class ProjectController extends Controller
 
         $oldStatus = $project->status;
         $projectData = collect($validated)
-            ->only(['name', 'description', 'status', 'staffing_model', 'slack_webhook_url'])
+            ->only(['name', 'description', 'status', 'staffing_model', 'slack_webhook_url', 'slack_channel_id'])
             ->all();
 
         $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
+        $projectData['slack_channel_id'] = trim((string) ($validated['slack_channel_id'] ?? '')) ?: null;
+        $projectData['slack_bot_enabled'] = (bool) ($validated['slack_bot_enabled'] ?? false);
 
         $project->update($projectData);
 

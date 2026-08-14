@@ -182,6 +182,65 @@ class ProjectSlackNotificationService
         }
     }
 
+    /**
+     * Post a concise summary to Slack when tasks are created from an AI Intake approval.
+     *
+     * This fires immediately (not throttled) and is separate from the board-level
+     * task-created notifications. Slack failure is logged but never surfaces to the user
+     * and never prevents tasks from being created.
+     *
+     * @param  \App\Models\Project        $project
+     * @param  \App\Models\ProjectIntake  $intake
+     * @param  string[]                   $taskTitles  Titles of tasks that were just created.
+     */
+    public function notifyIntakeApproval(
+        \App\Models\Project $project,
+        \App\Models\ProjectIntake $intake,
+        array $taskTitles
+    ): void {
+        if (blank($project->slack_webhook_url) || empty($taskTitles)) {
+            return;
+        }
+
+        $count = count($taskTitles);
+        $noun  = $count === 1 ? 'task' : 'tasks';
+
+        $lines   = ["*Hacklog update — {$project->name}*", ''];
+        $lines[] = "{$count} {$noun} created from AI intake:";
+
+        foreach (array_slice($taskTitles, 0, 15) as $title) {
+            $lines[] = '• ' . $title;
+        }
+
+        if ($count > 15) {
+            $lines[] = '• ...and ' . ($count - 15) . ' more';
+        }
+
+        $intakeUrl = route('projects.intake.show', [$project, $intake]);
+        $lines[]   = '';
+        $lines[]   = "<{$intakeUrl}|View intake>";
+
+        try {
+            $response = Http::timeout(10)->post($project->slack_webhook_url, [
+                'text' => implode("\n", $lines),
+            ]);
+
+            if ($response->failed()) {
+                Log::warning('Hacklog AI: intake Slack notification failed.', [
+                    'project_id' => $project->id,
+                    'intake_id'  => $intake->id,
+                    'status'     => $response->status(),
+                ]);
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Hacklog AI: intake Slack notification exception.', [
+                'project_id' => $project->id,
+                'intake_id'  => $intake->id,
+                'error'      => $exception->getMessage(),
+            ]);
+        }
+    }
+
     protected function clearPendingState(int $projectId): void
     {
         Cache::forget($this->pendingKey($projectId));

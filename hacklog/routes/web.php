@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PhaseController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFavoriteController;
+use App\Http\Controllers\ProjectIntakeController;
 use App\Http\Controllers\ProjectResourceController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TagController;
@@ -75,6 +76,14 @@ Route::delete('projects/{project}/board/tasks/{task}', [ProjectController::class
 Route::post('projects/{project}/board/tasks/{task}/move', [ProjectController::class, 'moveTask'])->name('projects.board.tasks.move');
 Route::post('projects/{project}/board/tasks/{task}/comments', [ProjectController::class, 'storeComment'])->name('projects.board.tasks.comments.store');
 Route::delete('projects/{project}/board/tasks/{task}/comments/{comment}', [ProjectController::class, 'deleteComment'])->name('projects.board.tasks.comments.destroy');
+
+Route::get('projects/{project}/intake', [ProjectIntakeController::class, 'index'])->name('projects.intake.index');
+Route::post('projects/{project}/intake', [ProjectIntakeController::class, 'store'])->name('projects.intake.store');
+Route::get('projects/{project}/intake/{intake}', [ProjectIntakeController::class, 'show'])->name('projects.intake.show');
+Route::get('projects/{project}/intake/{intake}/status', [ProjectIntakeController::class, 'status'])->name('projects.intake.status');
+Route::post('projects/{project}/intake/{intake}/proposals/{proposal}/approve', [ProjectIntakeController::class, 'approveProposal'])->name('projects.intake.proposals.approve');
+Route::post('projects/{project}/intake/{intake}/proposals/bulk-approve', [ProjectIntakeController::class, 'bulkApproveProposals'])->name('projects.intake.proposals.bulk-approve');
+Route::post('projects/{project}/intake/{intake}/proposals/{proposal}/dismiss', [ProjectIntakeController::class, 'dismissProposal'])->name('projects.intake.proposals.dismiss');
 Route::post('projects/{project}/board/tasks/temp-trix-upload', [TaskAttachmentController::class, 'uploadForTrixTemporary'])->name('projects.board.tasks.attachments.trix-temp');
 Route::post('projects/{project}/board/tasks/{task}/attachments/trix', [TaskAttachmentController::class, 'uploadForTrix'])->name('projects.board.tasks.attachments.trix');
 Route::post('projects/{project}/board/tasks/{task}/attachments', [TaskAttachmentController::class, 'upload'])->name('projects.board.tasks.attachments.upload');
