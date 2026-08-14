@@ -11,9 +11,10 @@ namespace App\Services;
  */
 class SlackIntentMatcher
 {
-    const INTENT_DUE_THIS_WEEK = 'tasks_due_this_week';
-    const INTENT_OVERDUE       = 'overdue_tasks';
-    const INTENT_OPEN          = 'open_tasks';
+    const INTENT_DUE_THIS_WEEK  = 'tasks_due_this_week';
+    const INTENT_OVERDUE         = 'overdue_tasks';
+    const INTENT_OPEN            = 'open_tasks';
+    const INTENT_CREATE_INTAKE   = 'create_ai_intake_from_slack';
 
     /**
      * Ordered intent rules: first match wins.
@@ -22,6 +23,31 @@ class SlackIntentMatcher
      * @var array<string, string[]>
      */
     private const RULES = [
+        // Capture intent checked first — keywords are distinct from query intents.
+        self::INTENT_CREATE_INTAKE => [
+            // Short shorthands — these are unambiguous and handled deterministically
+            'task me',
+            'task this',
+            'grab this',
+            'make actionable',
+            'make this actionable',
+            // Longer explicit phrases
+            'add this as a task',
+            'add this as tasks',
+            'add this to hacklog',
+            'turn this into tasks',
+            'turn this into a task',
+            'turn this thread',        // covers "turn this thread into tasks/a task"
+            'turn this into',          // covers any "turn this into …" variant
+            'capture this',
+            'send this to hacklog',
+            'log this',
+            'make this a task',
+            'make this into a task',
+            'create a task from this',
+            'create tasks from this',
+            'put this in hacklog',
+        ],
         self::INTENT_DUE_THIS_WEEK => [
             'due this week',
             'due next',
@@ -83,6 +109,7 @@ class SlackIntentMatcher
     public static function allIntents(): array
     {
         return [
+            self::INTENT_CREATE_INTAKE,
             self::INTENT_DUE_THIS_WEEK,
             self::INTENT_OVERDUE,
             self::INTENT_OPEN,

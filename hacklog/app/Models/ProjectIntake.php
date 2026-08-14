@@ -21,6 +21,7 @@ class ProjectIntake extends Model
     ];
 
     const SOURCE_TYPE_MANUAL = 'manual';
+    const SOURCE_TYPE_SLACK  = 'slack';
 
     protected $fillable = [
         'project_id',
@@ -35,11 +36,13 @@ class ProjectIntake extends Model
         'processing_started_at',
         'processing_completed_at',
         'correlation_id',
+        'slack_context',
     ];
 
     protected $casts = [
         'processing_started_at'   => 'datetime',
         'processing_completed_at' => 'datetime',
+        'slack_context'           => 'array',
     ];
 
     // -------------------------------------------------------------------------

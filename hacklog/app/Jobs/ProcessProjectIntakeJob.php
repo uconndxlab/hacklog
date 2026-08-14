@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\ProjectIntake;
 use App\Models\ProjectIntakeProposal;
 use App\Services\ProjectIntakeService;
+use App\Services\SlackBotService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -31,7 +32,7 @@ class ProcessProjectIntakeJob implements ShouldQueue
     {
     }
 
-    public function handle(ProjectIntakeService $service): void
+    public function handle(ProjectIntakeService $service, SlackBotService $botService): void
     {
         $intake = ProjectIntake::with('project')->find($this->intakeId);
 
@@ -73,6 +74,7 @@ class ProcessProjectIntakeJob implements ShouldQueue
                 'error'          => $result['error'] ?? 'unknown',
             ]);
 
+            $this->notifySlack($intake, 0, failed: true, botService: $botService);
             return;
         }
 
@@ -107,6 +109,8 @@ class ProcessProjectIntakeJob implements ShouldQueue
             'correlation_id' => $intake->correlation_id,
             'proposal_count' => $proposalCount,
         ]);
+
+        $this->notifySlack($intake, $proposalCount, failed: false, botService: $botService);
     }
 
     /**
@@ -121,13 +125,67 @@ class ProcessProjectIntakeJob implements ShouldQueue
             'error'           => $exception->getMessage(),
         ]);
 
-        $intake = ProjectIntake::find($this->intakeId);
+        $intake = ProjectIntake::with('project')->find($this->intakeId);
 
         if ($intake && !$intake->isTerminal()) {
             $intake->update([
                 'status'                  => ProjectIntake::STATUS_FAILED,
                 'error_message'           => 'Job failed: ' . $exception->getMessage(),
                 'processing_completed_at' => now(),
+            ]);
+
+            $this->notifySlack($intake, 0, failed: true, botService: app(SlackBotService::class));
+        }
+    }
+
+    /**
+     * Post a completion or failure notification back to the originating Slack thread,
+     * if this intake was created from Slack.
+     *
+     * Slack failure is logged but never throws — Hacklog persistence is authoritative.
+     */
+    private function notifySlack(
+        ProjectIntake $intake,
+        int           $proposalCount,
+        bool          $failed,
+        SlackBotService $botService
+    ): void {
+        if ($intake->source_type !== ProjectIntake::SOURCE_TYPE_SLACK) {
+            return;
+        }
+
+        $slackContext = $intake->slack_context;
+        if (!is_array($slackContext) || empty($slackContext['channel_id'])) {
+            return;
+        }
+
+        $channelId = (string) $slackContext['channel_id'];
+        $threadTs  = isset($slackContext['thread_ts']) ? (string) $slackContext['thread_ts'] : null;
+
+        try {
+            $intakeUrl = route('projects.intake.show', [$intake->project, $intake]);
+
+            if ($failed) {
+                $message = "I couldn't finish analyzing this thread. The intake is saved in Hacklog: {$intakeUrl}";
+            } elseif ($proposalCount > 0) {
+                $noun    = $proposalCount === 1 ? 'proposed task' : 'proposed tasks';
+                $message = "Done — I found *{$proposalCount} {$noun}* for *{$intake->project->name}*. Review them in Hacklog: {$intakeUrl}";
+            } else {
+                $message = "Done — I didn't find any clear actionable tasks in this thread. The intake is saved in Hacklog: {$intakeUrl}";
+            }
+
+            $botService->postMessage($channelId, $message, $threadTs);
+
+            Log::info('Hacklog AI: intake Slack completion notification posted.', [
+                'intake_id'  => $intake->id,
+                'channel_id' => $channelId,
+                'failed'     => $failed,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Hacklog AI: intake Slack completion notification failed.', [
+                'intake_id'       => $intake->id,
+                'exception_class' => get_class($exception),
+                'error'           => $exception->getMessage(),
             ]);
         }
     }

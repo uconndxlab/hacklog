@@ -69,4 +69,63 @@ class SlackBotService
             ]);
         }
     }
+
+    /**
+     * Fetch all messages in a Slack thread via conversations.replies.
+     *
+     * Required Slack bot scopes:
+     *   channels:history  — public channels
+     *   groups:history    — private channels
+     *
+     * Returns the raw Slack message objects in chronological order.
+     * Returns an empty array on failure.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function fetchThreadMessages(string $channelId, string $threadTs, int $limit = 50): array
+    {
+        $token = (string) config('slack.bot_token', '');
+
+        if ($token === '') {
+            Log::warning('Slack bot: SLACK_BOT_TOKEN is not configured; cannot fetch thread.');
+            return [];
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(10)
+                ->get('https://slack.com/api/conversations.replies', [
+                    'channel' => $channelId,
+                    'ts'      => $threadTs,
+                    'limit'   => $limit,
+                ]);
+
+            if (!$response->json('ok')) {
+                Log::warning('Slack bot: conversations.replies returned ok=false.', [
+                    'channel_id' => $channelId,
+                    'thread_ts'  => $threadTs,
+                    'error'      => $response->json('error'),
+                ]);
+                return [];
+            }
+
+            $messages = $response->json('messages') ?? [];
+
+            Log::info('Slack bot: thread messages fetched.', [
+                'channel_id'    => $channelId,
+                'thread_ts'     => $threadTs,
+                'message_count' => count($messages),
+            ]);
+
+            return (array) $messages;
+        } catch (\Throwable $exception) {
+            Log::warning('Slack bot: conversations.replies exception.', [
+                'channel_id'      => $channelId,
+                'thread_ts'       => $threadTs,
+                'exception_class' => get_class($exception),
+                'error'           => $exception->getMessage(),
+            ]);
+            return [];
+        }
+    }
 }
