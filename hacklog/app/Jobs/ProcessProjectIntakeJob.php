@@ -96,7 +96,8 @@ class ProcessProjectIntakeJob implements ShouldQueue
 
         $intake->update([
             'status'                    => ProjectIntake::STATUS_READY,
-            'model'                     => config('ollama.model'),
+            'provider'                  => $result['provider'] ?? config('ai.provider', 'ollama'),
+            'model'                     => $result['model'] ?? config('ollama.model'),
             'ollama_summary'            => $result['summary'] ?? null,
             'processing_completed_at'   => now(),
         ]);

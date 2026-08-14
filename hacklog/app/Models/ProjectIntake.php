@@ -28,6 +28,7 @@ class ProjectIntake extends Model
         'source_type',
         'source_content',
         'status',
+        'provider',
         'model',
         'ollama_summary',
         'error_message',

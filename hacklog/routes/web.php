@@ -6,7 +6,6 @@ use App\Http\Controllers\ColumnController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PhaseController;
 use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\OllamaController;
 use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectIntakeController;
 use App\Http\Controllers\ProjectResourceController;
@@ -47,8 +46,6 @@ Route::get('/', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/about', AboutController::class)->name('about');
-    Route::get('/ollama', [OllamaController::class, 'index'])->name('ollama.index');
-    Route::post('/ollama', [OllamaController::class, 'store'])->name('ollama.store');
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
     Route::get('/timeline', [TimelineController::class, 'index'])->name('timeline.index');
     Route::get('/team', [TeamDashboardController::class, 'index'])->name('team.dashboard');

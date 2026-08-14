@@ -51,14 +51,4 @@ return [
     |
     */
     'chat_path' => env('OLLAMA_CHAT_PATH', '/api/chat'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Tool Loop Limits
-    |--------------------------------------------------------------------------
-    |
-    | Maximum number of assistant/tool rounds allowed for a single prompt.
-    |
-    */
-    'max_tool_rounds' => (int) env('OLLAMA_MAX_TOOL_ROUNDS', 4),
 ];

@@ -8,6 +8,7 @@ use App\Models\ProjectIntake;
 use App\Models\ProjectIntakeProposal;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\ProjectSlackNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -189,6 +190,10 @@ class ProjectIntakeController extends Controller
             'created_task_id' => $task->id,
         ]);
 
+        // Notify project Slack channel — failure must not prevent the redirect.
+        app(ProjectSlackNotificationService::class)
+            ->notifyIntakeApproval($project, $intake, [$task->title]);
+
         return redirect()->route('projects.intake.show', [$project, $intake])
             ->with('success', "Task \"{$task->title}\" added to {$project->name}.");
     }
@@ -247,6 +252,16 @@ class ProjectIntakeController extends Controller
         }
 
         $noun = $created === 1 ? 'task' : 'tasks';
+
+        // Notify project Slack channel — failure must not prevent the redirect.
+        if ($created > 0) {
+            $approvedTitles = $proposals
+                ->filter(fn ($p) => $p->status === ProjectIntakeProposal::STATUS_APPROVED)
+                ->pluck('title')
+                ->all();
+            app(ProjectSlackNotificationService::class)
+                ->notifyIntakeApproval($project, $intake, $approvedTitles);
+        }
 
         return redirect()->route('projects.intake.show', [$project, $intake])
             ->with('success', "{$created} {$noun} added to {$project->name}.");
