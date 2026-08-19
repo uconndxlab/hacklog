@@ -18,8 +18,7 @@
     max-width: 320px;
 }
 
-/* When there are 3 or fewer columns, make them take full width */
-.board-container:has(.board-column-wrapper:nth-child(-n+4):last-child) .board-column-wrapper {
+.board-container--fill .board-column-wrapper {
     flex: 1 1 0;
     max-width: none;
 }
@@ -228,7 +227,7 @@
         </div>
     </div>
 @else
-    <div class="board-container" id="board-container">
+    <div class="board-container {{ $columns->count() <= 4 ? 'board-container--fill' : '' }}" id="board-container">
         @foreach($columns as $column)
             <div class="board-column-wrapper">
                 @include('projects.partials.board-column', [

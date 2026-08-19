@@ -31,25 +31,8 @@
             class="d-inline">
             @csrf
             @method('PUT')
-            
-            {{-- Hidden fields to preserve task data --}}
-            <input type="hidden" name="title" value="{{ $task->title }}">
-            <input type="hidden" name="description" value="{{ $task->description }}">
-            <input type="hidden" name="phase_id" value="{{ $task->phase_id }}">
-            <input type="hidden" name="column_id" value="{{ $task->column_id }}">
-            <input type="hidden" name="priority" value="{{ $task->priority }}">
-            <input type="hidden" name="weight" value="{{ $task->weight }}">
             <input type="hidden" name="from_board_modal" value="1">
             <input type="hidden" name="status_change_only" value="1">
-            @if($task->start_date)
-                <input type="hidden" name="start_date" value="{{ $task->start_date->format('Y-m-d') }}">
-            @endif
-            @if($task->due_date)
-                <input type="hidden" name="due_date" value="{{ $task->due_date->format('Y-m-d') }}">
-            @endif
-            @foreach($task->users as $user)
-                <input type="hidden" name="assignees[]" value="{{ $user->id }}">
-            @endforeach
             @if(isset($filterPhaseId) && $filterPhaseId)
                 <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}">
             @endif
@@ -125,19 +108,14 @@
                   hx-trigger="change from:select[name='priority']">
                 @csrf
                 @method('PUT')
-                <input type="hidden" name="title" value="{{ $task->title }}">
-                <input type="hidden" name="description" value="{{ $task->description }}">
-                <input type="hidden" name="column_id" value="{{ $task->column_id }}">
-                <input type="hidden" name="status" value="{{ $task->status }}">
-                <input type="hidden" name="weight" value="{{ $task->weight }}">
-                <input type="hidden" name="phase_id" value="{{ $task->phase_id }}">
                 <input type="hidden" name="from_board_modal" value="1">
-                <input type="hidden" name="status_change_only" value="1">
-                @foreach($task->users as $u) <input type="hidden" name="assignees[]" value="{{ $u->id }}"> @endforeach
-                @if(isset($filterPhaseId) && $filterPhaseId) <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}"> @endif
-                @if(isset($filterAssigned) && $filterAssigned) <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}"> @endif
-                @if(isset($filterPriority) && $filterPriority) <input type="hidden" name="filter_priority" value="{{ $filterPriority }}"> @endif
-                @if(isset($filterWeight) && $filterWeight) <input type="hidden" name="filter_weight" value="{{ $filterWeight }}"> @endif
+                <input type="hidden" name="priority_change_only" value="1">
+                @if(isset($filterPhaseId) && $filterPhaseId)
+                    <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}">
+                @endif
+                @if(isset($filterAssigned) && $filterAssigned)
+                    <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}">
+                @endif
                 <select name="priority"
                         class="border-0 bg-transparent p-0 me-1 mb-1"
                         style="font-size: 0.7rem; cursor: pointer; appearance: none; -webkit-appearance: none; outline: none;
@@ -158,19 +136,14 @@
                   hx-trigger="change from:select[name='weight']">
                 @csrf
                 @method('PUT')
-                <input type="hidden" name="title" value="{{ $task->title }}">
-                <input type="hidden" name="description" value="{{ $task->description }}">
-                <input type="hidden" name="column_id" value="{{ $task->column_id }}">
-                <input type="hidden" name="status" value="{{ $task->status }}">
-                <input type="hidden" name="priority" value="{{ $task->priority }}">
-                <input type="hidden" name="phase_id" value="{{ $task->phase_id }}">
                 <input type="hidden" name="from_board_modal" value="1">
-                <input type="hidden" name="status_change_only" value="1">
-                @foreach($task->users as $u) <input type="hidden" name="assignees[]" value="{{ $u->id }}"> @endforeach
-                @if(isset($filterPhaseId) && $filterPhaseId) <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}"> @endif
-                @if(isset($filterAssigned) && $filterAssigned) <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}"> @endif
-                @if(isset($filterPriority) && $filterPriority) <input type="hidden" name="filter_priority" value="{{ $filterPriority }}"> @endif
-                @if(isset($filterWeight) && $filterWeight) <input type="hidden" name="filter_weight" value="{{ $filterWeight }}"> @endif
+                <input type="hidden" name="weight_change_only" value="1">
+                @if(isset($filterPhaseId) && $filterPhaseId)
+                    <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}">
+                @endif
+                @if(isset($filterAssigned) && $filterAssigned)
+                    <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}">
+                @endif
                 <select name="weight"
                         class="border-0 bg-transparent p-0 me-1 mb-1"
                         style="font-size: 0.7rem; cursor: pointer; appearance: none; -webkit-appearance: none; outline: none; color: #495057; font-family: monospace;"
@@ -197,16 +170,7 @@
             class="mt-2">
             @csrf
             @method('PUT')
-            
-            {{-- Hidden fields to pass through required data --}}
-            <input type="hidden" name="title" value="{{ $task->title }}">
-            <input type="hidden" name="description" value="{{ $task->description }}">
-            <input type="hidden" name="status" value="{{ $task->status }}">
-            <input type="hidden" name="priority" value="{{ $task->priority }}">
-            <input type="hidden" name="weight" value="{{ $task->weight }}">
-            <input type="hidden" name="phase_id" value="{{ $task->phase_id }}">
             <input type="hidden" name="from_board_modal" value="1">
-            <input type="hidden" name="old_column_id" value="{{ $task->column_id }}">
             <input type="hidden" name="column_change_only" value="1">
             @if(isset($filterPhaseId) && $filterPhaseId)
                 <input type="hidden" name="filter_phase_id" value="{{ $filterPhaseId }}">
@@ -214,9 +178,6 @@
             @if(isset($filterAssigned) && $filterAssigned)
                 <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}">
             @endif
-            @foreach($task->users as $user)
-                <input type="hidden" name="assignees[]" value="{{ $user->id }}">
-            @endforeach
             
             <div class="input-group input-group-sm">
                 <label class="input-group-text" for="columnSelect-{{ $task->id }}" style="font-size: 0.7rem;">Move to:</label>
