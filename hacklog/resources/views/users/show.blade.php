@@ -18,6 +18,9 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <h1 class="mb-1">{{ $user->name }}</h1>
+                    @if(!empty($user->nicknames))
+                        <p class="text-muted mb-1">{{ $user->nicknamesAsString() }}</p>
+                    @endif
                     <div class="d-flex gap-2 align-items-center mb-2">
                         <span class="badge 
                             @if($user->isAdmin()) bg-danger

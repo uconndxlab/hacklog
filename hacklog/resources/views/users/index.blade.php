@@ -18,6 +18,16 @@
             <div class="card-body py-2">
                 <form method="GET" action="{{ route('users.index') }}" class="d-flex align-items-center gap-3 flex-wrap">
                     <div class="d-flex align-items-center gap-2">
+                        <label for="search" class="form-label mb-0 text-nowrap">Search</label>
+                        <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            id="search"
+                            name="search"
+                            value="{{ request('search') }}"
+                            placeholder="Name, nickname, NetID, or email">
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
                         <label for="role" class="form-label mb-0 text-nowrap">Role</label>
                         <select class="form-select form-select-sm" id="role" name="role" onchange="this.form.submit()">
                             <option value="">All</option>
@@ -34,6 +44,7 @@
                             <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
                         </select>
                     </div>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Apply</button>
                     <a href="{{ route('users.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
                 </form>
             </div>
@@ -62,6 +73,9 @@
                                         <a href="{{ route('users.show', $user) }}" class="text-decoration-none">
                                             {{ $user->name }}
                                         </a>
+                                        @if(!empty($user->nicknames))
+                                            <div class="small text-muted fw-normal">{{ $user->nicknamesAsString() }}</div>
+                                        @endif
                                     </td>
                                     <td class="font-monospace">{{ $user->netid }}</td>
                                     <td>{{ $user->email }}</td>

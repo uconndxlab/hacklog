@@ -14,7 +14,7 @@
     <div class="col-lg-8">
         <div class="mb-4">
             <h1 class="mb-1">Edit User</h1>
-            <p class="text-muted mb-0">Update user role and status</p>
+            <p class="text-muted mb-0">Update user nicknames, role, and status</p>
         </div>
 
         <div class="card">
@@ -113,6 +113,21 @@
                     @endif
 
                     <div class="mb-3">
+                        <label for="nicknames" class="form-label">Nicknames</label>
+                        <input
+                            type="text"
+                            class="form-control @error('nicknames') is-invalid @enderror"
+                            id="nicknames"
+                            name="nicknames"
+                            value="{{ old('nicknames', $user->nicknamesAsString()) }}"
+                            >
+                        @error('nicknames')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <div class="form-text">Optional. Comma-separated. Used when searching for this user.</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="role" class="form-label">Role</label>
                         <select 
                             class="form-select @error('role') is-invalid @enderror" 
@@ -163,7 +178,7 @@
                     <p class="mb-0">
                         Name and email are automatically managed through the University directory.
                         Click "Refresh from Directory" to update these fields with the latest information.
-                        Only role and active status can be changed manually.
+                        Nicknames, role, and active status can be changed manually.
                     </p>
                 </div>
             </div>

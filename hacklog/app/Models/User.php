@@ -33,6 +33,7 @@ class User extends Authenticatable
     protected $fillable = [
         'netid',
         'name',
+        'nicknames',
         'email',
         'password',
         'role',
@@ -60,7 +61,76 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'active' => 'boolean',
+            'nicknames' => 'array',
         ];
+    }
+
+    /**
+     * Parse a comma-separated nicknames string into a unique, trimmed list.
+     *
+     * @return list<string>
+     */
+    public static function parseNicknames(?string $value): array
+    {
+        if ($value === null || trim($value) === '') {
+            return [];
+        }
+
+        $nicknames = [];
+        $seen = [];
+
+        foreach (explode(',', $value) as $nickname) {
+            $nickname = trim($nickname);
+
+            if ($nickname === '') {
+                continue;
+            }
+
+            $key = strtolower($nickname);
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $nicknames[] = $nickname;
+        }
+
+        return $nicknames;
+    }
+
+    /**
+     * Match a search term against nickname values.
+     */
+    public function scopeWhereNicknameLike($query, string $search)
+    {
+        $like = '%'.$search.'%';
+        $driver = $query->getConnection()->getDriverName();
+
+        if ($driver === 'sqlite') {
+            return $query->whereExists(function ($sub) use ($like) {
+                $sub->selectRaw('1')
+                    ->fromRaw('json_each(users.nicknames)')
+                    ->where('json_each.value', 'like', $like);
+            });
+        }
+
+        return $query->whereRaw('JSON_SEARCH(nicknames, "one", ?) IS NOT NULL', [$like]);
+    }
+
+    /**
+     * Combined lowercase name + nicknames text for picker search.
+     */
+    public function searchText(): string
+    {
+        return strtolower(trim($this->name.' '.implode(' ', $this->nicknames ?? [])));
+    }
+
+    /**
+     * Comma-separated nicknames for form fields.
+     */
+    public function nicknamesAsString(): string
+    {
+        return implode(', ', $this->nicknames ?? []);
     }
 
     /**
