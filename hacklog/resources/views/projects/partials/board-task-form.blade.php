@@ -2,12 +2,12 @@
 @php
     $isEdit = isset($task);
     $isGlobalModal = request()->query('global_modal') === '1';
-    $formAction = $isEdit 
+    $formAction = $isEdit
         ? route('projects.board.tasks.update', [$project, $task])
         : route('projects.board.tasks.store', $project);
     $formMethod = $isEdit ? 'PUT' : 'POST';
     $htmxMethod = $isEdit ? 'hx-put' : 'hx-post';
-    
+
     if ($isGlobalModal) {
         $htmxTarget = '#taskCreationModalContent';
         $htmxSwap = 'innerHTML';
@@ -18,17 +18,17 @@
         $htmxSwap = 'outerHTML';
         $htmxSuccess = '';
     }
-    
+
     // Determine current phase from request or task
     $currentPhaseId = old('phase_id', $isEdit ? $task->phase_id : request()->query('phase'));
-    
+
     // Default to no phase for new tasks (removed automatic phase selection)
     // Previously: would default to first active phase or first available phase
     // Now: defaults to null (no phase) unless explicitly specified
-    
+
     // Get current phase for date display
     $currentPhase = $phases->firstWhere('id', $currentPhaseId);
-    
+
     // Determine default status from column name
     $defaultStatus = 'planned';
     if (!$isEdit && isset($columnId)) {
@@ -44,8 +44,8 @@
     }
 @endphp
 
-<form 
-    action="{{ $formAction }}" 
+<form
+    action="{{ $formAction }}"
     method="POST"
     {{ $htmxMethod }}="{{ $formAction }}"
     hx-target="{{ $htmxTarget }}"
@@ -57,13 +57,13 @@
     @if($isEdit)
         @method('PUT')
     @endif
-    
+
     <input type="hidden" name="column_id" value="{{ $isEdit ? $task->column_id : $columnId }}">
     <input type="hidden" name="from_board_modal" value="1">
     @if($isGlobalModal)
         <input type="hidden" name="global_modal" value="1">
     @endif
-    
+
     {{-- Preserve filters for redirect --}}
     @if(request('phase'))
         <input type="hidden" name="filter_phase_id" value="{{ request('phase') }}">
@@ -71,7 +71,7 @@
     @if(request('assigned'))
         <input type="hidden" name="filter_assigned" value="{{ request('assigned') }}">
     @endif
-    
+
     {{-- Header placeholders (out-of-band swaps) --}}
     <div id="taskModalIdentifier" hx-swap-oob="true" style="{{ $isEdit ? '' : 'display: none;' }}">
         @if($isEdit)
@@ -100,9 +100,9 @@
                     @if(!Auth::user()->isClient() || $task->created_by === Auth::id())
                     <li><hr class="dropdown-divider"></li>
                     <li>
-                        <button type="button" 
-                                class="dropdown-item text-danger" 
-                                onclick="if(confirm('Are you sure you want to delete this task? This action cannot be undone.')) { 
+                        <button type="button"
+                                class="dropdown-item text-danger"
+                                onclick="if(confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
                                     htmx.ajax('DELETE', '{{ route('projects.board.tasks.destroy', [$project, $task]) }}', {
                                         target: '#board-column-{{ $task->column_id }}-tasks',
                                         swap: 'outerHTML'
@@ -122,49 +122,49 @@
     <div class="border-bottom px-3 task-form-tabs-bg overflow-x-auto" style="position: sticky; top: 0; z-index: 10; flex-shrink: 0;">
         <ul class="nav nav-tabs flex-nowrap" id="taskModalTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link {{ ($activeTab ?? 'details') === 'details' ? 'active' : '' }}" 
-                        id="details-tab" 
-                        data-bs-toggle="tab" 
-                        data-bs-target="#details" 
-                        type="button" 
-                        role="tab" 
-                        aria-controls="details" 
+                <button class="nav-link {{ ($activeTab ?? 'details') === 'details' ? 'active' : '' }}"
+                        id="details-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#details"
+                        type="button"
+                        role="tab"
+                        aria-controls="details"
                         aria-selected="{{ ($activeTab ?? 'details') === 'details' ? 'true' : 'false' }}">
                     Details
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link {{ ($activeTab ?? 'details') === 'description' ? 'active' : '' }}" 
-                        id="description-tab" 
-                        data-bs-toggle="tab" 
-                        data-bs-target="#description-tab-content" 
-                        type="button" 
-                        role="tab" 
-                        aria-controls="description-tab-content" 
+                <button class="nav-link {{ ($activeTab ?? 'details') === 'description' ? 'active' : '' }}"
+                        id="description-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#description-tab-content"
+                        type="button"
+                        role="tab"
+                        aria-controls="description-tab-content"
                         aria-selected="{{ ($activeTab ?? 'details') === 'description' ? 'true' : 'false' }}">
                     Description
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link {{ ($activeTab ?? 'details') === 'discussion' ? 'active' : '' }}" 
-                        id="discussion-tab" 
-                        data-bs-toggle="tab" 
-                        data-bs-target="#discussion" 
-                        type="button" 
-                        role="tab" 
-                        aria-controls="discussion" 
+                <button class="nav-link {{ ($activeTab ?? 'details') === 'discussion' ? 'active' : '' }}"
+                        id="discussion-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#discussion"
+                        type="button"
+                        role="tab"
+                        aria-controls="discussion"
                         aria-selected="{{ ($activeTab ?? 'details') === 'discussion' ? 'true' : 'false' }}">
                     Discussion
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link {{ ($activeTab ?? 'details') === 'attachments' ? 'active' : '' }}" 
-                        id="attachments-tab" 
-                        data-bs-toggle="tab" 
-                        data-bs-target="#attachments" 
-                        type="button" 
-                        role="tab" 
-                        aria-controls="attachments" 
+                <button class="nav-link {{ ($activeTab ?? 'details') === 'attachments' ? 'active' : '' }}"
+                        id="attachments-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#attachments"
+                        type="button"
+                        role="tab"
+                        aria-controls="attachments"
                         aria-selected="{{ ($activeTab ?? 'details') === 'attachments' ? 'true' : 'false' }}">
                     Attachments
                 </button>
@@ -172,21 +172,21 @@
         </ul>
     </div>
     @endif
-    
+
     {{-- Scrollable body --}}
     <div style="flex: 1; min-height: 0; overflow-y: auto;">
         @if($isEdit)
         <div class="tab-content" id="taskModalTabContent" style="height: 100%;">
             {{-- Details Tab --}}
-            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'details' ? 'show active' : '' }}" 
-                 id="details" 
-                 role="tabpanel" 
+            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'details' ? 'show active' : '' }}"
+                 id="details"
+                 role="tabpanel"
                  aria-labelledby="details-tab"
                  style="padding: 1rem 1.5rem; height: 100%; overflow-y: auto;">
         @else
         <div style="padding: 1rem 1.5rem; height: 100%; overflow-y: auto;">
         @endif
-        
+
         {{-- Phase selector --}}
         <div class="mb-3">
             <label for="phase_id" class="form-label fw-semibold">Phase <span class="text-muted fw-normal">(optional)</span></label>
@@ -220,16 +220,16 @@
                 <div class="invalid-feedback">{{ $message }}</div>
             @enderror
         </div>
-        
+
         {{-- Task title --}}
         <div class="mb-3">
             <label for="title" class="form-label fw-semibold">Title</label>
-            <input 
-                type="text" 
-                class="form-control @error('title') is-invalid @enderror" 
-                id="title" 
-                name="title" 
-                value="{{ old('title', $isEdit ? $task->title : '') }}" 
+            <input
+                type="text"
+                class="form-control @error('title') is-invalid @enderror"
+                id="title"
+                name="title"
+                value="{{ old('title', $isEdit ? $task->title : '') }}"
                 placeholder="e.g., Update user profile endpoint"
                 required>
             @error('title')
@@ -241,10 +241,10 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <label for="status" class="form-label">Status</label>
-                <select 
-                    class="form-select @error('status') is-invalid @enderror" 
-                    id="status" 
-                    name="status" 
+                <select
+                    class="form-select @error('status') is-invalid @enderror"
+                    id="status"
+                    name="status"
                     required>
                     <option value="planned" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'planned' ? 'selected' : '' }}>Planned</option>
                     <option value="active" {{ old('status', $isEdit ? $task->status : $defaultStatus) === 'active' ? 'selected' : '' }}>Active</option>
@@ -255,14 +255,14 @@
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
-            
+
             @if($isEdit)
                 <div class="col-md-6">
                     <label for="column_id_select" class="form-label">Column</label>
-                    <select 
-                        class="form-select @error('column_id') is-invalid @enderror" 
-                        id="column_id_select" 
-                        name="column_id" 
+                    <select
+                        class="form-select @error('column_id') is-invalid @enderror"
+                        id="column_id_select"
+                        name="column_id"
                         required>
                         @foreach($columns as $col)
                             <option value="{{ $col->id }}" {{ $task->column_id == $col->id ? 'selected' : '' }}>
@@ -308,11 +308,11 @@
             @if(!Auth::user()->isClient())
             <div class="col-md-6">
                 <label for="start_date" class="form-label">Start Date</label>
-                <input 
-                    type="date" 
-                    class="form-control @error('start_date') is-invalid @enderror" 
-                    id="start_date" 
-                    name="start_date" 
+                <input
+                    type="date"
+                    class="form-control @error('start_date') is-invalid @enderror"
+                    id="start_date"
+                    name="start_date"
                     value="{{ old('start_date', $isEdit && $task->start_date ? $task->start_date->format('Y-m-d') : '') }}">
                 @error('start_date')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -322,18 +322,18 @@
 
             <div class="col-md-6">
                 <label for="due_date" class="form-label">Due Date</label>
-                <input 
-                    type="date" 
-                    class="form-control @error('due_date') is-invalid @enderror" 
-                    id="due_date" 
-                    name="due_date" 
+                <input
+                    type="date"
+                    class="form-control @error('due_date') is-invalid @enderror"
+                    id="due_date"
+                    name="due_date"
                     value="{{ old('due_date', $isEdit && $task->due_date ? $task->due_date->format('Y-m-d') : '') }}">
                 @error('due_date')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
         </div>
-        
+
         @if(!$isEdit || (!$task->start_date && !$task->due_date))
             <div class="text-muted small mb-3" style="margin-top: -0.75rem;">
                 If no dates are set, this task will inherit the phase's date range.
@@ -344,13 +344,13 @@
         @if(!Auth::user()->isClient())
         <div class="mb-3">
             <label class="form-label">Assign To</label>
-            
+
             {{-- Assigned users as pills --}}
             @php
                 $selectedUserIds = old('assignees', $isEdit ? $task->users->pluck('id')->toArray() : []);
                 $selectedUsers = $users->whereIn('id', $selectedUserIds);
             @endphp
-            
+
             @if($selectedUsers->isNotEmpty())
                 <div class="mb-2 d-flex flex-wrap gap-1" id="assignedUserPills">
                     @foreach($selectedUsers as $user)
@@ -360,7 +360,7 @@
                     @endforeach
                 </div>
             @endif
-            
+
             @include('partials.user-picker', [
                 'users' => $users,
                 'selectedUserIds' => $selectedUserIds,
@@ -370,19 +370,54 @@
                 <div class="invalid-feedback d-block">{{ $message }}</div>
             @enderror
         </div>
+
+        {{-- Dependencies --}}
+        <div class="mb-3">
+            <label class="form-label">Dependencies</label>
+
+            @php
+                $selectedDependencyIds = array_map(
+                    'intval',
+                    old('dependencies', $dependencyIds) ?? []
+                );
+            @endphp
+
+            @include('partials.task-dependency-picker', [
+                'tasks' => $dependencyTasks,
+                'projects' => $dependencyProjects,
+                'selectedTaskIds' => $selectedDependencyIds,
+                'defaultProjectId' => $project->id,
+                'inputName' => 'dependencies[]',
+            ])
+
+            @error('dependencies')
+                <div class="invalid-feedback d-block">
+                    {{ $message }}
+                </div>
+            @enderror
+
+            @error('dependencies.*')
+                <div class="invalid-feedback d-block">
+                    {{ $message }}
+                </div>
+            @enderror
+        </div>
+
+
         @endif
+
 
         {{-- Description editor (only for create mode, in edit mode it's in its own tab) --}}
         @if(!$isEdit)
         <div class="mb-3">
             <label for="description" class="form-label">Description</label>
-            <input 
-                id="description" 
-                type="hidden" 
-                name="description" 
+            <input
+                id="description"
+                type="hidden"
+                name="description"
                 value="{{ old('description', '') }}">
-            <trix-editor 
-                input="description" 
+            <trix-editor
+                input="description"
                 class="@error('description') is-invalid @enderror"
                 style="min-height: 120px;"></trix-editor>
             @error('description')
@@ -422,24 +457,24 @@
 
         @if($isEdit)
             </div>
-            
+
             {{-- Description Tab --}}
-            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'description' ? 'show active' : '' }}" 
-                 id="description-tab-content" 
-                 role="tabpanel" 
+            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'description' ? 'show active' : '' }}"
+                 id="description-tab-content"
+                 role="tabpanel"
                  aria-labelledby="description-tab"
                  style="padding: 1rem 1.5rem; height: 100%; overflow-y: auto;">
-                
+
                 {{-- Description editor --}}
                 <div class="mb-3">
                     <label for="description" class="form-label">Description</label>
-                    <input 
-                        id="description" 
-                        type="hidden" 
-                        name="description" 
+                    <input
+                        id="description"
+                        type="hidden"
+                        name="description"
                         value="{{ old('description', $task->description) }}">
-                    <trix-editor 
-                        input="description" 
+                    <trix-editor
+                        input="description"
                         class="@error('description') is-invalid @enderror"
                         style="min-height: 120px;"></trix-editor>
                     @error('description')
@@ -447,29 +482,29 @@
                     @enderror
                 </div>
             </div>
-            
+
             {{-- Discussion Tab --}}
-            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'discussion' ? 'show active' : '' }}" 
-                 id="discussion" 
-                 role="tabpanel" 
+            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'discussion' ? 'show active' : '' }}"
+                 id="discussion"
+                 role="tabpanel"
                  aria-labelledby="discussion-tab"
                  style="height: 100%; overflow-y: auto;">
-                
+
                 {{-- Comment form - sticky at top --}}
                 <div class="border-bottom task-form-tabs-bg" style="position: sticky; top: 0; z-index: 10; padding: 1rem 1.5rem; padding-bottom: 1rem;">
                     <div id="commentFormContainer">
                         <div class="mb-2">
-                            <textarea 
+                            <textarea
                                 id="commentBody"
-                                name="body" 
-                                class="form-control" 
-                                rows="1" 
+                                name="body"
+                                class="form-control"
+                                rows="1"
                                 placeholder="Add a comment... (Ctrl+Enter to submit)"
                                 style="resize: none; min-height: 36px;"></textarea>
                         </div>
                         <div class="d-flex justify-content-between align-items-center">
                             <small class="text-muted">Press Ctrl+Enter to submit</small>
-                            <button type="button" 
+                            <button type="button"
                                     id="postCommentBtn"
                                     class="btn btn-sm btn-outline-primary"
                                     data-comment-url="{{ route('projects.board.tasks.comments.store', [$project, $task]) }}"
@@ -477,7 +512,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 {{-- Comments list - scrollable --}}
                 <div style="padding: 1rem 1.5rem;">
                     @forelse($task->comments as $comment)
@@ -491,7 +526,7 @@
                                     $canDelete = auth()->id() === $comment->user_id || (auth()->user() && auth()->user()->isAdmin());
                                 @endphp
                                 @if($canDelete)
-                                    <button type="button" 
+                                    <button type="button"
                                             class="btn btn-sm btn-outline-danger"
                                             hx-delete="{{ route('projects.board.tasks.comments.destroy', [$project, $task, $comment]) }}"
                                             hx-target="#taskModalContent"
@@ -529,14 +564,14 @@
                     @endif
                 </div>
             </div>
-            
+
             {{-- Attachments Tab --}}
-            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'attachments' ? 'show active' : '' }}" 
-                 id="attachments" 
-                 role="tabpanel" 
+            <div class="tab-pane fade {{ ($activeTab ?? 'details') === 'attachments' ? 'show active' : '' }}"
+                 id="attachments"
+                 role="tabpanel"
                  aria-labelledby="attachments-tab"
                  style="height: 100%; overflow-y: auto;">
-                
+
                 {{-- Upload form - sticky at top --}}
                 <div class="border-bottom task-form-tabs-bg" style="position: sticky; top: 0; z-index: 10; padding: 1rem 1.5rem; padding-bottom: 1rem;">
                     <div id="attachmentUploadStatus" class="alert alert-success alert-dismissible fade mb-2" role="alert" style="display: none;">
@@ -546,9 +581,9 @@
                     <div class="d-flex gap-2 align-items-end">
                         <div style="flex: 1;">
                             <label for="attachment_file" class="form-label mb-1">Upload File</label>
-                            <input type="file" 
-                                   class="form-control form-control-sm" 
-                                   id="attachment_file" 
+                            <input type="file"
+                                   class="form-control form-control-sm"
+                                   id="attachment_file"
                                    accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls"
                                    data-upload-url="{{ route('projects.board.tasks.attachments.upload', [$project, $task]) }}">
                             <small class="text-muted">Max 10MB. Images, PDFs, documents, and spreadsheets.</small>
@@ -557,7 +592,7 @@
                     </div>
                 </div>
                 </div>
-                
+
                 {{-- Attachments list - scrollable --}}
                 <div style="padding: 1rem 1.5rem;" id="attachmentsList">
                     @forelse($task->attachments as $attachment)
@@ -565,7 +600,7 @@
                             <div class="d-flex align-items-start justify-content-between gap-2">
                                 <div class="flex-grow-1">
                                     <div class="d-flex align-items-center gap-2 mb-1">
-                                        <a href="{{ route('projects.board.tasks.attachments.download', [$project, $task, $attachment]) }}" 
+                                        <a href="{{ route('projects.board.tasks.attachments.download', [$project, $task, $attachment]) }}"
                                            class="text-decoration-none">
                                             <strong>{{ $attachment->original_name }}</strong>
                                         </a>
@@ -578,7 +613,7 @@
                                     </small>
                                 </div>
                                 @if($attachment->user_id === auth()->id() || auth()->user()->isAdmin())
-                                    <button type="button" 
+                                    <button type="button"
                                             class="btn btn-sm btn-outline-danger"
                                             onclick="deleteAttachment('{{ route('projects.board.tasks.attachments.destroy', [$project, $task, $attachment]) }}', {{ $attachment->id }})"
                                             title="Delete attachment">
@@ -599,7 +634,7 @@
         </div>
         @endif
     </div>
-    
+
     {{-- Sticky footer action bar --}}
     <div class="modal-footer task-form-footer-bg" style="position: sticky; bottom: 0; padding: 0.75rem 1rem; flex-shrink: 0; z-index: 10;">
         <div class="d-flex justify-content-between align-items-center w-100">
@@ -616,12 +651,12 @@
 function showAttachmentStatus(message, isError = false) {
     const statusDiv = document.getElementById('attachmentUploadStatus');
     const messageSpan = document.getElementById('attachmentUploadMessage');
-    
+
     statusDiv.className = 'alert alert-dismissible fade show mb-2';
     statusDiv.className += isError ? ' alert-danger' : ' alert-success';
     messageSpan.textContent = message;
     statusDiv.style.display = 'block';
-    
+
     // Auto-hide success messages after 3 seconds
     if (!isError) {
         setTimeout(() => {
@@ -634,27 +669,27 @@ function showAttachmentStatus(message, isError = false) {
 function uploadAttachment() {
     const fileInput = document.getElementById('attachment_file');
     const file = fileInput.files[0];
-    
+
     if (!file) {
         showAttachmentStatus('Please select a file to upload.', true);
         return;
     }
-    
+
     // Check file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
         showAttachmentStatus('File size must be less than 10MB.', true);
         return;
     }
-    
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-    
+
     const uploadUrl = fileInput.getAttribute('data-upload-url');
     const uploadBtn = event.target;
     uploadBtn.disabled = true;
     uploadBtn.textContent = 'Uploading...';
-    
+
     fetch(uploadUrl, {
         method: 'POST',
         body: formData,
@@ -674,14 +709,14 @@ function uploadAttachment() {
     .then(data => {
         showAttachmentStatus('File uploaded successfully!');
         fileInput.value = ''; // Clear the file input
-        
+
         // Add the new attachment to the list
         const attachmentsList = document.getElementById('attachmentsList');
         const noMessage = document.getElementById('noAttachmentsMessage');
         if (noMessage) {
             noMessage.remove();
         }
-        
+
         // Insert new attachment at the top
         const newItem = document.createElement('div');
         newItem.className = 'mb-3 pb-3 border-bottom';
@@ -701,7 +736,7 @@ function uploadAttachment() {
                         Uploaded by ${data.user_name} • just now
                     </small>
                 </div>
-                <button type="button" 
+                <button type="button"
                         class="btn btn-sm btn-outline-danger"
                         onclick="deleteAttachment('${data.delete_url}', ${data.id})"
                         title="Delete attachment">
@@ -726,11 +761,11 @@ function deleteAttachment(deleteUrl, attachmentId) {
     if (!confirm('Are you sure you want to delete this attachment?')) {
         return;
     }
-    
+
     const formData = new FormData();
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
     formData.append('_method', 'DELETE');
-    
+
     fetch(deleteUrl, {
         method: 'POST',
         body: formData,
@@ -749,13 +784,13 @@ function deleteAttachment(deleteUrl, attachmentId) {
     })
     .then(data => {
         showAttachmentStatus('Attachment deleted successfully!');
-        
+
         // Remove the attachment from the list
         const attachmentItem = document.querySelector(`[data-attachment-id="${attachmentId}"]`);
         if (attachmentItem) {
             attachmentItem.remove();
         }
-        
+
         // Show "no attachments" message if list is empty
         const attachmentsList = document.getElementById('attachmentsList');
         if (attachmentsList.children.length === 0) {
@@ -772,13 +807,13 @@ function deleteAttachment(deleteUrl, attachmentId) {
 (function() {
     const phaseSelect = document.getElementById('phase_id');
     const dateRangeDiv = document.getElementById('phaseDateRange');
-    
+
     if (phaseSelect && dateRangeDiv) {
         phaseSelect.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             const startDate = selectedOption.getAttribute('data-start');
             const endDate = selectedOption.getAttribute('data-end');
-            
+
             if (startDate && endDate) {
                 dateRangeDiv.textContent = startDate + ' – ' + endDate;
                 dateRangeDiv.style.display = 'block';
@@ -799,7 +834,7 @@ function deleteAttachment(deleteUrl, attachmentId) {
 (function() {
     const form = document.getElementById('taskForm');
     if (!form) return;
-    
+
     // Cmd/Ctrl + Enter to submit
     form.addEventListener('keydown', function(e) {
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -813,51 +848,51 @@ function deleteAttachment(deleteUrl, attachmentId) {
 (function() {
     const form = document.getElementById('taskForm');
     if (!form) return;
-    
+
     // Use event delegation to avoid duplicate event listeners
     form.addEventListener('change', function(e) {
         if (e.target.matches('input[name="assignees[]"]')) {
             updatePills();
         }
     });
-    
+
     function updatePills() {
         const checkboxes = form.querySelectorAll('input[name="assignees[]"]');
         const checkedBoxes = Array.from(checkboxes).filter(cb => cb.checked);
         let pillsContainer = document.getElementById('assignedUserPills');
-        
+
         if (checkedBoxes.length === 0) {
             if (pillsContainer) pillsContainer.style.display = 'none';
             return;
         }
-        
+
         if (!pillsContainer) {
             // Create pills container if it doesn't exist
             const label = form.querySelector('label:has(+ #assignedUserPills), label:has(+ .user-picker)');
             if (!label) return;
-            
+
             const newContainer = document.createElement('div');
             newContainer.id = 'assignedUserPills';
             newContainer.className = 'mb-2 d-flex flex-wrap gap-1';
             label.parentNode.insertBefore(newContainer, label.nextSibling);
             pillsContainer = newContainer;
         }
-        
+
         pillsContainer.innerHTML = '';
         pillsContainer.style.display = 'flex';
-        
+
         checkedBoxes.forEach(checkbox => {
             const label = form.querySelector(`label[for="${checkbox.id}"]`);
             if (!label) return;
-            
+
             const pill = document.createElement('span');
             pill.className = 'badge bg-light text-dark border d-inline-flex align-items-center gap-1';
             pill.style.fontWeight = '400';
-            
+
             // Add user name text
             const textNode = document.createTextNode(label.textContent.trim());
             pill.appendChild(textNode);
-            
+
             // Add remove icon (only this is clickable)
             const removeIcon = document.createElement('span');
             removeIcon.textContent = '×';
@@ -867,7 +902,7 @@ function deleteAttachment(deleteUrl, attachmentId) {
             removeIcon.style.marginLeft = '0.25rem';
             removeIcon.style.cursor = 'pointer';
             removeIcon.title = 'Remove assignment';
-            
+
             // Add click handler to the remove icon only
             removeIcon.addEventListener('click', function(e) {
                 e.stopPropagation(); // Prevent event bubbling
@@ -880,12 +915,12 @@ function deleteAttachment(deleteUrl, attachmentId) {
                     pillsContainer.style.display = 'none';
                 }
             });
-            
+
             pill.appendChild(removeIcon);
             pillsContainer.appendChild(pill);
         });
     }
-    
+
     // Initialize pills on page load
     updatePills();
 })();
@@ -894,20 +929,20 @@ function deleteAttachment(deleteUrl, attachmentId) {
 (function() {
     const commentBtn = document.getElementById('postCommentBtn');
     const textarea = document.getElementById('commentBody');
-    
+
     if (!commentBtn || !textarea) return;
-    
+
     // Expand textarea on focus
     textarea.addEventListener('focus', function() {
         this.rows = 3;
     });
-    
+
     // Auto-resize textarea
     textarea.addEventListener('input', function() {
         this.style.height = 'auto';
         this.style.height = this.scrollHeight + 'px';
     });
-    
+
     // Keyboard shortcuts
     textarea.addEventListener('keydown', function(e) {
         // Cmd/Ctrl + Enter to submit
@@ -924,15 +959,15 @@ function deleteAttachment(deleteUrl, attachmentId) {
             this.blur();
         }
     });
-    
+
     // Handle comment submission manually
     commentBtn.addEventListener('click', function(e) {
         e.preventDefault();
         const body = textarea.value.trim();
         if (!body) return;
-        
+
         const url = commentBtn.getAttribute('data-comment-url');
-        
+
         htmx.ajax('POST', url, {
             target: '#taskModalContent',
             swap: 'innerHTML',
@@ -948,7 +983,7 @@ function deleteAttachment(deleteUrl, attachmentId) {
         console.error('Trix editor not found');
         return;
     }
-    
+
     @if(isset($task))
     const uploadUrl = '{{ route("projects.board.tasks.attachments.trix", [$project, $task]) }}';
     const mode = 'edit';
@@ -956,20 +991,20 @@ function deleteAttachment(deleteUrl, attachmentId) {
     const uploadUrl = '{{ route("projects.board.tasks.attachments.trix-temp", $project) }}';
     const mode = 'create';
     @endif
-    
+
     console.log('Trix attachment handler initialized for ' + mode + ' mode. Upload URL:', uploadUrl);
-    
+
     // Handle attachment addition
     trixEditor.addEventListener('trix-attachment-add', function(event) {
         const attachment = event.attachment;
         if (!attachment.file) return;
-        
+
         console.log('Uploading file to:', uploadUrl);
-        
+
         // Upload the file
         const formData = new FormData();
         formData.append('file', attachment.file);
-        
+
         fetch(uploadUrl, {
             method: 'POST',
             body: formData,
@@ -1006,12 +1041,12 @@ function deleteAttachment(deleteUrl, attachmentId) {
 (function() {
     const taskForm = document.getElementById('taskForm');
     const commentTextarea = document.getElementById('commentBody');
-    
+
     if (!taskForm || !commentTextarea) return;
-    
+
     let confirmPending = false;
     let htmxEvent = null;
-    
+
     // Intercept HTMX confirm event
     taskForm.addEventListener('htmx:confirm', function(e) {
         // If we're already handling confirmation, let it through
@@ -1019,30 +1054,30 @@ function deleteAttachment(deleteUrl, attachmentId) {
             confirmPending = false;
             return;
         }
-        
+
         // Check if there's unsaved comment text
         const commentText = commentTextarea.value.trim();
         if (commentText.length > 0) {
             // Prevent the default HTMX submission
             e.preventDefault();
-            
+
             // Store the event so we can re-issue it after confirmation
             htmxEvent = e;
-            
+
             // Show our custom confirmation modal
             const confirmModal = new bootstrap.Modal(document.getElementById('unsavedCommentModal'));
             confirmModal.show();
         }
     });
-    
+
     // Handle confirmation modal buttons
     document.getElementById('confirmSaveWithoutComment')?.addEventListener('click', function() {
         confirmPending = true;
-        
+
         // Hide the modal
         const confirmModal = bootstrap.Modal.getInstance(document.getElementById('unsavedCommentModal'));
         confirmModal.hide();
-        
+
         // Re-trigger the form submission
         if (htmxEvent) {
             // Issue the request that was prevented
@@ -1050,7 +1085,7 @@ function deleteAttachment(deleteUrl, attachmentId) {
             htmxEvent = null;
         }
     });
-    
+
     // Cancel button just closes modal (no action needed)
 })();
 </script>

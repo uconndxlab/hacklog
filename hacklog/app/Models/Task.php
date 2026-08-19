@@ -84,7 +84,7 @@ class Task extends Model
 
     /**
      * Determine if the task is overdue.
-     * 
+     *
      * A task is overdue if:
      * - due_date exists
      * - AND due_date < today
@@ -105,12 +105,12 @@ class Task extends Model
 
     /**
      * Get the effective due date for this task.
-     * 
+     *
      * Returns the task's explicit due_date if set, otherwise falls back
      * to the parent phase's due_date. This allows tasks without explicit
      * dates to inherit timing from their phase for visualization and
      * aggregation purposes.
-     * 
+     *
      * @return \Carbon\Carbon|null
      */
     public function getEffectiveDueDate()
@@ -191,7 +191,7 @@ class Task extends Model
      */
     public function getStatusDisplayAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'awaiting_feedback' => 'Awaiting Feedback',
             'in_progress' => 'In Progress',
             default => ucfirst($this->status)
@@ -236,6 +236,25 @@ class Task extends Model
     public function attachments()
     {
         return $this->hasMany(TaskAttachment::class)->orderBy('created_at', 'desc');
+    }
+
+    public function dependencies(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Task::class,
+            'task_dependencies',
+            'task_id',
+            'dependency_id'
+        );
+    }
+    public function dependents(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Task::class,
+            'task_dependencies',
+            'dependency_id',
+            'task_id'
+        );
     }
 
     /**
@@ -319,7 +338,7 @@ class Task extends Model
 
     /**
      * Check if this task can move up
-     * 
+     *
      * @param int|null $filterPhaseId Optional phase ID to check within that phase only
      */
     public function canMoveUp(?int $filterPhaseId = null): bool
@@ -330,7 +349,7 @@ class Task extends Model
 
         $query = static::where('column_id', $this->column_id)
             ->where('position', '<', $this->position);
-        
+
         // If filtering by phase, only check within that phase
         if ($filterPhaseId !== null) {
             $query->where('phase_id', $filterPhaseId);
@@ -341,7 +360,7 @@ class Task extends Model
 
     /**
      * Check if this task can move down
-     * 
+     *
      * @param int|null $filterPhaseId Optional phase ID to check within that phase only
      */
     public function canMoveDown(?int $filterPhaseId = null): bool
@@ -352,7 +371,7 @@ class Task extends Model
 
         $query = static::where('column_id', $this->column_id)
             ->where('position', '>', $this->position);
-        
+
         // If filtering by phase, only check within that phase
         if ($filterPhaseId !== null) {
             $query->where('phase_id', $filterPhaseId);
