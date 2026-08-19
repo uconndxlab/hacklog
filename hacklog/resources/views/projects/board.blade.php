@@ -2,6 +2,65 @@
 
 @section('title', $project->name . ' - Board')
 
+@push('styles')
+<style>
+.board-container {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 1rem;
+    gap: 1rem;
+}
+
+.board-column-wrapper {
+    flex: 0 0 320px;
+    min-width: 320px;
+    max-width: 320px;
+}
+
+/* When there are 3 or fewer columns, make them take full width */
+.board-container:has(.board-column-wrapper:nth-child(-n+4):last-child) .board-column-wrapper {
+    flex: 1 1 0;
+    max-width: none;
+}
+
+/* Drag & Drop Styles */
+.board-column.drop-target {
+    outline: 2px dashed #007bff;
+    outline-offset: -2px;
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.task-card.dragging {
+    transform: rotate(2deg);
+    z-index: 1000;
+}
+
+.insertion-indicator {
+    pointer-events: none;
+}
+
+/* Hide scrollbar on webkit browsers */
+.board-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.board-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.board-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.board-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+</style>
+@endpush
+
 @section('content')
 @include('projects.partials.project-header')
 @include('projects.partials.project-nav', ['currentView' => 'board'])
@@ -414,63 +473,6 @@ document.addEventListener('keydown', function(e) {
     }
 });
 </script>
-
-<style>
-.board-container {
-    display: flex;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 1rem;
-    gap: 1rem;
-}
-
-.board-column-wrapper {
-    flex: 0 0 320px;
-    min-width: 320px;
-    max-width: 320px;
-}
-
-/* When there are 3 or fewer columns, make them take full width */
-.board-container:has(.board-column-wrapper:nth-child(-n+4):last-child) .board-column-wrapper {
-    flex: 1 1 0;
-    max-width: none;
-}
-
-/* Drag & Drop Styles */
-.board-column.drop-target {
-    outline: 2px dashed #007bff;
-    outline-offset: -2px;
-    background-color: rgba(0, 123, 255, 0.05);
-}
-
-.task-card.dragging {
-    transform: rotate(2deg);
-    z-index: 1000;
-}
-
-.insertion-indicator {
-    pointer-events: none;
-}
-
-/* Hide scrollbar on webkit browsers */
-.board-container::-webkit-scrollbar {
-    height: 8px;
-}
-
-.board-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.board-container::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-.board-container::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-</style>
 
 <script>
 function updateBoardColumnCount(column) {

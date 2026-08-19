@@ -19,6 +19,10 @@
         html.theme-dark, html.theme-dark body { background-color: #1a1f2e; color-scheme: dark; }
     </style>
     
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Ubuntu:wght@300;400;500;700&display=swap">
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
@@ -27,6 +31,8 @@
     
     <!-- Hacklog Theme -->
     <link rel="stylesheet" href="{{ asset('css/hacklog-theme.css') }}">
+
+    @stack('styles')
     
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
