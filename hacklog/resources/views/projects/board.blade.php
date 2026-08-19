@@ -473,6 +473,27 @@ document.addEventListener('keydown', function(e) {
 </style>
 
 <script>
+function updateBoardColumnCount(column) {
+    if (!column) return;
+    const countEl = column.querySelector('.board-column-count');
+    if (!countEl) return;
+    const count = column.querySelectorAll('.task-card').length;
+    countEl.textContent = count + ' ' + (count === 1 ? 'task' : 'tasks');
+}
+
+function updateBoardColumnCountById(columnId) {
+    if (!columnId) return;
+    updateBoardColumnCount(document.querySelector('.board-column[data-column-id="' + columnId + '"]'));
+}
+
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    const target = evt.detail && evt.detail.target;
+    if (!target || !target.id) return;
+    if (target.id.indexOf('board-column-') === 0 && target.id.indexOf('-tasks') === target.id.length - 6) {
+        updateBoardColumnCount(target.closest('.board-column'));
+    }
+});
+
 // Drag & Drop functionality for task reordering and moving
 (function() {
     let draggedTask = null;
@@ -625,6 +646,11 @@ document.addEventListener('keydown', function(e) {
         draggedTask.dataset.columnId = newColumnId;
         draggedTask.dataset.position = position;
 
+        if (newColumnId !== originalPosition.columnId) {
+            updateBoardColumnCountById(originalPosition.columnId);
+            updateBoardColumnCount(column);
+        }
+
         // Send to server
         const requestBody = {
             column_id: newColumnId,
@@ -676,6 +702,8 @@ document.addEventListener('keydown', function(e) {
                         htmx.process(newNewColumn);
                     }
                 }
+                updateBoardColumnCountById(data.oldColumnId);
+                updateBoardColumnCountById(data.newColumnId);
             }
         })
         .catch(() => {
