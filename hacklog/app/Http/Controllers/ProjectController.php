@@ -1175,70 +1175,13 @@ class ProjectController extends Controller
             ->where('position', '>=', $validated['position'])
             ->update(['position' => \Illuminate\Support\Facades\DB::raw('position + 1')]);
 
-        // Return updated column(s) HTML for the affected columns
-        $columns = $project->columns;
-        
-        // Build task query with optional phase filter
-        $tasksQuery = \App\Models\Task::whereHas('column', function ($query) use ($project) {
-            $query->where('project_id', $project->id);
-        });
-        
-        // Apply phase filter if provided
-        $filterPhaseId = $validated['filter_phase_id'] ?? null;
-        if ($filterPhaseId) {
-            $tasksQuery->where('phase_id', $filterPhaseId);
-        }
-        
-        // Apply assignment filter if provided
-        $filterAssigned = $validated['filter_assigned'] ?? null;
-        if ($filterAssigned === 'me') {
-            $tasksQuery->whereHas('users', function ($query) use ($request) {
-                $query->where('users.id', $request->user()->id);
-            });
-        } elseif ($filterAssigned === 'none') {
-            $tasksQuery->whereDoesntHave('users');
-        } elseif ($filterAssigned && is_numeric($filterAssigned)) {
-            $tasksQuery->whereHas('users', function ($query) use ($filterAssigned) {
-                $query->where('users.id', $filterAssigned);
-            });
-        }
-        
-        $tasks = $tasksQuery->with(['phase', 'users'])
-            ->get()
-            ->groupBy('column_id');
-
-        // If column changed, return both old and new columns
-        if ($oldColumnId !== $validated['column_id']) {
-            $oldColumn = $columns->firstWhere('id', $oldColumnId);
-            $newColumn = $columns->firstWhere('id', $validated['column_id']);
-
-            $response = [
-                'success' => true,
-                'columnChanged' => true,
-                'oldColumnHtml' => view('projects.partials.board-column-tasks', [
-                    'column' => $oldColumn,
-                    'columnTasks' => $tasks->get($oldColumnId, collect()),
-                    'project' => $project,
-                    'allColumns' => $columns,
-                    'isProjectBoard' => true,
-                    'filterPhaseId' => $filterPhaseId
-                ])->render(),
-                'newColumnHtml' => view('projects.partials.board-column-tasks', [
-                    'column' => $newColumn,
-                    'columnTasks' => $tasks->get($validated['column_id'], collect()),
-                    'project' => $project,
-                    'allColumns' => $columns,
-                    'isProjectBoard' => true,
-                    'filterPhaseId' => $filterPhaseId
-                ])->render(),
-                'oldColumnId' => $oldColumnId,
-                'newColumnId' => $validated['column_id']
-            ];
-
-            return response()->json($response);
-        }
-
-        return response()->json(['success' => true, 'columnChanged' => false]);
+        // The board already moved the card in the DOM. Do not re-render column HTML
+        return response()->json([
+            'success' => true,
+            'columnChanged' => $oldColumnId !== $validated['column_id'],
+            'oldColumnId' => $oldColumnId,
+            'newColumnId' => $validated['column_id'],
+        ]);
     }
 
     /**

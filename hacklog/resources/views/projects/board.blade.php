@@ -499,6 +499,40 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
     let draggedTask = null;
     let placeholder = null;
     let originalPosition = null;
+    let lastDropColumn = null;
+    let lastDropPosition = -1;
+
+    function reindexColumnPositions(container) {
+        if (!container) return;
+        container.querySelectorAll('.task-card').forEach(function(card, index) {
+            card.dataset.position = index;
+        });
+    }
+
+    function ensureEmptyState(container) {
+        if (!container) return;
+        if (container.querySelectorAll('.task-card').length > 0) return;
+        if (container.querySelector('.board-column-empty')) return;
+        container.innerHTML = '<div class="text-muted text-center py-4 board-column-empty"><small>No tasks in this column</small></div>';
+    }
+
+    function syncMovedCardColumn(card, newColumnId) {
+        card.dataset.columnId = newColumnId;
+        card.querySelectorAll('input[name="column_id"]').forEach(function(input) {
+            input.value = newColumnId;
+        });
+        card.querySelectorAll('input[name="old_column_id"]').forEach(function(input) {
+            input.value = newColumnId;
+        });
+        const columnSelect = card.querySelector('select[name="column_id"]');
+        if (columnSelect) {
+            columnSelect.value = newColumnId;
+            columnSelect.setAttribute('hx-target', '#board-column-' + newColumnId + '-tasks');
+            if (typeof htmx !== 'undefined') {
+                htmx.process(columnSelect);
+            }
+        }
+    }
 
     // Create insertion indicator
     function createInsertionIndicator() {
@@ -509,49 +543,60 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
             background-color: #007bff;
             margin: 4px 0;
             border-radius: 1px;
-            opacity: 0;
-            transition: opacity 0.2s ease;
+            pointer-events: none;
         `;
         return indicator;
     }
 
-    // Show insertion indicator at position
+    // Show insertion indicator at position (skip DOM work if already there)
     function showInsertionIndicator(container, beforeElement) {
-        if (placeholder) {
-            placeholder.remove();
+        if (placeholder && placeholder.parentNode === container) {
+            if (beforeElement) {
+                if (placeholder.nextSibling === beforeElement) return;
+            } else if (!placeholder.nextSibling) {
+                return;
+            }
         }
-        placeholder = createInsertionIndicator();
+        if (!placeholder) {
+            placeholder = createInsertionIndicator();
+        }
         if (beforeElement) {
             container.insertBefore(placeholder, beforeElement);
         } else {
             container.appendChild(placeholder);
         }
-        setTimeout(() => placeholder.style.opacity = '1', 0);
     }
 
     // Hide insertion indicator
     function hideInsertionIndicator() {
         if (placeholder) {
-            placeholder.style.opacity = '0';
-            setTimeout(() => {
-                if (placeholder) placeholder.remove();
-                placeholder = null;
-            }, 200);
+            placeholder.remove();
+            placeholder = null;
         }
     }
 
     // Get drop position based on mouse Y coordinate
     function getDropPosition(container, clientY) {
-        const taskCards = Array.from(container.querySelectorAll('.task-card:not(.dragging)'));
-        if (taskCards.length === 0) return 0;
+        const taskCards = container.querySelectorAll('.task-card:not(.dragging)');
+        const length = taskCards.length;
+        if (length === 0) return 0;
 
-        for (let i = 0; i < taskCards.length; i++) {
-            const rect = taskCards[i].getBoundingClientRect();
+        let low = 0;
+        let high = length;
+        while (low < high) {
+            const mid = (low + high) >> 1;
+            const rect = taskCards[mid].getBoundingClientRect();
             if (clientY < rect.top + rect.height / 2) {
-                return i;
+                high = mid;
+            } else {
+                low = mid + 1;
             }
         }
-        return taskCards.length;
+        return low;
+    }
+
+    function cardAtPosition(container, position) {
+        return container.querySelectorAll('.task-card:not(.dragging)')[position] || null;
     }
 
     // Drag start
@@ -563,6 +608,8 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
             columnId: draggedTask.dataset.columnId,
             position: parseInt(draggedTask.dataset.position)
         };
+        lastDropColumn = null;
+        lastDropPosition = -1;
 
         // Reduce opacity
         draggedTask.style.opacity = '0.5';
@@ -575,6 +622,7 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
 
     // Drag over
     document.addEventListener('dragover', function(e) {
+        if (!draggedTask) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
 
@@ -584,15 +632,21 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         const taskContainer = column.querySelector('[id^="board-column-"][id$="-tasks"]');
         if (!taskContainer) return;
 
-        // Highlight column
-        document.querySelectorAll('.board-column').forEach(col => col.classList.remove('drop-target'));
-        column.classList.add('drop-target');
-
-        // Show insertion indicator
         const position = getDropPosition(taskContainer, e.clientY);
-        const taskCards = Array.from(taskContainer.querySelectorAll('.task-card:not(.dragging)'));
-        const beforeElement = taskCards[position] || null;
-        showInsertionIndicator(taskContainer, beforeElement);
+        if (column === lastDropColumn && position === lastDropPosition) {
+            return;
+        }
+        lastDropColumn = column;
+        lastDropPosition = position;
+
+        if (!column.classList.contains('drop-target')) {
+            document.querySelectorAll('.board-column.drop-target').forEach(function(col) {
+                col.classList.remove('drop-target');
+            });
+            column.classList.add('drop-target');
+        }
+
+        showInsertionIndicator(taskContainer, cardAtPosition(taskContainer, position));
     });
 
     // Drag leave
@@ -603,6 +657,8 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         if (column && !relatedColumn) {
             column.classList.remove('drop-target');
             hideInsertionIndicator();
+            lastDropColumn = null;
+            lastDropPosition = -1;
         }
     });
 
@@ -619,35 +675,40 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         if (!taskContainer) return;
 
         const newColumnId = column.dataset.columnId;
+        const oldColumnId = originalPosition.columnId;
         const position = getDropPosition(taskContainer, e.clientY);
 
         // If same column and same position, do nothing
-        if (newColumnId === originalPosition.columnId && position === originalPosition.position) {
+        if (newColumnId === oldColumnId && position === originalPosition.position) {
             resetDragState();
             return;
         }
 
+        const oldContainer = document.getElementById('board-column-' + oldColumnId + '-tasks');
+
         // Move task in DOM
-        const taskCards = Array.from(taskContainer.querySelectorAll('.task-card:not(.dragging)'));
-        const beforeElement = taskCards[position] || null;
+        const beforeElement = cardAtPosition(taskContainer, position);
         if (beforeElement) {
             taskContainer.insertBefore(draggedTask, beforeElement);
         } else {
             taskContainer.appendChild(draggedTask);
         }
 
-        // Remove empty state if it exists
-        const emptyState = taskContainer.querySelector('.text-muted.text-center');
+        const emptyState = taskContainer.querySelector('.board-column-empty');
         if (emptyState) {
             emptyState.remove();
         }
 
-        // Update data attributes
-        draggedTask.dataset.columnId = newColumnId;
+        syncMovedCardColumn(draggedTask, newColumnId);
         draggedTask.dataset.position = position;
+        reindexColumnPositions(taskContainer);
+        if (oldContainer && oldContainer !== taskContainer) {
+            reindexColumnPositions(oldContainer);
+            ensureEmptyState(oldContainer);
+        }
 
-        if (newColumnId !== originalPosition.columnId) {
-            updateBoardColumnCountById(originalPosition.columnId);
+        if (newColumnId !== oldColumnId) {
+            updateBoardColumnCountById(oldColumnId);
             updateBoardColumnCount(column);
         }
 
@@ -679,35 +740,10 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         .then(response => response.json())
         .then(data => {
             if (!data.success) {
-                // Revert on failure
                 revertTaskPosition();
-            } else if (data.columnChanged) {
-                // Update both columns with fresh HTML
-                const oldColumnContainer = document.getElementById(`board-column-${data.oldColumnId}-tasks`);
-                const newColumnContainer = document.getElementById(`board-column-${data.newColumnId}-tasks`);
-                
-                if (oldColumnContainer && data.oldColumnHtml) {
-                    oldColumnContainer.outerHTML = data.oldColumnHtml;
-                    // Re-process the new HTML with HTMX
-                    const newOldColumn = document.getElementById(`board-column-${data.oldColumnId}-tasks`);
-                    if (newOldColumn && typeof htmx !== 'undefined') {
-                        htmx.process(newOldColumn);
-                    }
-                }
-                if (newColumnContainer && data.newColumnHtml) {
-                    newColumnContainer.outerHTML = data.newColumnHtml;
-                    // Re-process the new HTML with HTMX
-                    const newNewColumn = document.getElementById(`board-column-${data.newColumnId}-tasks`);
-                    if (newNewColumn && typeof htmx !== 'undefined') {
-                        htmx.process(newNewColumn);
-                    }
-                }
-                updateBoardColumnCountById(data.oldColumnId);
-                updateBoardColumnCountById(data.newColumnId);
             }
         })
         .catch(() => {
-            // Revert on error
             revertTaskPosition();
         })
         .finally(() => {
@@ -729,6 +765,8 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         hideInsertionIndicator();
         draggedTask = null;
         originalPosition = null;
+        lastDropColumn = null;
+        lastDropPosition = -1;
     }
 
     function revertTaskPosition() {
