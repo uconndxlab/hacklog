@@ -73,6 +73,16 @@
     @endif
 
     {{-- Header placeholders (out-of-band swaps) --}}
+    <h5 id="taskModalLabel" class="modal-title mb-0" hx-swap-oob="true">
+        @if($isEdit)
+            {{ Str::length($task->title) > 25
+                ? Str::substr($task->title, 0, 22) . '...'
+                : $task->title }}
+        @else
+            Create a Task
+        @endif
+    </h5>
+
     <div id="taskModalIdentifier" hx-swap-oob="true" style="{{ $isEdit ? '' : 'display: none;' }}">
         @if($isEdit)
             <small class="text-muted">#{{ $task->id }}</small>
