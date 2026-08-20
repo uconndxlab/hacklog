@@ -1,74 +1,87 @@
 {{--
-    Task Dependency Picker
+Task Dependency Picker
 
-    @param \Illuminate\Support\Collection $tasks
-    @param \Illuminate\Support\Collection $projects
-    @param array $selectedTaskIds
-    @param int $defaultProjectId
-    @param string $inputName
+@param \Illuminate\Support\Collection $tasks
+@param \Illuminate\Support\Collection $projects
+@param array $selectedTaskIds
+@param int $defaultProjectId
+@param string $inputName
+@param noolean $isEdit
 --}}
 
 @php
     $pickerId = 'task-dependency-picker-' . md5(
         $inputName . microtime()
     );
-@endphp
+    @endphp
 
 
 
 
-<div class="task-dependency-picker" id="{{ $pickerId }}">
+<div class="task-dependency-picker" id="{{ $pickerId }}" >
     {{-- Project filter --}}
-    <div class="mb-2">
-        <label
-            class="form-label small mb-1"
-            for="{{ $pickerId }}-project">
-            Project
-        </label>
 
-        <select
-            id="{{ $pickerId }}-project"
-            class="form-select form-select-sm dependency-picker-project">
-            @foreach($projects as $candidateProject)
-                <option
-                    value="{{ $candidateProject->id }}"
-                    {{ (string) $candidateProject->id ===
-                       (string) $defaultProjectId
+    @include('tasks.partials.dependency-task-cards', [
+        'tasks' => $dependencyTasks,
+        'selectedTaskIds' => $selectedDependencyIds,
+        'isEdit' => $isEdit
+    ])
+
+
+    <label
+        class="form-label small mb-1"
+        for="{{ $pickerId }}-project">
+        Project
+    </label>
+    <div class='task-dependency-picker-options'>
+
+        <div class="mb-2">
+
+            <select
+                id="{{ $pickerId }}-project"
+                class="form-select form-select-sm dependency-picker-project"
+                style="flex: 1">
+                @foreach($projects as $candidateProject)
+                    <option
+                        value="{{ $candidateProject->id }}"
+                        {{ (string) $candidateProject->id ===
+                            (string) $defaultProjectId
                         ? 'selected'
                         : '' }}>
-                    {{ $candidateProject->name }}
-                </option>
-            @endforeach
-        </select>
-    </div>
+                        {{ $candidateProject->name }}
+                    </option>
+                    @endforeach
+            </select>
+        </div>
 
-    {{-- Search input --}}
-    <div class="mb-2">
-        <label
-            class="visually-hidden"
-            for="{{ $pickerId }}-search">
-            Search dependency tasks
-        </label>
+        {{-- Search input --}}
+        <div class="mb-2" style="flex: 1">
+            <label
+                class="visually-hidden"
+                for="{{ $pickerId }}-search">
+                Search dependency tasks
+            </label>
 
-        <input
-            id="{{ $pickerId }}-search"
-            type="text"
-            class="form-control form-control-sm dependency-picker-search"
-            placeholder="Search tasks by title or ID..."
-            autocomplete="off">
+            <input
+                id="{{ $pickerId }}-search"
+                type="text"
+                class="form-control form-control-sm dependency-picker-search"
+                placeholder="Search tasks by title or ID..."
+                autocomplete="off">
+        </div>
     </div>
 
     {{-- Candidate task list --}}
     <div
         class="border rounded p-2 user-picker-list"
-        style="max-height: 200px; overflow-y: auto;">
+        style="max-height: 200px; overflow-y: auto">
         @forelse($tasks as $candidateTask)
             <div
                 class="form-check mb-1 dependency-picker-item"
                 data-project-id="{{ $candidateTask->column->project_id }}"
                 data-search-text="{{ strtolower(
                     '#' . $candidateTask->id . ' ' .
-                    $candidateTask->title
+                        $candidateTask->title
                 ) }}">
                 <input
                     class="form-check-input"
@@ -92,11 +105,11 @@
                     </span>
                 </label>
             </div>
-        @empty
+            @empty
             <div class="text-muted small text-center py-2">
                 No available dependency tasks.
             </div>
-        @endforelse
+            @endforelse
 
         <div
             class="dependency-picker-no-results text-muted small text-center py-2"
@@ -127,10 +140,10 @@
     function applyFilters() {
         const projectId = projectFilter.value;
         const searchTerms = searchInput.value
-            .toLowerCase()
-            .trim()
-            .split(/\s+/)
-            .filter(term => term.length > 0);
+        .toLowerCase()
+        .trim()
+        .split(/\s+/)
+        .filter(term => term.length > 0);
 
         let visibleCount = 0;
 

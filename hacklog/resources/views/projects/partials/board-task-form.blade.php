@@ -373,7 +373,7 @@
 
         {{-- Dependencies --}}
         <div class="mb-3">
-            <label class="form-label">Dependencies</label>
+            <label class="form-label">Pre Requisites</label>
 
             @php
                 $selectedDependencyIds = array_map(
