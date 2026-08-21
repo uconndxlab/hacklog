@@ -247,6 +247,17 @@ class Task extends Model
             'dependency_id'
         );
     }
+
+    /**
+     * Get the dependency task models as an array.
+     *
+     * @return array<int, Task>
+     */
+    public function getDependencyTasks(): array
+    {
+        return $this->dependencies->all();
+    }
+
     public function dependents(): BelongsToMany
     {
         return $this->belongsToMany(

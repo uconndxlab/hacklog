@@ -383,7 +383,11 @@
 
         {{-- Dependencies --}}
         <div class="mb-3">
-            <label class="form-label">Pre Requisites</label>
+            <label class="form-label">Pre Requisites
+            @if(!empty($dependencyIds))
+                ⚠️
+            @endif
+            </label>
 
             @php
                 $selectedDependencyIds = array_map(
