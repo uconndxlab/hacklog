@@ -23,7 +23,7 @@
     {{-- User list --}}
     <div class="border rounded p-2 user-picker-list" style="max-height: 200px; overflow-y: auto;">
         @foreach($users as $user)
-            <div class="form-check mb-1 user-picker-item" data-user-name="{{ strtolower($user->name) }}">
+            <div class="form-check mb-1 user-picker-item" data-user-name="{{ $user->searchText() }}">
                 <input
                     class="form-check-input"
                     type="checkbox"
@@ -33,6 +33,9 @@
                     {{ in_array($user->id, $selectedUserIds) ? 'checked' : '' }}>
                 <label class="form-check-label w-100 small" for="{{ $inputName }}_{{ $user->id }}">
                     {{ $user->name }}
+                    @if(!empty($user->nicknames))
+                        <span class="text-muted">({{ $user->nicknamesAsString() }})</span>
+                    @endif
                 </label>
             </div>
         @endforeach

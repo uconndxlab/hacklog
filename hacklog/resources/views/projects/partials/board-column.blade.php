@@ -3,7 +3,7 @@
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <div>
             <h5 class="mb-0">{{ $column->name }}</h5>
-            <small class="text-muted">{{ $columnTasks->count() }} {{ Str::plural('task', $columnTasks->count()) }}</small>
+            <small class="text-muted board-column-count">{{ $columnTasks->count() }} {{ Str::plural('task', $columnTasks->count()) }}</small>
         </div>
         @if(isset($isProjectBoard) && $isProjectBoard)
             <button 

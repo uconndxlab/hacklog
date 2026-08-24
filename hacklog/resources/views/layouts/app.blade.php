@@ -5,7 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', config('app.name', 'Hacklog')) - {{ config('app.name', 'Hacklog') }}</title>
+    <script>
+        (function() {
+            var THEME_KEY = 'hacklog-theme';
+            try {
+                var saved = localStorage.getItem(THEME_KEY);
+                var dark = saved === 'dark' || (saved !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (dark) document.documentElement.classList.add('theme-dark');
+            } catch (_) {}
+        })();
+    </script>
+    <style>
+        html.theme-dark, html.theme-dark body { background-color: #1a1f2e; color-scheme: dark; }
+    </style>
     
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Ubuntu:wght@300;400;500;700&display=swap">
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
@@ -14,12 +31,19 @@
     
     <!-- Hacklog Theme -->
     <link rel="stylesheet" href="{{ asset('css/hacklog-theme.css') }}">
+
+    @stack('styles')
     
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
 </head>
 <body>
+    <script>
+        if (document.documentElement.classList.contains('theme-dark')) {
+            document.body.classList.add('theme-dark');
+        }
+    </script>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container-fluid">
             <img src="{{ asset('img/hacky-jonny.png') }}" alt="Hacklog Logo" class="me-2" height="30">
@@ -193,15 +217,6 @@
             }
         });
         
-        (function() {
-            var THEME_KEY = 'hacklog-theme';
-            try {
-                var saved = localStorage.getItem(THEME_KEY);
-                if (saved === 'dark') document.body.classList.add('theme-dark');
-                else if (saved === 'light') document.body.classList.remove('theme-dark');
-                else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) document.body.classList.add('theme-dark');
-            } catch (_) {}
-        })();
         document.addEventListener('DOMContentLoaded', function() {
             // =========================
             // Theme toggle (light/dark)
@@ -211,11 +226,9 @@
             const themeToggle = document.getElementById('hl-theme-toggle');
 
             function applyTheme(theme) {
-                if (theme === 'dark') {
-                    body.classList.add('theme-dark');
-                } else {
-                    body.classList.remove('theme-dark');
-                }
+                const dark = theme === 'dark';
+                document.documentElement.classList.toggle('theme-dark', dark);
+                body.classList.toggle('theme-dark', dark);
             }
 
             // Re-apply initial theme in case DOM was not ready when the IIFE above ran

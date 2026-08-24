@@ -564,7 +564,7 @@ class ProjectController extends Controller
         
         // Load all tasks for this project (optionally filtered by phase)
         // Eager load phase, users, and creator relationships and order by position within each column
-        $tasks = $tasksQuery->with(['phase', 'users', 'creator'])->get()->groupBy('column_id');
+        $tasks = $this->constrainBoardTaskPayload($tasksQuery)->get()->groupBy('column_id');
         
         // Get users who have tasks assigned in this project with counts
         $usersWithTasks = \App\Models\User::whereHas('tasks', function ($query) use ($project) {
@@ -885,21 +885,48 @@ class ProjectController extends Controller
             abort(403, 'Task does not belong to this project.');
         }
 
-        $user = auth()->user();
+        $fieldOnly = null;
+        if ($request->boolean('status_change_only')) {
+            $fieldOnly = 'status';
+        } elseif ($request->boolean('priority_change_only')) {
+            $fieldOnly = 'priority';
+        } elseif ($request->boolean('weight_change_only')) {
+            $fieldOnly = 'weight';
+        } elseif ($request->boolean('column_change_only')) {
+            $fieldOnly = 'column';
+        }
 
-        $validated = $request->validate([
-            'phase_id' => 'nullable|exists:phases,id',
-            'column_id' => 'required|exists:columns,id',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => ['required', Rule::in(Task::STATUSES)],
-            'priority' => ['nullable', Rule::in(Task::PRIORITY_VALUES)],
-            'weight' => ['nullable', Rule::in(Task::WEIGHT_VALUES)],
-            'start_date' => 'nullable|date',
-            'due_date' => 'nullable|date|after_or_equal:start_date',
-            'assignees' => 'nullable|array',
-            'assignees.*' => 'exists:users,id',
-        ]);
+        if ($fieldOnly === 'status') {
+            $validated = $request->validate([
+                'status' => ['required', Rule::in(Task::STATUSES)],
+            ]);
+        } elseif ($fieldOnly === 'priority') {
+            $validated = $request->validate([
+                'priority' => ['nullable', Rule::in(Task::PRIORITY_VALUES)],
+            ]);
+        } elseif ($fieldOnly === 'weight') {
+            $validated = $request->validate([
+                'weight' => ['nullable', Rule::in(Task::WEIGHT_VALUES)],
+            ]);
+        } elseif ($fieldOnly === 'column') {
+            $validated = $request->validate([
+                'column_id' => 'required|exists:columns,id',
+            ]);
+        } else {
+            $validated = $request->validate([
+                'phase_id' => 'nullable|exists:phases,id',
+                'column_id' => 'required|exists:columns,id',
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'status' => ['required', Rule::in(Task::STATUSES)],
+                'priority' => ['nullable', Rule::in(Task::PRIORITY_VALUES)],
+                'weight' => ['nullable', Rule::in(Task::WEIGHT_VALUES)],
+                'start_date' => 'nullable|date',
+                'due_date' => 'nullable|date|after_or_equal:start_date',
+                'assignees' => 'nullable|array',
+                'assignees.*' => 'exists:users,id',
+            ]);
+        }
 
         // If phase_id provided, verify it belongs to this project
         if (!empty($validated['phase_id'])) {
@@ -913,32 +940,38 @@ class ProjectController extends Controller
         $oldStatus = $task->status;
         $oldPhaseId = $task->phase_id;
         $oldDueDate = $task->due_date?->format('Y-m-d');
-        $oldAssignees = $task->users->pluck('id')->toArray();
-        
+        $oldAssignees = $fieldOnly ? [] : $task->users->pluck('id')->toArray();
+
         // Set updater
         $validated['updated_by'] = auth()->id();
 
         // Handle completed_at timestamp
-        if ($validated['status'] === 'completed' && $oldStatus !== 'completed') {
-            $validated['completed_at'] = now();
-        } elseif ($validated['status'] !== 'completed' && $oldStatus === 'completed') {
-            $validated['completed_at'] = null;
+        if (array_key_exists('status', $validated)) {
+            if ($validated['status'] === 'completed' && $oldStatus !== 'completed') {
+                $validated['completed_at'] = now();
+            } elseif ($validated['status'] !== 'completed' && $oldStatus === 'completed') {
+                $validated['completed_at'] = null;
+            }
         }
-        
+
         // Update the task
         $task->update($validated);
 
-        // Sync assignees
-        $newAssignees = array_map('intval', $validated['assignees'] ?? []);
-        sort($oldAssignees);
-        sort($newAssignees);
-        $task->users()->sync($newAssignees);
+        // Sync assignees only on full updates so field-only posts cannot clear them
+        if (!$fieldOnly) {
+            $newAssignees = array_map('intval', $validated['assignees'] ?? []);
+            sort($oldAssignees);
+            sort($newAssignees);
+            $task->users()->sync($newAssignees);
+        } else {
+            $newAssignees = $oldAssignees;
+        }
 
         // Log meaningful changes
         $userId = auth()->id();
 
         // Status changes
-        if ($oldStatus !== $validated['status']) {
+        if (array_key_exists('status', $validated) && $oldStatus !== $validated['status']) {
             if ($validated['status'] === 'completed') {
                 \App\Models\TaskActivity::log($task->id, $userId, 'completed', null);
             } elseif ($oldStatus === 'completed') {
@@ -952,7 +985,7 @@ class ProjectController extends Controller
         }
 
         // Phase changes
-        if ($oldPhaseId != ($validated['phase_id'] ?? null)) {
+        if (array_key_exists('phase_id', $validated) && $oldPhaseId != ($validated['phase_id'] ?? null)) {
             $newPhase = $validated['phase_id'] ? \App\Models\Phase::find($validated['phase_id']) : null;
             \App\Models\TaskActivity::log($task->id, $userId, 'phase_changed', [
                 'from' => $oldPhaseId,
@@ -962,7 +995,7 @@ class ProjectController extends Controller
         }
 
         // Assignee changes (only log if there's an actual difference)
-        if ($oldAssignees !== $newAssignees) {
+        if (!$fieldOnly && $oldAssignees !== $newAssignees) {
             \App\Models\TaskActivity::log($task->id, $userId, 'assignees_changed', [
                 'added' => array_diff($newAssignees, $oldAssignees),
                 'removed' => array_diff($oldAssignees, $newAssignees),
@@ -970,16 +1003,18 @@ class ProjectController extends Controller
         }
 
         // Due date changes
-        $newDueDate = $validated['due_date'] ?? null;
-        if ($oldDueDate !== $newDueDate) {
-            \App\Models\TaskActivity::log($task->id, $userId, 'due_date_changed', [
-                'from' => $oldDueDate,
-                'to' => $newDueDate,
-            ]);
+        if (array_key_exists('due_date', $validated)) {
+            $newDueDate = $validated['due_date'] ?? null;
+            if ($oldDueDate !== $newDueDate) {
+                \App\Models\TaskActivity::log($task->id, $userId, 'due_date_changed', [
+                    'from' => $oldDueDate,
+                    'to' => $newDueDate,
+                ]);
+            }
         }
 
         // If column changed, adjust positions
-        if ($oldColumnId != $validated['column_id']) {
+        if (array_key_exists('column_id', $validated) && $oldColumnId != $validated['column_id']) {
             $task->position = \App\Models\Task::getNextPositionInColumn($validated['column_id']);
             $task->save();
         }
@@ -988,12 +1023,12 @@ class ProjectController extends Controller
 
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
-        $statusChangeOnly = $request->input('status_change_only');
-        
+        $cardOnly = in_array($fieldOnly, ['status', 'priority', 'weight'], true);
+
         if (request()->header('HX-Request') && $fromBoardModal) {
-            // For status-only changes, just return the updated task card
-            if ($statusChangeOnly) {
-                $task->load(['users', 'phase']);
+            // Field-only card edits: return the updated card, not the whole column
+            if ($cardOnly) {
+                $task->load(['users', 'phase', 'creator']);
                 return view('projects.partials.board-task-card', [
                     'project' => $project,
                     'task' => $task,
@@ -1003,21 +1038,22 @@ class ProjectController extends Controller
                     'filterAssigned' => $request->input('filter_assigned')
                 ]);
             }
-            
+
             // HTMX: Return updated column task lists
             $columns = $project->columns;
-            
+            $columnId = $validated['column_id'] ?? $task->column_id;
+
             // Build task query with optional filters
             $tasksQuery = \App\Models\Task::whereHas('column', function ($query) use ($project) {
                 $query->where('project_id', $project->id);
             });
-            
+
             // Apply phase filter if provided
             $filterPhaseId = $request->input('filter_phase_id');
             if ($filterPhaseId) {
                 $tasksQuery->where('phase_id', $filterPhaseId);
             }
-            
+
             // Apply assignment filter if provided
             $filterAssigned = $request->input('filter_assigned');
             if ($filterAssigned === 'me') {
@@ -1031,16 +1067,16 @@ class ProjectController extends Controller
                     $query->where('users.id', $filterAssigned);
                 });
             }
-            
-            $tasks = $tasksQuery->with(['phase', 'users'])
+
+            $tasks = $this->constrainBoardTaskPayload($tasksQuery)
                 ->get()
                 ->groupBy('column_id');
-            
+
             // If column changed, we need to update both old and new columns
-            if ($oldColumnId != $validated['column_id']) {
+            if ($oldColumnId != $columnId) {
                 $oldColumn = $columns->firstWhere('id', $oldColumnId);
-                $newColumn = $columns->firstWhere('id', $validated['column_id']);
-                
+                $newColumn = $columns->firstWhere('id', $columnId);
+
                 // Return both column updates with modal close script
                 $html = view('projects.partials.board-column-tasks', [
                     'column' => $oldColumn,
@@ -1050,20 +1086,20 @@ class ProjectController extends Controller
                     'isProjectBoard' => true,
                     'filterPhaseId' => $filterPhaseId
                 ])->render();
-                
-                $html .= '<div id="board-column-' . $validated['column_id'] . '-tasks" hx-swap-oob="true">';
+
+                $html .= '<div id="board-column-' . $columnId . '-tasks" hx-swap-oob="true">';
                 $html .= view('projects.partials.board-column-tasks', [
                     'column' => $newColumn,
-                    'columnTasks' => $tasks->get($validated['column_id'], collect()),
+                    'columnTasks' => $tasks->get($columnId, collect()),
                     'project' => $project,
                     'allColumns' => $columns,
                     'isProjectBoard' => true,
                     'filterPhaseId' => $filterPhaseId
                 ])->render();
                 $html .= '</div>';
-                
+
                 $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
-                
+
                 // Build URL with filter parameters
                 $queryParams = [];
                 if ($filterPhaseId) {
@@ -1073,23 +1109,23 @@ class ProjectController extends Controller
                     $queryParams['assigned'] = $filterAssigned;
                 }
                 $boardUrl = route('projects.board', array_merge(['project' => $project], $queryParams));
-                
+
                 return response($html)->header('HX-Push-Url', $boardUrl);
             } else {
                 // Same column, just update it
-                $column = $columns->firstWhere('id', $validated['column_id']);
-                
+                $column = $columns->firstWhere('id', $columnId);
+
                 $html = view('projects.partials.board-column-tasks', [
                     'column' => $column,
-                    'columnTasks' => $tasks->get($validated['column_id'], collect()),
+                    'columnTasks' => $tasks->get($columnId, collect()),
                     'project' => $project,
                     'allColumns' => $columns,
                     'isProjectBoard' => true,
                     'filterPhaseId' => $filterPhaseId
                 ])->render();
-                
+
                 $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
-                
+
                 // Build URL with filter parameters
                 $queryParams = [];
                 if ($filterPhaseId) {
@@ -1099,7 +1135,7 @@ class ProjectController extends Controller
                     $queryParams['assigned'] = $filterAssigned;
                 }
                 $boardUrl = route('projects.board', array_merge(['project' => $project], $queryParams));
-                
+
                 return response($html)->header('HX-Push-Url', $boardUrl);
             }
         }
@@ -1115,6 +1151,30 @@ class ProjectController extends Controller
         
         return redirect()->route('projects.board', array_merge(['project' => $project], $queryParams))
             ->with('success', 'Task updated successfully.');
+    }
+
+    /**
+     * Limit board task payloads to fields the card actually renders.
+     */
+    protected function constrainBoardTaskPayload($query)
+    {
+        return $query->select([
+            'id',
+            'title',
+            'status',
+            'priority',
+            'weight',
+            'due_date',
+            'phase_id',
+            'column_id',
+            'position',
+            'created_by',
+            'updated_at',
+        ])->with([
+            'phase:id,name',
+            'users:id,name',
+            'creator:id,name',
+        ]);
     }
 
     /**
@@ -1175,70 +1235,13 @@ class ProjectController extends Controller
             ->where('position', '>=', $validated['position'])
             ->update(['position' => \Illuminate\Support\Facades\DB::raw('position + 1')]);
 
-        // Return updated column(s) HTML for the affected columns
-        $columns = $project->columns;
-        
-        // Build task query with optional phase filter
-        $tasksQuery = \App\Models\Task::whereHas('column', function ($query) use ($project) {
-            $query->where('project_id', $project->id);
-        });
-        
-        // Apply phase filter if provided
-        $filterPhaseId = $validated['filter_phase_id'] ?? null;
-        if ($filterPhaseId) {
-            $tasksQuery->where('phase_id', $filterPhaseId);
-        }
-        
-        // Apply assignment filter if provided
-        $filterAssigned = $validated['filter_assigned'] ?? null;
-        if ($filterAssigned === 'me') {
-            $tasksQuery->whereHas('users', function ($query) use ($request) {
-                $query->where('users.id', $request->user()->id);
-            });
-        } elseif ($filterAssigned === 'none') {
-            $tasksQuery->whereDoesntHave('users');
-        } elseif ($filterAssigned && is_numeric($filterAssigned)) {
-            $tasksQuery->whereHas('users', function ($query) use ($filterAssigned) {
-                $query->where('users.id', $filterAssigned);
-            });
-        }
-        
-        $tasks = $tasksQuery->with(['phase', 'users'])
-            ->get()
-            ->groupBy('column_id');
-
-        // If column changed, return both old and new columns
-        if ($oldColumnId !== $validated['column_id']) {
-            $oldColumn = $columns->firstWhere('id', $oldColumnId);
-            $newColumn = $columns->firstWhere('id', $validated['column_id']);
-
-            $response = [
-                'success' => true,
-                'columnChanged' => true,
-                'oldColumnHtml' => view('projects.partials.board-column-tasks', [
-                    'column' => $oldColumn,
-                    'columnTasks' => $tasks->get($oldColumnId, collect()),
-                    'project' => $project,
-                    'allColumns' => $columns,
-                    'isProjectBoard' => true,
-                    'filterPhaseId' => $filterPhaseId
-                ])->render(),
-                'newColumnHtml' => view('projects.partials.board-column-tasks', [
-                    'column' => $newColumn,
-                    'columnTasks' => $tasks->get($validated['column_id'], collect()),
-                    'project' => $project,
-                    'allColumns' => $columns,
-                    'isProjectBoard' => true,
-                    'filterPhaseId' => $filterPhaseId
-                ])->render(),
-                'oldColumnId' => $oldColumnId,
-                'newColumnId' => $validated['column_id']
-            ];
-
-            return response()->json($response);
-        }
-
-        return response()->json(['success' => true, 'columnChanged' => false]);
+        // The board already moved the card in the DOM. Do not re-render column HTML
+        return response()->json([
+            'success' => true,
+            'columnChanged' => $oldColumnId !== $validated['column_id'],
+            'oldColumnId' => $oldColumnId,
+            'newColumnId' => $validated['column_id'],
+        ]);
     }
 
     /**
