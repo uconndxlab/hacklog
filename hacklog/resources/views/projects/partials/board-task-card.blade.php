@@ -201,7 +201,7 @@
             @if(isset($filterAssigned) && $filterAssigned)
                 <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}">
             @endif
-
+            
             <div class="input-group input-group-sm">
                 <label class="input-group-text" for="columnSelect-{{ $task->id }}" style="font-size: 0.7rem;">Move to:</label>
                 <select
