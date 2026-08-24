@@ -251,6 +251,35 @@ class ProjectController extends Controller
     }
 
     /**
+     * Admin-only table view: all projects with status, team, tags, and launch date.
+     */
+    public function tableView(Request $request)
+    {
+        $projects = Project::with(['tags', 'columns.tasks.users', 'shares'])
+            ->orderByRaw("
+                CASE
+                    WHEN status = 'planning' THEN 1
+                    WHEN status = 'active' THEN 2
+                    WHEN status = 'on_hold' THEN 3
+                    WHEN status = 'completed' THEN 4
+                    WHEN status = 'archived' THEN 5
+                    ELSE 6
+                END
+            ")
+            ->orderBy('name', 'asc')
+            ->get();
+
+        // Resolve all user-type share targets in a single query
+        $sharedUserIds = $projects->flatMap(
+            fn($p) => $p->shares->where('shareable_type', 'user')->pluck('shareable_id')
+        )->unique()->values()->toArray();
+
+        $sharedUsers = User::whereIn('id', $sharedUserIds)->get()->keyBy('id');
+
+        return view('projects.table', compact('projects', 'sharedUsers'));
+    }
+
+    /**
      * Show the form for creating a new resource.
      */
     public function create()
@@ -1476,6 +1505,7 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'status' => ['required', Rule::in(Project::STATUS_VALUES)],
             'staffing_model' => 'required|in:dedicated,shared',
+            'launch_date' => 'nullable|date',
             'slack_webhook_url' => 'nullable|url|max:2048',
             'slack_channel_id' => 'nullable|string|max:30',
             'slack_bot_enabled' => 'nullable|boolean',
@@ -1491,7 +1521,7 @@ class ProjectController extends Controller
 
         $oldStatus = $project->status;
         $projectData = collect($validated)
-            ->only(['name', 'description', 'status', 'staffing_model', 'slack_webhook_url', 'slack_channel_id'])
+            ->only(['name', 'description', 'status', 'staffing_model', 'launch_date', 'slack_webhook_url', 'slack_channel_id'])
             ->all();
 
         $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);

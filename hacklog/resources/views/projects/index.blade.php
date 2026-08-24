@@ -14,6 +14,9 @@
         @if(Auth::user()->isClient())
             <span class="badge bg-info">Client Access</span>
         @endif
+        @if(Auth::user()->isAdmin())
+            <a href="{{ route('projects.table') }}" class="btn btn-outline-secondary btn-sm">Table View</a>
+        @endif
         <a href="{{ route('projects.create') }}" class="btn btn-primary">New Project</a>
     </div>
 </div>

@@ -59,6 +59,7 @@ Route::middleware('auth')->group(function () {
         Route::get('admin/projects/{project}/phases/{phase}/tasks', [TaskController::class, 'adminIndex'])->name('admin.phases.tasks.index');
         Route::delete('admin/projects/{project}/phases/{phase}/tasks/bulk', [TaskController::class, 'bulkDelete'])->name('admin.phases.tasks.bulk-delete');
         Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
+        Route::get('projects-table', [ProjectController::class, 'tableView'])->name('projects.table');
     });
 
     Route::resource('tags', TagController::class)->except(['show']);

@@ -34,7 +34,7 @@
     @if(!Auth::user()->isClient())
     <li class="nav-item">
         <a class="nav-link @if($currentView === 'sharing') active @endif" href="{{ route('projects.sharing', $project) }}">
-            Sharing
+            Team &amp; Sharing
         </a>
     </li>
     <li class="nav-item">

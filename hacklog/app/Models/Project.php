@@ -36,6 +36,7 @@ class Project extends Model
         'description',
         'status',
         'staffing_model',
+        'launch_date',
         'slack_webhook_url',
         'slack_channel_id',
         'slack_bot_enabled',
@@ -44,6 +45,7 @@ class Project extends Model
     protected $casts = [
         'status' => 'string',
         'staffing_model' => 'string',
+        'launch_date' => 'date',
         'slack_webhook_url' => 'string',
         'slack_channel_id' => 'string',
         'slack_bot_enabled' => 'boolean',

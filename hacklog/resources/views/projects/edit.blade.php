@@ -82,6 +82,22 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="launch_date" class="form-label">Launch Date <span class="text-muted fw-normal">(optional)</span></label>
+                        <input
+                            type="date"
+                            class="form-control @error('launch_date') is-invalid @enderror"
+                            id="launch_date"
+                            name="launch_date"
+                            value="{{ old('launch_date', $project->launch_date?->format('Y-m-d')) }}">
+                        <div class="form-text">
+                            The planned or actual launch date for this project. Displayed in the admin table view.
+                        </div>
+                        @error('launch_date')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
                         <label for="slack_webhook_url" class="form-label">Slack Webhook URL <span class="text-muted fw-normal">(optional)</span></label>
                         <input
                             type="url"
