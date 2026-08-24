@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('task_id')->constrained('tasks')->cascadeOnDelete();
             $table->foreignId('dependency_id')->constrained('tasks')->cascadeOnDelete();
+            $table->unique(['task_id', 'dependency_id']);
+            $table->index('dependency_id');
         });
     }
 

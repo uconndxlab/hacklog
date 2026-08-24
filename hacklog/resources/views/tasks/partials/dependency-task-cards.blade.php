@@ -24,8 +24,14 @@ Compact Task Card for info form
         @foreach ($selectedTasks as $taskObject)
 
             @php
-                $taskUrl = '/projects/' . $taskObject['project_id'] . '/board/tasks/' . $taskObject['task_id'] . '/edit';
-                @endphp
+                $taskUrl = route(
+                        'projects.board.tasks.edit',
+                        [
+                            $taskObject['project_id'],
+                            $taskObject['task_id']
+                        ]
+                );
+            @endphp
 
             <a
                 class="badge bg-light text-dark border d-flex p-1"

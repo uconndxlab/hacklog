@@ -30,11 +30,11 @@ class TaskController extends Controller
             ->orderByRaw('CASE WHEN status = "active" THEN 1 WHEN status = "planned" THEN 2 ELSE 3 END')
             ->orderBy('name')
             ->get();
-        
+
         // Get users sorted: current user first, then recent assignees on this project, then alphabetically
         $currentUser = auth()->user();
         $users = $this->getSortedUsersForProject($project, $currentUser);
-        
+
         return view('tasks.create', compact('project', 'phase', 'columns', 'phases', 'users'));
     }
 
@@ -102,11 +102,11 @@ class TaskController extends Controller
     public function edit(Project $project, Phase $phase, Task $task)
     {
         $columns = $project->columns;
-        
+
         // Get users sorted: current user first, then recent assignees on this project, then alphabetically
         $currentUser = auth()->user();
         $users = $this->getSortedUsersForProject($project, $currentUser);
-        
+
         $task->load('users');
         return view('tasks.edit', compact('project', 'phase', 'task', 'columns', 'users'));
     }
@@ -130,7 +130,7 @@ class TaskController extends Controller
         $oldColumnId = $task->column_id;
         $oldStatus = $task->status;
         $oldAssignees = $task->users->pluck('id')->toArray();
-        
+
         // Set updater
         $validated['updated_by'] = auth()->id();
 
@@ -140,12 +140,12 @@ class TaskController extends Controller
         } elseif ($validated['status'] !== 'completed' && $oldStatus === 'completed') {
             $validated['completed_at'] = null;
         }
-        
+
         // If column changed, set position to end of new column
         if ($oldColumnId != $validated['column_id']) {
             $validated['position'] = Task::getNextPositionInColumn($validated['column_id']);
         }
-        
+
         $task->update($validated);
 
         // Only sync assignees if not a simple column change from board
@@ -185,7 +185,7 @@ class TaskController extends Controller
 
         // Check if this is from the board view
         $fromBoard = $request->input('from_board');
-        
+
         // HTMX request
         if (request()->header('HX-Request')) {
             if ($fromBoard && $oldColumnId != $task->column_id) {
@@ -200,17 +200,17 @@ class TaskController extends Controller
 
         // Regular form submission
         $redirectRoute = $fromBoard === '1' ? 'projects.board' : 'projects.board';
-        
+
         // Build redirect parameters
         if ($fromBoard === '1') {
             // Project board: preserve phase and assigned filters
             $redirectParams = ['project' => $project];
-            
+
             // Preserve phase filter
             if ($request->has('filter_phase_id') || $request->query('phase')) {
                 $redirectParams['phase'] = $request->input('filter_phase_id') ?? $request->query('phase');
             }
-            
+
             // Preserve assigned filter
             if ($request->has('filter_assigned') || $request->query('assigned')) {
                 $redirectParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
@@ -218,13 +218,13 @@ class TaskController extends Controller
         } else {
             // Phase-specific board
             $redirectParams = ['project' => $project, 'phase' => $phase->id];
-            
+
             // Preserve assigned filter if present
             if ($request->has('filter_assigned') || $request->query('assigned')) {
                 $redirectParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
             }
         }
-        
+
         return redirect()->route($redirectRoute, $redirectParams)
             ->with('success', 'Task updated successfully.');
     }
@@ -236,7 +236,7 @@ class TaskController extends Controller
     protected function handleBoardColumnChange(Project $project, Phase $phase, int $oldColumnId, int $newColumnId, bool $isProjectBoard = true)
     {
         $columns = $project->columns;
-        
+
         if ($isProjectBoard) {
             // Build task query with same filtering logic as board view
             $tasksQuery = \App\Models\Task::whereHas('phase', function ($query) use ($project) {
@@ -272,17 +272,25 @@ class TaskController extends Controller
             if (request('weight') && in_array(request('weight'), \App\Models\Task::WEIGHT_VALUES)) {
                 $tasksQuery->where('weight', request('weight'));
             }
-            
-            $tasks = $tasksQuery->with(['phase', 'users'])->get()->groupBy('column_id');
+
+            $tasks = $tasksQuery
+                ->with(['phase', 'users'])
+                ->withBoardDependencySummary()
+                ->get()
+                ->groupBy('column_id');
         } else {
             // Load only tasks for this specific phase
-            $tasks = $phase->tasks()->with(['phase', 'users'])->get()->groupBy('column_id');
+            $tasks = $phase->tasks()
+                ->with(['phase', 'users'])
+                ->withBoardDependencySummary()
+                ->get()
+                ->groupBy('column_id');
         }
-        
+
         // Get the source and destination columns
         $sourceColumn = $columns->firstWhere('id', $oldColumnId);
         $destColumn = $columns->firstWhere('id', $newColumnId);
-        
+
         // Render both column task lists
         $sourceHtml = view('projects.partials.board-column-tasks', [
             'column' => $sourceColumn,
@@ -291,7 +299,7 @@ class TaskController extends Controller
             'allColumns' => $columns,
             'isProjectBoard' => $isProjectBoard
         ])->render();
-        
+
         $destHtml = view('projects.partials.board-column-tasks', [
             'column' => $destColumn,
             'columnTasks' => $tasks->get($newColumnId, collect()),
@@ -300,7 +308,7 @@ class TaskController extends Controller
             'isProjectBoard' => $isProjectBoard,
             'isOob' => true
         ])->render();
-        
+
         return response($sourceHtml . $destHtml);
     }
 
@@ -315,7 +323,7 @@ class TaskController extends Controller
         if ($user->isClient() && $task->created_by !== $user->id) {
             abort(403, 'You are not authorized to delete this task.');
         }
-        
+
         if (!$user->isClient() && $task->created_by !== $user->id && !$user->isAdmin()) {
             abort(403, 'You are not authorized to delete this task.');
         }
@@ -345,8 +353,8 @@ class TaskController extends Controller
             if ($fromBoard === '1') {
                 // Board context: return board-column-tasks partial
                 return $this->returnBoardColumnTasks(
-                    $project, 
-                    $task->column_id, 
+                    $project,
+                    $task->column_id,
                     $request->input('filter_phase_id'),
                     $request->input('filter_assigned'),
                     $request->input('filter_priority'),
@@ -363,7 +371,7 @@ class TaskController extends Controller
         // Regular request - redirect based on context
         $redirectRoute = $fromBoard === '1' ? 'projects.board' : 'projects.board';
         $redirectParams = $fromBoard === '1' ? [$project] : ['project' => $project, 'phase' => $phase->id];
-        
+
         return redirect()->route($redirectRoute, $redirectParams)
             ->with('success', 'Task moved up.');
     }
@@ -382,8 +390,8 @@ class TaskController extends Controller
             if ($fromBoard === '1') {
                 // Board context: return board-column-tasks partial
                 return $this->returnBoardColumnTasks(
-                    $project, 
-                    $task->column_id, 
+                    $project,
+                    $task->column_id,
                     $request->input('filter_phase_id'),
                     $request->input('filter_assigned'),
                     $request->input('filter_priority'),
@@ -400,7 +408,7 @@ class TaskController extends Controller
         // Regular request - redirect based on context
         $redirectRoute = $fromBoard === '1' ? 'projects.board' : 'projects.board';
         $redirectParams = $fromBoard === '1' ? [$project] : ['project' => $project, 'phase' => $phase->id];
-        
+
         return redirect()->route($redirectRoute, $redirectParams)
             ->with('success', 'Task moved down.');
     }
@@ -411,7 +419,7 @@ class TaskController extends Controller
     public function adminIndex(Project $project, Phase $phase)
     {
         $tasks = $phase->tasks()->with(['users', 'column'])->get();
-        
+
         return view('admin.phases.tasks.index', compact('project', 'phase', 'tasks'));
     }
 
@@ -435,7 +443,7 @@ class TaskController extends Controller
         }
 
         $deletedCount = $tasksToDelete->count();
-        
+
         // Delete the tasks (this will also handle relationships due to cascade)
         Task::whereIn('id', $tasksToDelete->pluck('id'))->delete();
 
@@ -449,15 +457,15 @@ class TaskController extends Controller
     {
         $columns = $project->columns;
         $column = $columns->firstWhere('id', $columnId);
-        
+
         // Build query with optional filters
         $query = \App\Models\Task::where('column_id', $columnId);
-        
+
         // Apply phase filter if provided
         if ($filterPhaseId) {
             $query->where('phase_id', $filterPhaseId);
         }
-        
+
         // Apply assignment filter if provided
         if ($filterAssigned === 'me') {
             $query->whereHas('users', function ($q) {
@@ -480,9 +488,9 @@ class TaskController extends Controller
         if ($filterWeight) {
             $query->where('weight', $filterWeight);
         }
-        
-        $columnTasks = $query->with(['phase', 'users', 'creator'])->get();
-        
+
+        $columnTasks = $query->with(['phase', 'users', 'creator'])->withBoardDependencySummary()->get();
+
         return view('projects.partials.board-column-tasks', [
             'column' => $column,
             'columnTasks' => $columnTasks,

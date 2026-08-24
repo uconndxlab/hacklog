@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -248,16 +249,6 @@ class Task extends Model
         );
     }
 
-    /**
-     * Get the dependency task models as an array.
-     *
-     * @return array<int, Task>
-     */
-    public function getDependencyTasks(): array
-    {
-        return $this->dependencies->all();
-    }
-
     public function dependents(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -266,6 +257,16 @@ class Task extends Model
             'dependency_id',
             'task_id'
         );
+    }
+
+    public function scopeWithBoardDependencySummary(Builder $query): Builder
+    {
+        return $query
+            ->with([
+                'dependencies' => fn (BelongsToMany $dependencyQuery) => $dependencyQuery
+                    ->select('tasks.id', 'tasks.title'),
+            ])
+            ->withCount('dependencies');
     }
 
     /**

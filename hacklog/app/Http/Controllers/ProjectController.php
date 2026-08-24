@@ -564,8 +564,12 @@ class ProjectController extends Controller
 
         // Load all tasks for this project (optionally filtered by phase)
         // Eager load phase, users, and creator relationships and order by position within each column
-        $tasks = $tasksQuery->with(['phase', 'users', 'creator'])->get()->groupBy('column_id');
-
+        // load dependency relation for task prerequisites
+        $tasks = $tasksQuery
+            ->with(['phase', 'users', 'creator'])
+            ->withBoardDependencySummary()
+            ->get()
+            ->groupBy('column_id');
         // Get users who have tasks assigned in this project with counts
         $usersWithTasks = \App\Models\User::whereHas('tasks', function ($query) use ($project) {
             $query->whereHas('column', function ($q) use ($project) {
@@ -962,6 +966,7 @@ class ProjectController extends Controller
         }
 
         $user = auth()->user();
+        $statusChangeOnly = $request->boolean('status_change_only');
 
         $validated = $request->validate([
             'phase_id' => 'nullable|exists:phases,id',
@@ -1032,8 +1037,9 @@ class ProjectController extends Controller
         // Update the task
         $task->update($validated);
 
-        //sync task dependencies
-        $task->dependencies()->sync($dependencyIds);
+        if (! $statusChangeOnly) {
+            $task->dependencies()->sync($dependencyIds);
+        }
 
         // Sync assignees
         $newAssignees = array_map('intval', $validated['assignees'] ?? []);
@@ -1095,12 +1101,15 @@ class ProjectController extends Controller
 
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
-        $statusChangeOnly = $request->input('status_change_only');
 
         if (request()->header('HX-Request') && $fromBoardModal) {
             // For status-only changes, just return the updated task card
             if ($statusChangeOnly) {
-                $task->load(['users', 'phase']);
+                $task = Task::query()
+                    ->with(['users', 'phase'])
+                    ->withBoardDependencySummary()
+                    ->findOrFail($task->id);
+
                 return view('projects.partials.board-task-card', [
                     'project' => $project,
                     'task' => $task,
@@ -1139,10 +1148,11 @@ class ProjectController extends Controller
                 });
             }
 
-            $tasks = $tasksQuery->with(['phase', 'users'])
+            $tasks = $tasksQuery
+                ->with(['phase', 'users'])
+                ->withBoardDependencySummary()
                 ->get()
                 ->groupBy('column_id');
-
             // If column changed, we need to update both old and new columns
             if ($oldColumnId != $validated['column_id']) {
                 $oldColumn = $columns->firstWhere('id', $oldColumnId);
@@ -1310,7 +1320,9 @@ class ProjectController extends Controller
             });
         }
 
-        $tasks = $tasksQuery->with(['phase', 'users'])
+        $tasks = $tasksQuery
+            ->with(['phase', 'users'])
+            ->withBoardDependencySummary()
             ->get()
             ->groupBy('column_id');
 
@@ -1368,17 +1380,6 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'body' => 'required|string|max:1000',
         ]);
-
-        $dependencyIds = array_values(
-            array_unique(
-                array_map(
-                    'intval',
-                    $validated['dependencies'] ?? []
-                )
-            )
-        );
-
-        unset($validated['dependencies']);
 
         $comment = \App\Models\TaskComment::create([
             'task_id' => $task->id,
@@ -1451,6 +1452,7 @@ class ProjectController extends Controller
             $query->where('project_id', $project->id);
         })
             ->with(['phase', 'users'])
+            ->withBoardDependencySummary()
             ->get()
             ->groupBy('column_id');
 

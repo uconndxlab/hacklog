@@ -187,7 +187,7 @@
             </form>
         </div>
 
-        @if($task->dependencies->isNotEmpty())
+        @if($task->dependencies_count > 0)
             @php
                 $firstDepName = $task->dependencies->first()->title;
 
@@ -197,15 +197,14 @@
                     $depNamePruned = $firstDepName;
                 }
 
-                if($task->dependencies->count() > 1) {
-                    $depText = $depNamePruned . ' and ' . ($task->dependencies->count() - 1) . ' more';
+                if($task->dependencies_count > 1) {
+                    $depText = $depNamePruned . ' and ' . ($task->dependencies_count - 1) . ' more';
                 } else {
                     $depText = $depNamePruned;
                 }
             @endphp
             <p style="font-size: 0.7rem; outline: none;">
-
-            Pre Requisites ⚠️<br>{{ $depText }}
+                Prerequisites ⚠️<br>{{ $depText }}
             </p>
         @endif
 

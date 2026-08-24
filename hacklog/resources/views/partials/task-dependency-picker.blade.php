@@ -6,7 +6,7 @@ Task Dependency Picker
 @param array $selectedTaskIds
 @param int $defaultProjectId
 @param string $inputName
-@param noolean $isEdit
+@param bool $isEdit
 --}}
 
 @php

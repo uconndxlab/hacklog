@@ -383,7 +383,7 @@
 
         {{-- Dependencies --}}
         <div class="mb-3">
-            <label class="form-label">Pre Requisites
+            <label class="form-label">Prerequisites
             @if(!empty($dependencyIds))
                 ⚠️
             @endif
