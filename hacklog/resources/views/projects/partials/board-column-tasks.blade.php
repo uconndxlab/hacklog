@@ -12,7 +12,7 @@
             'filterPhaseId' => $filterPhaseId ?? null
         ])
     @empty
-        <div class="text-muted text-center py-4">
+        <div class="text-muted text-center py-4 board-column-empty">
             <small>No tasks in this column</small>
         </div>
     @endforelse

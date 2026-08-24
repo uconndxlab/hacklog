@@ -149,6 +149,20 @@
                     @endif
 
                     <div class="mb-3">
+                        <label for="nicknames" class="form-label">Nicknames</label>
+                        <input
+                            type="text"
+                            class="form-control @error('nicknames') is-invalid @enderror"
+                            id="nicknames"
+                            name="nicknames"
+                            value="{{ old('nicknames') }}">
+                        @error('nicknames')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <div class="form-text">Optional. Comma-separated. Used when searching for this user.</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="role" class="form-label">Role</label>
                         <select 
                             class="form-select @error('role') is-invalid @enderror" 

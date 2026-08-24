@@ -14,15 +14,6 @@
  * - Maintains calm, professional aesthetic
  */
 
-/* ============================================
-   FONTS
-   ============================================ */
-
-/* IBM Plex Sans - Headings */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
-
-/* Ubuntu - Body Text */
-@import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap');
 
 /* When the user picks dark theme, body gets class "theme-dark". */
 /* Everything below here only applies when body.theme-dark exists. */
