@@ -29,9 +29,9 @@ use Illuminate\Support\Facades\Route;
 $authDriver = config('hacklog_auth.driver', 'local');
 
 if ($authDriver === 'cas') {
-    require __DIR__.'/auth_cas.php';
+    require __DIR__ . '/auth_cas.php';
 } else {
-    require __DIR__.'/auth_local.php';
+    require __DIR__ . '/auth_local.php';
 }
 
 // Public home
@@ -64,46 +64,48 @@ Route::middleware('auth')->group(function () {
     Route::resource('tags', TagController::class)->except(['show']);
     Route::resource('projects', ProjectController::class);
     Route::post('projects/{project}/favorite', [ProjectFavoriteController::class, 'toggle'])->name('projects.favorites.toggle');
-Route::get('projects/{project}/sharing', [ProjectController::class, 'sharing'])->name('projects.sharing');
-Route::post('projects/{project}/shares', [ProjectController::class, 'shareStore'])->name('projects.shares.store');
-Route::delete('projects/{project}/shares/{share}', [ProjectController::class, 'shareDestroy'])->name('projects.shares.destroy');
-Route::get('projects/{project}/board', [ProjectController::class, 'board'])->name('projects.board');
-Route::post('projects/{project}/board/create-default-columns', [ProjectController::class, 'createDefaultColumns'])->name('projects.board.create-default-columns');
-Route::get('projects/{project}/board/task-form', [ProjectController::class, 'taskForm'])->name('projects.board.task-form');
-Route::post('projects/{project}/board/tasks', [ProjectController::class, 'storeTask'])->name('projects.board.tasks.store');
-Route::get('projects/{project}/board/tasks/{task}/edit', [ProjectController::class, 'editTask'])->name('projects.board.tasks.edit');    Route::get('projects/{project}/board/tasks/{task}', [ProjectController::class, 'showTask'])->name('projects.board.tasks.show');Route::put('projects/{project}/board/tasks/{task}', [ProjectController::class, 'updateTask'])->name('projects.board.tasks.update');
-Route::delete('projects/{project}/board/tasks/{task}', [ProjectController::class, 'deleteTask'])->name('projects.board.tasks.destroy');
-Route::post('projects/{project}/board/tasks/{task}/move', [ProjectController::class, 'moveTask'])->name('projects.board.tasks.move');
-Route::post('projects/{project}/board/tasks/{task}/comments', [ProjectController::class, 'storeComment'])->name('projects.board.tasks.comments.store');
-Route::delete('projects/{project}/board/tasks/{task}/comments/{comment}', [ProjectController::class, 'deleteComment'])->name('projects.board.tasks.comments.destroy');
+    Route::get('projects/{project}/sharing', [ProjectController::class, 'sharing'])->name('projects.sharing');
+    Route::post('projects/{project}/shares', [ProjectController::class, 'shareStore'])->name('projects.shares.store');
+    Route::delete('projects/{project}/shares/{share}', [ProjectController::class, 'shareDestroy'])->name('projects.shares.destroy');
+    Route::get('projects/{project}/board', [ProjectController::class, 'board'])->name('projects.board');
+    Route::post('projects/{project}/board/create-default-columns', [ProjectController::class, 'createDefaultColumns'])->name('projects.board.create-default-columns');
+    Route::get('projects/{project}/board/task-form', [ProjectController::class, 'taskForm'])->name('projects.board.task-form');
+    Route::post('projects/{project}/board/tasks', [ProjectController::class, 'storeTask'])->name('projects.board.tasks.store');
+    Route::get('projects/{project}/board/tasks/{task}/edit', [ProjectController::class, 'editTask'])->name('projects.board.tasks.edit');
+    Route::get('projects/{project}/board/tasks/{task}', [ProjectController::class, 'showTask'])->name('projects.board.tasks.show');
+    Route::put('projects/{project}/board/tasks/{task}', [ProjectController::class, 'updateTask'])->name('projects.board.tasks.update');
+    Route::delete('projects/{project}/board/tasks/{task}', [ProjectController::class, 'deleteTask'])->name('projects.board.tasks.destroy');
+    Route::post('projects/{project}/board/tasks/{task}/move', [ProjectController::class, 'moveTask'])->name('projects.board.tasks.move');
+    Route::post('projects/{project}/board/tasks/{task}/comments', [ProjectController::class, 'storeComment'])->name('projects.board.tasks.comments.store');
+    Route::delete('projects/{project}/board/tasks/{task}/comments/{comment}', [ProjectController::class, 'deleteComment'])->name('projects.board.tasks.comments.destroy');
 
-Route::get('projects/{project}/intake', [ProjectIntakeController::class, 'index'])->name('projects.intake.index');
-Route::post('projects/{project}/intake', [ProjectIntakeController::class, 'store'])->name('projects.intake.store');
-Route::get('projects/{project}/intake/{intake}', [ProjectIntakeController::class, 'show'])->name('projects.intake.show');
-Route::get('projects/{project}/intake/{intake}/status', [ProjectIntakeController::class, 'status'])->name('projects.intake.status');
-Route::post('projects/{project}/intake/{intake}/proposals/{proposal}/approve', [ProjectIntakeController::class, 'approveProposal'])->name('projects.intake.proposals.approve');
-Route::post('projects/{project}/intake/{intake}/proposals/bulk-approve', [ProjectIntakeController::class, 'bulkApproveProposals'])->name('projects.intake.proposals.bulk-approve');
-Route::post('projects/{project}/intake/{intake}/proposals/{proposal}/dismiss', [ProjectIntakeController::class, 'dismissProposal'])->name('projects.intake.proposals.dismiss');
-Route::post('projects/{project}/board/tasks/temp-trix-upload', [TaskAttachmentController::class, 'uploadForTrixTemporary'])->name('projects.board.tasks.attachments.trix-temp');
-Route::post('projects/{project}/board/tasks/{task}/attachments/trix', [TaskAttachmentController::class, 'uploadForTrix'])->name('projects.board.tasks.attachments.trix');
-Route::post('projects/{project}/board/tasks/{task}/attachments', [TaskAttachmentController::class, 'upload'])->name('projects.board.tasks.attachments.upload');
-Route::get('projects/{project}/board/tasks/{task}/attachments/{attachment}/download', [TaskAttachmentController::class, 'download'])->name('projects.board.tasks.attachments.download');
-Route::delete('projects/{project}/board/tasks/{task}/attachments/{attachment}', [TaskAttachmentController::class, 'destroy'])->name('projects.board.tasks.attachments.destroy');
-Route::post('projects/{project}/tasks', [ProjectController::class, 'storeProjectTask'])->name('projects.tasks.store');
-Route::get('projects/{project}/schedule', [ProjectController::class, 'schedule'])->name('projects.schedule');
-Route::get('projects/{project}/timeline', [ProjectController::class, 'timeline'])->name('projects.timeline');
-Route::resource('projects.phases', PhaseController::class);
-Route::resource('projects.phases.tasks', TaskController::class);
-Route::post('projects/{project}/phases/{phase}/tasks/{task}/move-up', [TaskController::class, 'moveUp'])
-    ->name('projects.phases.tasks.move-up');
-Route::post('projects/{project}/phases/{phase}/tasks/{task}/move-down', [TaskController::class, 'moveDown'])
-    ->name('projects.phases.tasks.move-down');
-Route::resource('projects.columns', ColumnController::class)->except(['show']);
-Route::resource('projects.resources', ProjectResourceController::class)->except(['show']);
-Route::post('projects/{project}/resources/temp-trix-upload', [ProjectResourceController::class, 'uploadForTrixTemporary'])->name('projects.resources.trix-temp');
-Route::post('projects/{project}/resources/{resource}/trix-upload', [ProjectResourceController::class, 'uploadForTrix'])->name('projects.resources.trix');
-Route::post('projects/{project}/resources/{resource}/move-up', [ProjectResourceController::class, 'moveUp'])
-    ->name('projects.resources.move-up');
-Route::post('projects/{project}/resources/{resource}/move-down', [ProjectResourceController::class, 'moveDown'])
-    ->name('projects.resources.move-down');
+    Route::get('projects/{project}/intake', [ProjectIntakeController::class, 'index'])->name('projects.intake.index');
+    Route::post('projects/{project}/intake', [ProjectIntakeController::class, 'store'])->name('projects.intake.store');
+    Route::get('projects/{project}/intake/{intake}', [ProjectIntakeController::class, 'show'])->name('projects.intake.show');
+    Route::get('projects/{project}/intake/{intake}/status', [ProjectIntakeController::class, 'status'])->name('projects.intake.status');
+    Route::post('projects/{project}/intake/{intake}/proposals/{proposal}/approve', [ProjectIntakeController::class, 'approveProposal'])->name('projects.intake.proposals.approve');
+    Route::post('projects/{project}/intake/{intake}/proposals/bulk-approve', [ProjectIntakeController::class, 'bulkApproveProposals'])->name('projects.intake.proposals.bulk-approve');
+    Route::post('projects/{project}/intake/{intake}/proposals/{proposal}/dismiss', [ProjectIntakeController::class, 'dismissProposal'])->name('projects.intake.proposals.dismiss');
+    Route::post('projects/{project}/board/tasks/temp-trix-upload', [TaskAttachmentController::class, 'uploadForTrixTemporary'])->name('projects.board.tasks.attachments.trix-temp');
+    Route::post('projects/{project}/board/tasks/{task}/attachments/trix', [TaskAttachmentController::class, 'uploadForTrix'])->name('projects.board.tasks.attachments.trix');
+    Route::post('projects/{project}/board/tasks/{task}/attachments', [TaskAttachmentController::class, 'upload'])->name('projects.board.tasks.attachments.upload');
+    Route::get('projects/{project}/board/tasks/{task}/attachments/{attachment}/download', [TaskAttachmentController::class, 'download'])->name('projects.board.tasks.attachments.download');
+    Route::delete('projects/{project}/board/tasks/{task}/attachments/{attachment}', [TaskAttachmentController::class, 'destroy'])->name('projects.board.tasks.attachments.destroy');
+    Route::post('projects/{project}/tasks', [ProjectController::class, 'storeProjectTask'])->name('projects.tasks.store');
+    Route::get('projects/{project}/schedule', [ProjectController::class, 'schedule'])->name('projects.schedule');
+    Route::get('projects/{project}/timeline', [ProjectController::class, 'timeline'])->name('projects.timeline');
+    Route::resource('projects.phases', PhaseController::class);
+    Route::resource('projects.phases.tasks', TaskController::class);
+    Route::post('projects/{project}/phases/{phase}/tasks/{task}/move-up', [TaskController::class, 'moveUp'])
+        ->name('projects.phases.tasks.move-up');
+    Route::post('projects/{project}/phases/{phase}/tasks/{task}/move-down', [TaskController::class, 'moveDown'])
+        ->name('projects.phases.tasks.move-down');
+    Route::resource('projects.columns', ColumnController::class)->except(['show']);
+    Route::resource('projects.resources', ProjectResourceController::class)->except(['show']);
+    Route::post('projects/{project}/resources/temp-trix-upload', [ProjectResourceController::class, 'uploadForTrixTemporary'])->name('projects.resources.trix-temp');
+    Route::post('projects/{project}/resources/{resource}/trix-upload', [ProjectResourceController::class, 'uploadForTrix'])->name('projects.resources.trix');
+    Route::post('projects/{project}/resources/{resource}/move-up', [ProjectResourceController::class, 'moveUp'])
+        ->name('projects.resources.move-up');
+    Route::post('projects/{project}/resources/{resource}/move-down', [ProjectResourceController::class, 'moveDown'])
+        ->name('projects.resources.move-down');
 });

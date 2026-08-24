@@ -226,7 +226,7 @@ body.theme-dark .form-control[type="file"]::file-selector-button {
 }
 body.theme-dark .form-control[type="file"]::-webkit-file-upload-button {
     background-color: #2a3342;
-    border: 1px solid rgba(255, 255, 255, 0.2); 
+    border: 1px solid rgba(255, 255, 255, 0.2);
     color: #e2e6eb;
 }
 
@@ -1523,4 +1523,10 @@ body.theme-dark .timeline-filter-bar .btn-outline-secondary:hover {
     background-color: #334057;
     border-color: rgba(255, 255, 255, 0.3);
     color: #f5f8ff;
+}
+
+.task-dependency-picker-options {
+    display: flex;
+    width: 100%;
+    gap: 4px;
 }

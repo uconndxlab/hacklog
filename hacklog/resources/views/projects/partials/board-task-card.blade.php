@@ -1,16 +1,16 @@
 {{-- Task card for project board view --}}
-<div class="card mb-2 task-card shadow-sm" 
-     data-task-id="{{ $task->id }}" 
-     data-column-id="{{ $task->column_id }}" 
+<div class="card mb-2 task-card shadow-sm"
+     data-task-id="{{ $task->id }}"
+     data-column-id="{{ $task->column_id }}"
      data-position="{{ $task->position }}"
      draggable="true"
-     style="cursor: grab; border-left: 3px solid 
+     style="cursor: grab; border-left: 3px solid
         @if($task->status === 'planned') #6c757d
         @elseif($task->status === 'active') #198754
         @elseif($task->status === 'awaiting_feedback') #ffc107
         @else #0d6efd
         @endif;">
-    
+
     {{-- Card Header with Assignment and Status --}}
     <div class="card-header bg-light py-1 px-2 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid rgba(0,0,0,.125);">
         {{-- Assignment Info --}}
@@ -23,10 +23,10 @@
                 <small class="text-muted" style="font-size: 0.7rem;">Unassigned</small>
             @endif
         </div>
-        
+
         {{-- Interactive status dropdown --}}
-        <form 
-            action="{{ route('projects.board.tasks.update', [$project, $task]) }}" 
+        <form
+            action="{{ route('projects.board.tasks.update', [$project, $task]) }}"
             method="POST"
             class="d-inline">
             @csrf
@@ -39,10 +39,10 @@
             @if(isset($filterAssigned) && $filterAssigned)
                 <input type="hidden" name="filter_assigned" value="{{ $filterAssigned }}">
             @endif
-            
-            <select 
-                name="status" 
-                class="form-select form-select-sm d-inline-block w-auto badge 
+
+            <select
+                name="status"
+                class="form-select form-select-sm d-inline-block w-auto badge
                 @if($task->status === 'planned') bg-secondary
                 @elseif($task->status === 'active') bg-success
                 @elseif($task->status === 'awaiting_feedback') bg-warning text-dark
@@ -62,13 +62,13 @@
             </select>
         </form>
     </div>
-    
+
     <div class="card-body p-3">
         {{-- Title (Full Width) --}}
         <h6 class="card-title mb-2">
-            <a href="{{ route('projects.board.tasks.edit', [$project, $task]) }}" 
+            <a href="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
                class="text-decoration-none fw-semibold"
-               data-bs-toggle="modal" 
+               data-bs-toggle="modal"
                data-bs-target="#taskModal"
                hx-get="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
                hx-target="#taskModalContent"
@@ -87,10 +87,10 @@
                     {{ $task->phase->name }}
                 </span>
             @endif
-            
+
             {{-- Due Date Badge --}}
             @if($task->due_date)
-                <span class="badge {{ $task->isOverdue() ? 'bg-danger' : 'bg-light text-dark border' }} me-1 mb-1" 
+                <span class="badge {{ $task->isOverdue() ? 'bg-danger' : 'bg-light text-dark border' }} me-1 mb-1"
                       style="font-size: 0.7rem; font-weight: normal;">
                     @if($task->isOverdue())
                         Overdue: {{ $task->due_date->format('M j') }}
@@ -99,6 +99,8 @@
                     @endif
                 </span>
             @endif
+
+
 
             {{-- Priority chip (inline editable) --}}
             <form class="d-inline"
@@ -158,14 +160,35 @@
             </form>
         </div>
 
+        @if($task->dependencies_count > 0)
+            @php
+                $firstDepName = $task->dependencies->first()->title;
+
+                if(\Illuminate\Support\Str::length($firstDepName) > 25){
+                    $depNamePruned = \Illuminate\Support\Str::limit($firstDepName, 22);
+                } else {
+                    $depNamePruned = $firstDepName;
+                }
+
+                if($task->dependencies_count > 1) {
+                    $depText = $depNamePruned . ' and ' . ($task->dependencies_count - 1) . ' more';
+                } else {
+                    $depText = $depNamePruned;
+                }
+            @endphp
+            <p style="font-size: 0.7rem; outline: none;">
+                Prerequisites ⚠️<br>{{ $depText }}
+            </p>
+        @endif
+
         {{-- Last Updated (subtle) --}}
         <div class="text-muted" style="font-size: 0.65rem;">
             Updated {{ $task->updated_at->diffForHumans() }}@if($task->creator) • Created by {{ $task->creator->name }}@endif
         </div>
 
         {{-- Column selector with HTMX enhancement --}}
-        <form 
-            action="{{ route('projects.board.tasks.update', [$project, $task]) }}" 
+        <form
+            action="{{ route('projects.board.tasks.update', [$project, $task]) }}"
             method="POST"
             class="mt-2">
             @csrf
@@ -181,8 +204,8 @@
             
             <div class="input-group input-group-sm">
                 <label class="input-group-text" for="columnSelect-{{ $task->id }}" style="font-size: 0.7rem;">Move to:</label>
-                <select 
-                    name="column_id" 
+                <select
+                    name="column_id"
                     class="form-select form-select-sm"
                     style="font-size: 0.75rem;"
                     hx-trigger="change"
@@ -199,6 +222,6 @@
             </div>
         </form>
 
-        
+
     </div>
 </div>

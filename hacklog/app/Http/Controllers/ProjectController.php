@@ -18,10 +18,10 @@ class ProjectController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
+
         // Load current user's favorited project IDs
         $favoriteProjectIds = $user->favoriteProjects()->pluck('project_id')->toArray();
-        
+
         // Start with visibility-filtered projects
         $query = Project::visibleTo($user)
             ->with(['phases.tasks.users', 'columns.tasks.users', 'tags']); // Eager load tasks and tags
@@ -41,55 +41,55 @@ class ProjectController extends Controller
         if ($scope === 'assigned') {
             // Projects where user has assigned tasks (not completed)
             // Include both phase tasks and standalone tasks
-            $query->where(function($q) use ($user) {
+            $query->where(function ($q) use ($user) {
                 $q->whereHas('phases.tasks', function ($taskQuery) use ($user) {
                     $taskQuery->where('status', '!=', 'completed')
-                      ->whereHas('users', function ($userQuery) use ($user) {
-                          $userQuery->where('users.id', $user->id);
-                      });
+                        ->whereHas('users', function ($userQuery) use ($user) {
+                            $userQuery->where('users.id', $user->id);
+                        });
                 })
-                ->orWhereHas('columns.tasks', function ($taskQuery) use ($user) {
-                    $taskQuery->where('status', '!=', 'completed')
-                      ->whereNull('phase_id') // Only standalone tasks
-                      ->whereHas('users', function ($userQuery) use ($user) {
-                          $userQuery->where('users.id', $user->id);
-                      });
-                });
+                    ->orWhereHas('columns.tasks', function ($taskQuery) use ($user) {
+                        $taskQuery->where('status', '!=', 'completed')
+                            ->whereNull('phase_id') // Only standalone tasks
+                            ->whereHas('users', function ($userQuery) use ($user) {
+                                $userQuery->where('users.id', $user->id);
+                            });
+                    });
             });
         } elseif ($scope === 'contributor') {
             // Projects where user has ANY tasks (completed or not)
             // Include both phase tasks and standalone tasks
-            $query->where(function($q) use ($user) {
+            $query->where(function ($q) use ($user) {
                 $q->whereHas('phases.tasks.users', function ($taskQuery) use ($user) {
                     $taskQuery->where('users.id', $user->id);
                 })
-                ->orWhereHas('columns.tasks.users', function ($taskQuery) use ($user) {
-                    $taskQuery->where('users.id', $user->id)
-                      ->whereNull('phase_id'); // Only standalone tasks
-                });
+                    ->orWhereHas('columns.tasks.users', function ($taskQuery) use ($user) {
+                        $taskQuery->where('users.id', $user->id)
+                            ->whereNull('phase_id'); // Only standalone tasks
+                    });
             });
         } elseif ($scope === 'member') {
             // Projects where user has tasks OR is a project resource OR directly shared
-            $query->where(function($q) use ($user) {
+            $query->where(function ($q) use ($user) {
                 // Has tasks assigned (phase or standalone)
-                $q->where(function($taskQuery) use ($user) {
+                $q->where(function ($taskQuery) use ($user) {
                     $taskQuery->whereHas('phases.tasks.users', function ($tq) use ($user) {
                         $tq->where('users.id', $user->id);
                     })
-                    ->orWhereHas('columns.tasks.users', function ($tq) use ($user) {
-                        $tq->where('users.id', $user->id)
-                           ->whereNull('phase_id'); // Only standalone tasks
+                        ->orWhereHas('columns.tasks.users', function ($tq) use ($user) {
+                            $tq->where('users.id', $user->id)
+                                ->whereNull('phase_id'); // Only standalone tasks
+                        });
+                })
+                    // OR is a project resource (contributor, manager, viewer)
+                    ->orWhereHas('resources', function ($resourceQuery) use ($user) {
+                        $resourceQuery->where('user_id', $user->id);
+                    })
+                    // OR project is directly shared with this user (not via role)
+                    ->orWhereHas('shares', function ($shareQuery) use ($user) {
+                        $shareQuery->where('shareable_type', 'user')
+                            ->where('shareable_id', (string)$user->id);
                     });
-                })
-                // OR is a project resource (contributor, manager, viewer)
-                ->orWhereHas('resources', function ($resourceQuery) use ($user) {
-                    $resourceQuery->where('user_id', $user->id);
-                })
-                // OR project is directly shared with this user (not via role)
-                ->orWhereHas('shares', function ($shareQuery) use ($user) {
-                    $shareQuery->where('shareable_type', 'user')
-                               ->where('shareable_id', (string)$user->id);
-                });
             });
         }
         // 'all' scope - no filtering (but still respects visibility)
@@ -106,44 +106,44 @@ class ProjectController extends Controller
         // Time-based filter: Due in 7/14/30 days, Overdue
         if ($timeFilter) {
             $today = \Carbon\Carbon::today();
-            
+
             if ($timeFilter === 'overdue') {
                 // Projects with overdue tasks or phases
-                $query->where(function($q) use ($today) {
-                    $q->whereHas('phases', function($phaseQuery) use ($today) {
+                $query->where(function ($q) use ($today) {
+                    $q->whereHas('phases', function ($phaseQuery) use ($today) {
                         $phaseQuery->where('end_date', '<', $today)
-                                  ->where('status', '!=', 'completed');
-                    })->orWhereHas('phases.tasks', function($taskQuery) use ($today) {
+                            ->where('status', '!=', 'completed');
+                    })->orWhereHas('phases.tasks', function ($taskQuery) use ($today) {
                         $taskQuery->where('status', '!=', 'completed')
-                                  ->where(function($dateQuery) use ($today) {
-                                      // Task explicit due_date or inherited from phase
-                                      $dateQuery->where('due_date', '<', $today)
-                                                ->orWhereHas('phase', function($phaseQ) use ($today) {
-                                                    $phaseQ->where('end_date', '<', $today)
-                                                          ->whereNull('tasks.due_date');
-                                                });
-                                  });
+                            ->where(function ($dateQuery) use ($today) {
+                                // Task explicit due_date or inherited from phase
+                                $dateQuery->where('due_date', '<', $today)
+                                    ->orWhereHas('phase', function ($phaseQ) use ($today) {
+                                        $phaseQ->where('end_date', '<', $today)
+                                            ->whereNull('tasks.due_date');
+                                    });
+                            });
                     });
                 });
             } elseif (in_array($timeFilter, ['7', '14', '30'])) {
                 $daysAhead = (int) $timeFilter;
                 $futureDate = $today->copy()->addDays($daysAhead);
-                
+
                 // Projects with tasks/phases due within timeframe
-                $query->where(function($q) use ($today, $futureDate) {
-                    $q->whereHas('phases', function($phaseQuery) use ($today, $futureDate) {
+                $query->where(function ($q) use ($today, $futureDate) {
+                    $q->whereHas('phases', function ($phaseQuery) use ($today, $futureDate) {
                         $phaseQuery->whereBetween('end_date', [$today, $futureDate])
-                                  ->where('status', '!=', 'completed');
-                    })->orWhereHas('phases.tasks', function($taskQuery) use ($today, $futureDate) {
+                            ->where('status', '!=', 'completed');
+                    })->orWhereHas('phases.tasks', function ($taskQuery) use ($today, $futureDate) {
                         $taskQuery->where('status', '!=', 'completed')
-                                  ->where(function($dateQuery) use ($today, $futureDate) {
-                                      // Task explicit due_date or inherited from phase
-                                      $dateQuery->whereBetween('due_date', [$today, $futureDate])
-                                                ->orWhereHas('phase', function($phaseQ) use ($today, $futureDate) {
-                                                    $phaseQ->whereBetween('end_date', [$today, $futureDate])
-                                                          ->whereNull('tasks.due_date');
-                                                });
-                                  });
+                            ->where(function ($dateQuery) use ($today, $futureDate) {
+                                // Task explicit due_date or inherited from phase
+                                $dateQuery->whereBetween('due_date', [$today, $futureDate])
+                                    ->orWhereHas('phase', function ($phaseQ) use ($today, $futureDate) {
+                                        $phaseQ->whereBetween('end_date', [$today, $futureDate])
+                                            ->whereNull('tasks.due_date');
+                                    });
+                            });
                     });
                 });
             }
@@ -151,17 +151,17 @@ class ProjectController extends Controller
 
         // Admin-only: Filter by project owner/manager
         if ($ownerFilter && $user->isAdmin() && is_numeric($ownerFilter)) {
-            $query->whereHas('resources', function($q) use ($ownerFilter) {
+            $query->whereHas('resources', function ($q) use ($ownerFilter) {
                 $q->where('user_id', $ownerFilter)
-                  ->where('role', 'manager');
+                    ->where('role', 'manager');
             });
         }
 
         // Search filter: name and description
         if ($search) {
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhere('description', 'like', '%' . $search . '%');
+                    ->orWhere('description', 'like', '%' . $search . '%');
             });
         }
 
@@ -183,54 +183,54 @@ class ProjectController extends Controller
         } elseif ($sort === 'recent_activity') {
             // Sort by: 1) Projects with user's tasks first, 2) Recent activity
             $projects = $query->orderBy('updated_at', 'desc')->get();
-            
+
             // Partition projects: user has tasks vs. doesn't have tasks
-            $userHasTasks = $projects->filter(function($project) use ($user) {
+            $userHasTasks = $projects->filter(function ($project) use ($user) {
                 // Check tasks in phases
-                $hasPhaseTask = $project->phases->some(function($phase) use ($user) {
-                    return $phase->tasks->some(function($task) use ($user) {
+                $hasPhaseTask = $project->phases->some(function ($phase) use ($user) {
+                    return $phase->tasks->some(function ($task) use ($user) {
                         return $task->users->contains($user->id);
                     });
                 });
-                
+
                 // Check standalone tasks (tasks without phases)
-                $hasStandaloneTask = $project->columns->some(function($column) use ($user) {
-                    return $column->tasks->where('phase_id', null)->some(function($task) use ($user) {
+                $hasStandaloneTask = $project->columns->some(function ($column) use ($user) {
+                    return $column->tasks->where('phase_id', null)->some(function ($task) use ($user) {
                         return $task->users->contains($user->id);
                     });
                 });
-                
+
                 return $hasPhaseTask || $hasStandaloneTask;
             })->sortByDesc('updated_at')->values();
-            
-            $userNoTasks = $projects->reject(function($project) use ($user) {
+
+            $userNoTasks = $projects->reject(function ($project) use ($user) {
                 // Check tasks in phases
-                $hasPhaseTask = $project->phases->some(function($phase) use ($user) {
-                    return $phase->tasks->some(function($task) use ($user) {
+                $hasPhaseTask = $project->phases->some(function ($phase) use ($user) {
+                    return $phase->tasks->some(function ($task) use ($user) {
                         return $task->users->contains($user->id);
                     });
                 });
-                
+
                 // Check standalone tasks (tasks without phases)
-                $hasStandaloneTask = $project->columns->some(function($column) use ($user) {
-                    return $column->tasks->where('phase_id', null)->some(function($task) use ($user) {
+                $hasStandaloneTask = $project->columns->some(function ($column) use ($user) {
+                    return $column->tasks->where('phase_id', null)->some(function ($task) use ($user) {
                         return $task->users->contains($user->id);
                     });
                 });
-                
+
                 return $hasPhaseTask || $hasStandaloneTask;
             })->sortByDesc('updated_at')->values();
-            
+
             $projects = $userHasTasks->merge($userNoTasks);
         } elseif ($sort === 'status') {
             $projects = $query->orderByRaw("
-                CASE 
-                    WHEN status = 'planning' THEN 1 
-                    WHEN status = 'active' THEN 2 
-                    WHEN status = 'on_hold' THEN 3 
-                    WHEN status = 'completed' THEN 4 
-                    WHEN status = 'archived' THEN 5 
-                    ELSE 6 
+                CASE
+                    WHEN status = 'planning' THEN 1
+                    WHEN status = 'active' THEN 2
+                    WHEN status = 'on_hold' THEN 3
+                    WHEN status = 'completed' THEN 4
+                    WHEN status = 'archived' THEN 5
+                    ELSE 6
                 END
             ")->orderBy('name', 'asc')->get();
         } else {
@@ -338,52 +338,52 @@ class ProjectController extends Controller
         // Load phases (exclude completed by default)
         $project->load(['phases' => function ($query) {
             $query->where('status', '!=', 'completed')
-                  ->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
-                  ->orderBy('start_date', 'asc');
+                ->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
+                ->orderBy('start_date', 'asc');
         }, 'columns', 'tags']);
 
         // Get upcoming tasks (next 5, ordered by due date)
         $upcomingTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         })
-        ->where('status', '!=', 'completed')
-        ->whereNotNull('due_date')
-        ->with(['phase', 'column'])
-        ->orderByRaw('CASE WHEN due_date < ? THEN 0 ELSE 1 END', [today()])
-        ->orderBy('due_date', 'asc')
-        ->limit(5)
-        ->get();
+            ->where('status', '!=', 'completed')
+            ->whereNotNull('due_date')
+            ->with(['phase', 'column'])
+            ->orderByRaw('CASE WHEN due_date < ? THEN 0 ELSE 1 END', [today()])
+            ->orderBy('due_date', 'asc')
+            ->limit(5)
+            ->get();
 
         // Calculate project health metrics
         $activePhasesCount = $project->phases()->where('status', '!=', 'completed')->count();
-        
+
         $overdueTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         })
-        ->where('status', '!=', 'completed')
-        ->whereNotNull('due_date')
-        ->where('due_date', '<', today())
-        ->count();
+            ->where('status', '!=', 'completed')
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', today())
+            ->count();
 
         // Get tasks awaiting feedback
         $awaitingFeedbackTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         })
-        ->where('status', 'awaiting_feedback')
-        ->with(['phase', 'column'])
-        ->orderBy('updated_at', 'desc')
-        ->limit(10)
-        ->get();
+            ->where('status', 'awaiting_feedback')
+            ->with(['phase', 'column'])
+            ->orderBy('updated_at', 'desc')
+            ->limit(10)
+            ->get();
 
         // Find nearest upcoming due date (task or phase)
         $nearestTaskDate = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         })
-        ->where('status', '!=', 'completed')
-        ->whereNotNull('due_date')
-        ->where('due_date', '>=', today())
-        ->orderBy('due_date', 'asc')
-        ->value('due_date');
+            ->where('status', '!=', 'completed')
+            ->whereNotNull('due_date')
+            ->where('due_date', '>=', today())
+            ->orderBy('due_date', 'asc')
+            ->value('due_date');
 
         $nearestPhaseDate = $project->phases()
             ->where('status', '!=', 'completed')
@@ -403,7 +403,7 @@ class ProjectController extends Controller
 
         // Get recent activity for this project (last 10 entries)
         $recentActivity = collect();
-        
+
         // Get project activities
         $projectActivities = \App\Models\ProjectActivity::where('project_id', $project->id)
             ->with('user')
@@ -417,7 +417,7 @@ class ProjectController extends Controller
                     'created_at' => $activity->created_at,
                 ];
             });
-        
+
         // Get task activities for tasks in this project
         $taskActivities = \App\Models\TaskActivity::whereHas('task.column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
@@ -433,7 +433,7 @@ class ProjectController extends Controller
                     'created_at' => $activity->created_at,
                 ];
             });
-        
+
         // Merge and sort by created_at, take most recent 10
         $recentActivity = $projectActivities->concat($taskActivities)
             ->sortByDesc('created_at')
@@ -463,14 +463,14 @@ class ProjectController extends Controller
                 // Get task count if user has tasks
                 $userWithTasks = $usersWithTasks->firstWhere('id', $user->id);
                 $taskCount = $userWithTasks ? $userWithTasks->tasks_count : 0;
-                
+
                 // Generate initials
                 $nameParts = explode(' ', $user->name);
                 $initials = strtoupper(
-                    substr($nameParts[0], 0, 1) . 
-                    (isset($nameParts[1]) ? substr($nameParts[1], 0, 1) : '')
+                    substr($nameParts[0], 0, 1) .
+                        (isset($nameParts[1]) ? substr($nameParts[1], 0, 1) : '')
                 );
-                
+
                 return [
                     'user' => $user,
                     'initials' => $initials,
@@ -506,21 +506,21 @@ class ProjectController extends Controller
     public function board(Request $request, Project $project)
     {
         // No longer auto-redirect to a phase - allow viewing all tasks when no phase filter is applied
-        
+
         // Load columns ordered by position
         $columns = $project->columns()->orderBy('position')->get();
-        
+
         // Load phases for filter dropdown
         $phases = $project->phases()
             ->orderByRaw('CASE WHEN status = "active" THEN 1 WHEN status = "planned" THEN 2 ELSE 3 END')
             ->orderBy('name')
             ->get();
-        
+
         // Build task query (include tasks with or without phases)
         $tasksQuery = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
         });
-        
+
         // Apply phase filter if provided
         $phaseSynopsis = null;
         if ($request->has('phase') && $request->phase) {
@@ -561,7 +561,7 @@ class ProjectController extends Controller
         if ($filterWeight && in_array($filterWeight, \App\Models\Task::WEIGHT_VALUES)) {
             $tasksQuery->where('weight', $filterWeight);
         }
-        
+
         // Load all tasks for this project (optionally filtered by phase)
         // Eager load phase, users, and creator relationships and order by position within each column
         $tasks = $this->constrainBoardTaskPayload($tasksQuery)->get()->groupBy('column_id');
@@ -576,7 +576,7 @@ class ProjectController extends Controller
                 $q->where('project_id', $project->id);
             })->where('status', '!=', 'completed');
         }])->orderBy('name')->get();
-        
+
         return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks'));
     }
 
@@ -604,22 +604,44 @@ class ProjectController extends Controller
     {
         $columnId = $request->query('column');
         $isGlobalModal = $request->query('global_modal') === '1';
-        
+
         // For global modal, pick the first column if none specified
         if ($isGlobalModal && !$columnId) {
             $columnId = $project->columns->first()?->id;
         }
-        
+
         $phases = $project->phases()
             ->orderByRaw('CASE WHEN status = "active" THEN 1 WHEN status = "planned" THEN 2 ELSE 3 END')
             ->orderBy('name')
             ->get();
-        
+
         // Get users sorted: current user first, then recent assignees on this project, then alphabetically
         $currentUser = auth()->user();
         $users = $this->getSortedUsersForProject($project, $currentUser);
-        
-        return view('projects.partials.board-task-form', compact('project', 'columnId', 'phases', 'users'));
+
+        $dependencyIds = [];
+        $dependencyProjects = Project::visibleTo($currentUser)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $visibleProjectIds = $dependencyProjects->pluck('id');
+
+        $dependencyTasksQuery = Task::query()
+            ->where('status', '!=', 'completed')
+            ->whereHas('column', function ($query) use ($visibleProjectIds) {
+                $query->whereIn('project_id', $visibleProjectIds);
+            })
+            ->with(['column.project']);
+
+        $dependencyTasks = $dependencyTasksQuery
+            ->get(['id', 'column_id', 'title', 'status'])
+            ->sortBy(fn($task) => [
+                strtolower($task->column->project->name),
+                strtolower($task->title),
+            ])
+            ->values();
+
+
+        return view('projects.partials.board-task-form', compact('project', 'columnId', 'phases', 'users', 'dependencyIds', 'dependencyTasks', 'dependencyProjects'));
     }
 
     /**
@@ -650,14 +672,43 @@ class ProjectController extends Controller
             ->orderBy('name')
             ->get();
         $columns = $project->columns;
-        
+
+        //retrieve the pre-requisite tasks
+        $dependencyIds = $task->dependencies()
+            ->where('tasks.status', '!=', 'completed')
+            ->pluck('tasks.id')
+            ->all();
+
         // Get users sorted: current user first, then recent assignees on this project, then alphabetically
         $currentUser = auth()->user();
         $users = $this->getSortedUsersForProject($project, $currentUser);
-        
+
+        $dependencyProjects = Project::visibleTo($currentUser)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $visibleProjectIds = $dependencyProjects->pluck('id');
+
+        $dependencyTasksQuery = Task::query()
+            ->where('status', '!=', 'completed')
+            ->whereHas('column', function ($query) use ($visibleProjectIds) {
+                $query->whereIn('project_id', $visibleProjectIds);
+            })
+            ->where('tasks.id', '!=', $task->id)
+            ->with(['column.project']);
+
+        $dependencyTasks = $dependencyTasksQuery
+            ->get(['id', 'column_id', 'title', 'status'])
+            ->sortBy(fn($task) => [
+                strtolower($task->column->project->name),
+                strtolower($task->title),
+            ])
+            ->values();
+
+
+
         $task->load(['users', 'comments.user', 'activities.user', 'creator', 'updater', 'attachments.user']);
-        
-        return view('projects.partials.board-task-form', compact('project', 'task', 'phases', 'columns', 'users', 'activeTab'));
+
+        return view('projects.partials.board-task-form', compact('project', 'task', 'phases', 'columns', 'users', 'activeTab', 'dependencyIds', 'dependencyTasks', 'dependencyProjects'));
     }
 
     /**
@@ -682,7 +733,7 @@ class ProjectController extends Controller
     public function storeTask(Request $request, Project $project)
     {
         $user = auth()->user();
-        
+
         $validated = $request->validate([
             'phase_id' => 'nullable|exists:phases,id',
             'column_id' => 'required|exists:columns,id',
@@ -695,12 +746,34 @@ class ProjectController extends Controller
             'due_date' => 'nullable|date|after_or_equal:start_date',
             'assignees' => 'nullable|array',
             'assignees.*' => 'exists:users,id',
+            'dependencies' => ['nullable', 'array'],
+            'dependencies.*' => [
+                'integer',
+                'distinct',
+                'exists:tasks,id',
+            ],
         ]);
+
+        $dependencyIds = array_values(
+            array_unique(
+                array_map(
+                    'intval',
+                    $validated['dependencies'] ?? []
+                )
+            )
+        );
+        unset($validated['dependencies']);
 
         // Clients can only create tasks with status 'planned' and cannot assign users
         if ($user->isClient()) {
             $validated['status'] = 'planned';
             $validated['assignees'] = [];
+            $dependencyIds = [];
+        } else {
+            $dependencyIds = $this->validateDependencyIds(
+                $dependencyIds,
+                $user
+            );
         }
 
         // If phase_id provided, verify it belongs to this project
@@ -713,7 +786,7 @@ class ProjectController extends Controller
 
         // Set position to top of column (position 0)
         $validated['position'] = 0;
-        
+
         // Shift existing tasks down (without updating timestamps)
         \Illuminate\Support\Facades\DB::table('tasks')
             ->where('column_id', $validated['column_id'])
@@ -731,6 +804,9 @@ class ProjectController extends Controller
 
         // Create the task
         $task = \App\Models\Task::create($validated);
+
+        //sync dependent tasks
+        $task->dependencies()->sync($dependencyIds);
 
         // Sync assignees
         $oldAssignees = [];
@@ -752,44 +828,44 @@ class ProjectController extends Controller
         // Check if this is from the modal with HTMX
         $fromBoardModal = $request->input('from_board_modal');
         $isGlobalModal = $request->input('global_modal');
-        
+
         if (request()->header('HX-Request') && $fromBoardModal) {
             // Redirect to board with highlight parameter
             $queryParams = ['highlight' => $task->id];
-            
+
             // Preserve phase filter or use task's phase
             if ($request->has('filter_phase_id') || $request->query('phase')) {
                 $queryParams['phase'] = $request->input('filter_phase_id') ?? $request->query('phase');
             } elseif ($task->phase_id) {
                 $queryParams['phase'] = $task->phase_id;
             }
-            
+
             // Preserve assigned filter
             if ($request->has('filter_assigned') || $request->query('assigned')) {
                 $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
             }
-            
+
             $redirectUrl = route('projects.board', array_merge(['project' => $project], $queryParams));
-            
+
             return response('')
                 ->header('HX-Redirect', $redirectUrl);
         }
 
         // Redirect to board with highlight parameter
         $queryParams = ['highlight' => $task->id];
-        
+
         // Preserve phase filter or use task's phase
         if ($request->has('filter_phase_id') || $request->query('phase')) {
             $queryParams['phase'] = $request->input('filter_phase_id') ?? $request->query('phase');
         } elseif ($task->phase_id) {
             $queryParams['phase'] = $task->phase_id;
         }
-        
+
         // Preserve assigned filter
         if ($request->has('filter_assigned') || $request->query('assigned')) {
             $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
         }
-        
+
         return redirect()->route('projects.board', array_merge(['project' => $project], $queryParams))
             ->with('success', 'Task created successfully.');
     }
@@ -821,7 +897,7 @@ class ProjectController extends Controller
 
         // Set position to top of column (position 0)
         $validated['position'] = 0;
-        
+
         // Shift existing tasks down (without updating timestamps)
         \Illuminate\Support\Facades\DB::table('tasks')
             ->where('column_id', $validated['column_id'])
@@ -858,19 +934,19 @@ class ProjectController extends Controller
 
         // Redirect to board with highlight parameter
         $queryParams = ['highlight' => $task->id];
-        
+
         // Preserve phase filter or use task's phase
         if ($request->has('filter_phase_id') || $request->query('phase')) {
             $queryParams['phase'] = $request->input('filter_phase_id') ?? $request->query('phase');
         } elseif ($task->phase_id) {
             $queryParams['phase'] = $task->phase_id;
         }
-        
+
         // Preserve assigned filter
         if ($request->has('filter_assigned') || $request->query('assigned')) {
             $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
         }
-        
+
         return redirect()->route('projects.board', array_merge(['project' => $project], $queryParams))
             ->with('success', 'Task created successfully.');
     }
@@ -925,8 +1001,24 @@ class ProjectController extends Controller
                 'due_date' => 'nullable|date|after_or_equal:start_date',
                 'assignees' => 'nullable|array',
                 'assignees.*' => 'exists:users,id',
+                'dependencies' => ['nullable', 'array'],
+                'dependencies.*' => [
+                    'integer',
+                    'distinct',
+                    'exists:tasks,id',
+                ],
             ]);
         }
+
+        $dependencyIds = [];
+        if (! $fieldOnly && ! $user->isClient()) {
+            $dependencyIds = $this->validateDependencyIds(
+                array_values(array_unique(array_map('intval', $validated['dependencies'] ?? []))),
+                $user,
+                $task
+            );
+        }
+        unset($validated['dependencies']);
 
         // If phase_id provided, verify it belongs to this project
         if (!empty($validated['phase_id'])) {
@@ -956,6 +1048,10 @@ class ProjectController extends Controller
 
         // Update the task
         $task->update($validated);
+
+        if (! $fieldOnly && ! $user->isClient()) {
+            $task->dependencies()->sync($dependencyIds);
+        }
 
         // Sync assignees only on full updates so field-only posts cannot clear them
         if (!$fieldOnly) {
@@ -1028,7 +1124,9 @@ class ProjectController extends Controller
         if (request()->header('HX-Request') && $fromBoardModal) {
             // Field-only card edits: return the updated card, not the whole column
             if ($cardOnly) {
-                $task->load(['users', 'phase', 'creator']);
+                $task = $this->constrainBoardTaskPayload(Task::query())
+                    ->findOrFail($task->id);
+
                 return view('projects.partials.board-task-card', [
                     'project' => $project,
                     'task' => $task,
@@ -1148,7 +1246,7 @@ class ProjectController extends Controller
         if ($request->has('filter_assigned') || $request->query('assigned')) {
             $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
         }
-        
+
         return redirect()->route('projects.board', array_merge(['project' => $project], $queryParams))
             ->with('success', 'Task updated successfully.');
     }
@@ -1174,7 +1272,7 @@ class ProjectController extends Controller
             'phase:id,name',
             'users:id,name',
             'creator:id,name',
-        ]);
+        ])->withBoardDependencySummary();
     }
 
     /**
@@ -1255,7 +1353,7 @@ class ProjectController extends Controller
             'user_id' => auth()->id(),
             'body' => $request->input('body'),
         ]);
-        
+
         // Verify task belongs to this project
         if ($task->column->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
@@ -1270,7 +1368,7 @@ class ProjectController extends Controller
             'user_id' => auth()->id(),
             'body' => $validated['body'],
         ]);
-        
+
         \Log::info('Comment created', ['comment_id' => $comment->id]);
 
         // Load the user for display
@@ -1323,7 +1421,7 @@ class ProjectController extends Controller
         if ($user->isClient() && $task->created_by !== $user->id) {
             abort(403, 'You are not authorized to delete this task.');
         }
-        
+
         if (!$user->isClient() && $task->created_by !== $user->id && !$user->isAdmin()) {
             abort(403, 'You are not authorized to delete this task.');
         }
@@ -1332,12 +1430,12 @@ class ProjectController extends Controller
 
         // Return updated column HTML for HTMX
         $column = $project->columns()->find($task->column_id);
-        $tasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
+        $tasksQuery = \App\Models\Task::whereHas('column', function ($query) use ($project) {
             $query->where('project_id', $project->id);
-        })
-        ->with(['phase', 'users'])
-        ->get()
-        ->groupBy('column_id');
+        });
+        $tasks = $this->constrainBoardTaskPayload($tasksQuery)
+            ->get()
+            ->groupBy('column_id');
 
         $html = view('projects.partials.board-column-tasks', [
             'column' => $column,
@@ -1445,8 +1543,8 @@ class ProjectController extends Controller
     protected function syncProjectTagsFromRequest(Project $project, Request $request): array
     {
         $selectedTagIds = collect($request->input('tags', []))
-            ->filter(fn ($id) => is_numeric($id))
-            ->map(fn ($id) => (int) $id)
+            ->filter(fn($id) => is_numeric($id))
+            ->map(fn($id) => (int) $id)
             ->values()
             ->all();
 
@@ -1467,7 +1565,7 @@ class ProjectController extends Controller
         }
 
         $newTagIds = array_values(array_unique($selectedTagIds));
-        $existingTagIds = $project->tags()->pluck('tags.id')->map(fn ($id) => (int) $id)->all();
+        $existingTagIds = $project->tags()->pluck('tags.id')->map(fn($id) => (int) $id)->all();
 
         $project->tags()->sync($newTagIds);
 
@@ -1513,29 +1611,29 @@ class ProjectController extends Controller
                 $query->where('status', '!=', 'completed');
             }
             $query->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
-                  ->orderBy('start_date', 'asc')
-                  ->with(['tasks' => function ($taskQuery) use ($request, $showCompleted) {
-                      $taskQuery->with('column', 'users');
+                ->orderBy('start_date', 'asc')
+                ->with(['tasks' => function ($taskQuery) use ($request, $showCompleted) {
+                    $taskQuery->with('column', 'users');
 
-                      // Filter by assignee
-                      if ($request->filled('assignee')) {
-                          $assignee = $request->input('assignee');
-                          if ($assignee === 'unassigned') {
-                              $taskQuery->whereDoesntHave('users');
-                          } else {
-                              $taskQuery->whereHas('users', function ($query) use ($assignee) {
-                                  $query->where('users.id', $assignee);
-                              });
-                          }
-                      }
+                    // Filter by assignee
+                    if ($request->filled('assignee')) {
+                        $assignee = $request->input('assignee');
+                        if ($assignee === 'unassigned') {
+                            $taskQuery->whereDoesntHave('users');
+                        } else {
+                            $taskQuery->whereHas('users', function ($query) use ($assignee) {
+                                $query->where('users.id', $assignee);
+                            });
+                        }
+                    }
 
-                      if (!$showCompleted) {
-                          $taskQuery->where('status', '!=', 'completed');
-                      }
+                    if (!$showCompleted) {
+                        $taskQuery->where('status', '!=', 'completed');
+                    }
 
-                      $taskQuery->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
-                                ->orderBy('due_date', 'asc');
-                  }]);
+                    $taskQuery->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+                        ->orderBy('due_date', 'asc');
+                }]);
         }]);
 
         // Load standalone tasks (tasks without phases) that have due dates
@@ -1605,9 +1703,9 @@ class ProjectController extends Controller
         $phasesQuery = $project->phases()
             ->where(function ($query) {
                 $query->whereNotNull('start_date')
-                      ->orWhereNotNull('end_date');
+                    ->orWhereNotNull('end_date');
             });
-        
+
         if (!$showCompleted) {
             $phasesQuery->where('status', '!=', 'completed');
         }
@@ -1627,25 +1725,25 @@ class ProjectController extends Controller
                         })->orWhere(function ($q2) use ($filterStart, $filterEnd) {
                             // phase spans entire range
                             $q2->where('start_date', '<=', $filterStart)
-                               ->where('end_date', '>=', $filterEnd);
+                                ->where('end_date', '>=', $filterEnd);
                         });
                     });
                 } elseif ($filterStart) {
                     // At least one date is on or after filter start
                     $query->where(function ($q) use ($filterStart) {
                         $q->where('start_date', '>=', $filterStart)
-                          ->orWhere('end_date', '>=', $filterStart);
+                            ->orWhere('end_date', '>=', $filterStart);
                     });
                 } elseif ($filterEnd) {
                     // At least one date is on or before filter end
                     $query->where(function ($q) use ($filterEnd) {
                         $q->where('start_date', '<=', $filterEnd)
-                          ->orWhere('end_date', '<=', $filterEnd);
+                            ->orWhere('end_date', '<=', $filterEnd);
                     });
                 }
             });
         }
-        
+
         $phases = $phasesQuery
             ->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
             ->orderByRaw('CASE WHEN start_date IS NULL THEN 1 ELSE 0 END')
@@ -1661,7 +1759,7 @@ class ProjectController extends Controller
                 $filterStart = $today;
                 $filterEnd = $today->copy()->addMonths(2);
             }
-            
+
             return view('projects.timeline', [
                 'project' => $project,
                 'phases' => $phases,
@@ -1685,12 +1783,12 @@ class ProjectController extends Controller
             $today = \Carbon\Carbon::today();
             $timelineStart = $today->copy()->startOfWeek();
             $timelineEnd = $today->copy()->addMonths(2)->endOfWeek();
-            
+
             // Set default filter values for form population
             $filterStart = $today;
             $filterEnd = $today->copy()->addMonths(2);
         }
-        
+
         // Calculate number of weeks
         $weekCount = $timelineStart->diffInWeeks($timelineEnd) + 1;
         $tooWide = $weekCount > 26;
@@ -1699,18 +1797,18 @@ class ProjectController extends Controller
         $weeks = [];
         $currentWeek = $timelineStart->copy();
         $displayWeeks = min($weekCount, 26);
-        
+
         for ($i = 0; $i < $displayWeeks; $i++) {
             $weekStart = $currentWeek->copy();
             $weekEnd = $currentWeek->copy()->endOfWeek();
-            
+
             // Format label as date range
             if ($weekStart->month === $weekEnd->month) {
                 $label = $weekStart->format('M j') . '-' . $weekEnd->format('j');
             } else {
                 $label = $weekStart->format('M j') . ' - ' . $weekEnd->format('M j');
             }
-            
+
             $weeks[] = [
                 'start' => $weekStart,
                 'end' => $weekEnd,
@@ -1725,16 +1823,18 @@ class ProjectController extends Controller
         // Tasks use "effective due date" - explicit due_date or phase end_date fallback
         foreach ($weeks as $index => $week) {
             $dueDateCount = 0;
-            
+
             // Count phase end dates in this week
             foreach ($phases as $phase) {
-                if ($phase->end_date && 
-                    $phase->end_date->gte($week['start']) && 
-                    $phase->end_date->lte($week['end'])) {
+                if (
+                    $phase->end_date &&
+                    $phase->end_date->gte($week['start']) &&
+                    $phase->end_date->lte($week['end'])
+                ) {
                     $dueDateCount++;
                 }
             }
-            
+
             // Count task effective due dates in this week
             // Includes tasks with explicit due_date OR tasks inheriting from phase end_date
             $tasks = \App\Models\Task::with(['phase', 'column'])
@@ -1745,16 +1845,18 @@ class ProjectController extends Controller
                     $q->where('status', '!=', 'completed');
                 })
                 ->get();
-            
+
             foreach ($tasks as $task) {
                 $effectiveDueDate = $task->getEffectiveDueDate();
-                if ($effectiveDueDate && 
-                    $effectiveDueDate->gte($week['start']) && 
-                    $effectiveDueDate->lte($week['end'])) {
+                if (
+                    $effectiveDueDate &&
+                    $effectiveDueDate->gte($week['start']) &&
+                    $effectiveDueDate->lte($week['end'])
+                ) {
                     $dueDateCount++;
                 }
             }
-            
+
             $weeks[$index]['due_count'] = $dueDateCount;
         }
 
@@ -1768,14 +1870,14 @@ class ProjectController extends Controller
                 ->groupBy('status')
                 ->pluck('count', 'status')
                 ->toArray();
-            
+
             // Ensure all statuses are represented
             $taskCounts = array_merge([
                 'planned' => 0,
                 'active' => 0,
                 'completed' => 0,
             ], $taskCounts);
-            
+
             $phase->task_counts = $taskCounts;
             return $phase;
         });
@@ -1816,7 +1918,7 @@ class ProjectController extends Controller
         $sharedUserIds = $shares->where('shareable_type', 'user')
             ->pluck('shareable_id')
             ->toArray();
-        
+
         $availableUsers = \App\Models\User::where('active', true)
             ->whereNotIn('id', $sharedUserIds)
             ->orderBy('name')
@@ -1855,7 +1957,7 @@ class ProjectController extends Controller
         // Create share (will be ignored if duplicate due to unique constraint)
         try {
             $project->shares()->create($validated);
-            $message = $validated['shareable_type'] === 'user' 
+            $message = $validated['shareable_type'] === 'user'
                 ? 'Project shared with user successfully.'
                 : 'Project shared with role successfully.';
             return back()->with('success', $message);
@@ -1926,5 +2028,46 @@ class ProjectController extends Controller
         }
 
         return $sortedUsers->filter(); // Remove nulls (in case current user doesn't exist)
+    }
+    private function validateDependencyIds(
+        array $dependencyIds,
+        User $user,
+        ?Task $currentTask = null
+    ): array {
+        $dependencyIds = array_values(
+            array_unique(
+                array_map('intval', $dependencyIds)
+            )
+        );
+
+        if (empty($dependencyIds)) {
+            return [];
+        }
+
+        if ($currentTask && in_array($currentTask->id, $dependencyIds, true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'dependencies' => 'A task cannot depend on itself.',
+            ]);
+        }
+
+        $visibleProjectIds = Project::visibleTo($user)->pluck('id');
+
+        $allowedDependencyIds = Task::query()
+            ->whereIn('tasks.id', $dependencyIds)
+            ->where('tasks.status', '!=', 'completed')
+            ->whereHas('column', function ($query) use ($visibleProjectIds) {
+                $query->whereIn('project_id', $visibleProjectIds);
+            })
+            ->pluck('tasks.id')
+            ->map(fn($id) => (int) $id)
+            ->all();
+
+        if (count($allowedDependencyIds) !== count($dependencyIds)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'dependencies' => 'One or more selected dependencies are unavailable.',
+            ]);
+        }
+
+        return $dependencyIds;
     }
 }
