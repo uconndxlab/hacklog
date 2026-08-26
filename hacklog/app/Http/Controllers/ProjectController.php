@@ -564,7 +564,11 @@ class ProjectController extends Controller
 
         //apply created by filter if requested
         $filterCreatedBy = $request->query('createdby');
-        if ()
+        if ($filterCreatedBy === 'me') {
+            $tasksQuery->where('created_by', $request->user()->id);
+        } elseif ($filterCreatedBy && is_numeric($filterCreatedBy)) {
+            $tasksQuery->where('created_by', $filterCreatedBy);
+        }
 
         // Load all tasks for this project (optionally filtered by phase)
         // Eager load phase, users, and creator relationships and order by position within each column
@@ -1023,6 +1027,8 @@ class ProjectController extends Controller
      */
     public function updateTask(Request $request, Project $project, \App\Models\Task $task)
     {
+        $user = $request->user();
+
         // Verify task belongs to this project
         if ($task->phase && $task->phase->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
