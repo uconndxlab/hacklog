@@ -562,10 +562,81 @@ class ProjectController extends Controller
             $tasksQuery->where('weight', $filterWeight);
         }
 
+        //apply created by filter if requested
+        $filterCreatedBy = $request->query('createdby');
+        if ($filterCreatedBy === 'me') {
+            $tasksQuery->where('created_by', $request->user()->id);
+        } elseif ($filterCreatedBy && is_numeric($filterCreatedBy)) {
+            $tasksQuery->where('created_by', $filterCreatedBy);
+        }
+
         // Load all tasks for this project (optionally filtered by phase)
         // Eager load phase, users, and creator relationships and order by position within each column
         $tasks = $this->constrainBoardTaskPayload($tasksQuery)->get()->groupBy('column_id');
-        
+
+        // Get users who have created tasks in this project
+        $taskCreators = \App\Models\User::whereHas('createdTasks', function ($query) use ($project, $request, $assigned, $filterPriority, $filterWeight) {
+            $query->whereHas('column', function ($q) use ($project) {
+                $q->where('project_id', $project->id);
+            })->where('status', '!=', 'completed');
+
+            if ($request->has('phase') && $request->phase) {
+                $query->where('phase_id', $request->phase);
+            }
+
+            if ($assigned === 'me') {
+                $query->whereHas('users', function ($q) use ($request) {
+                    $q->where('users.id', $request->user()->id);
+                });
+            } elseif ($assigned === 'none') {
+                $query->whereDoesntHave('users');
+            } elseif ($assigned && is_numeric($assigned)) {
+                $query->whereHas('users', function ($q) use ($assigned) {
+                    $q->where('users.id', $assigned);
+                });
+            }
+
+            if ($filterPriority && in_array($filterPriority, \App\Models\Task::PRIORITY_VALUES)) {
+                $query->where('priority', $filterPriority);
+            }
+
+            if ($filterWeight && in_array($filterWeight, \App\Models\Task::WEIGHT_VALUES)) {
+                $query->where('weight', $filterWeight);
+            }
+        })
+        ->withCount(['createdTasks' => function ($query) use ($project, $request, $assigned, $filterPriority, $filterWeight) {
+            $query->whereHas('column', function ($q) use ($project) {
+                $q->where('project_id', $project->id);
+            })
+            ->where('status', '!=', 'completed');
+
+            if ($request->has('phase') && $request->phase) {
+                $query->where('phase_id', $request->phase);
+            }
+
+            if ($assigned === 'me') {
+                $query->whereHas('users', function ($q) use ($request) {
+                    $q->where('users.id', $request->user()->id);
+                });
+            } elseif ($assigned === 'none') {
+                $query->whereDoesntHave('users');
+            } elseif ($assigned && is_numeric($assigned)) {
+                $query->whereHas('users', function ($q) use ($assigned) {
+                    $q->where('users.id', $assigned);
+                });
+            }
+
+            if ($filterPriority && in_array($filterPriority, \App\Models\Task::PRIORITY_VALUES)) {
+                $query->where('priority', $filterPriority);
+            }
+
+            if ($filterWeight && in_array($filterWeight, \App\Models\Task::WEIGHT_VALUES)) {
+                $query->where('weight', $filterWeight);
+            }
+        }])
+        ->orderBy('name')
+        ->get();
+
         // Get users who have tasks assigned in this project with counts
         $usersWithTasks = \App\Models\User::whereHas('tasks', function ($query) use ($project) {
             $query->whereHas('column', function ($q) use ($project) {
@@ -577,7 +648,7 @@ class ProjectController extends Controller
             })->where('status', '!=', 'completed');
         }])->orderBy('name')->get();
 
-        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks'));
+        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks', 'taskCreators'));
     }
 
     /**
@@ -956,6 +1027,8 @@ class ProjectController extends Controller
      */
     public function updateTask(Request $request, Project $project, \App\Models\Task $task)
     {
+        $user = $request->user();
+
         // Verify task belongs to this project
         if ($task->phase && $task->phase->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');

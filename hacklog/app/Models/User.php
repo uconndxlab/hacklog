@@ -263,6 +263,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Task::class)->withTimestamps();
     }
 
+    public function createdTasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Task::class, 'created_by');
+    }
+
     public function favoriteProjects(): BelongsToMany
     {
         return $this->belongsToMany(Project::class, 'project_favorites')->withTimestamps();

@@ -84,7 +84,7 @@
                 <li><hr class="dropdown-divider"></li>
                 @foreach($phases as $phase)
                     <li>
-                        <a class="dropdown-item {{ request('phase') == $phase->id ? 'active' : '' }}" 
+                        <a class="dropdown-item {{ request('phase') == $phase->id ? 'active' : '' }}"
                            href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}">
                             {{ $phase->name }}
                         </a>
@@ -113,16 +113,16 @@
                 {{ $assignedLabel }}
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item {{ !request('assigned') ? 'active' : '' }}" 
+                <li><a class="dropdown-item {{ !request('assigned') ? 'active' : '' }}"
                        href="{{ request()->fullUrlWithQuery(['assigned' => null]) }}">All Tasks</a></li>
-                <li><a class="dropdown-item {{ request('assigned') === 'me' ? 'active' : '' }}" 
+                <li><a class="dropdown-item {{ request('assigned') === 'me' ? 'active' : '' }}"
                        href="{{ request()->fullUrlWithQuery(['assigned' => 'me']) }}">Assigned to Me</a></li>
-                <li><a class="dropdown-item {{ request('assigned') === 'none' ? 'active' : '' }}" 
+                <li><a class="dropdown-item {{ request('assigned') === 'none' ? 'active' : '' }}"
                        href="{{ request()->fullUrlWithQuery(['assigned' => 'none']) }}">Unassigned</a></li>
                 <li><hr class="dropdown-divider"></li>
                 @foreach($usersWithTasks as $user)
                     <li>
-                        <a class="dropdown-item {{ request('assigned') == $user->id ? 'active' : '' }}" 
+                        <a class="dropdown-item {{ request('assigned') == $user->id ? 'active' : '' }}"
                            href="{{ request()->fullUrlWithQuery(['assigned' => $user->id]) }}">
                             {{ $user->name }} ({{ $user->tasks_count }})
                         </a>
@@ -130,6 +130,41 @@
                 @endforeach
             </ul>
         </div>
+
+
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Filter by created">
+                @php
+                    $createdBy = request('createdby');
+                    $creatorLabel = 'All Creators';
+                    if ($createdBy === 'me') {
+                        $creatorLabel = 'Created by Me';
+                    } elseif ($createdBy && is_numeric($createdBy)) {
+                        $creator = \App\Models\User::find($createdBy);
+                        if ($creator) {
+                            $creatorLabel = 'Created by ' . $creator->name;
+                        }
+                    }
+                @endphp
+                {{ $creatorLabel }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item {{ !request('createdby') ? 'active' : '' }}"
+                       href="{{ request()->fullUrlWithQuery(['createdby' => null]) }}">All Tasks</a></li>
+                <li><a class="dropdown-item {{ request('createdby') === 'me' ? 'active' : '' }}"
+                       href="{{ request()->fullUrlWithQuery(['createdby' => 'me']) }}">Created by Me</a></li>
+                <li><hr class="dropdown-divider"></li>
+                @foreach($taskCreators as $user)
+                    <li>
+                        <a class="dropdown-item {{ request('createdby') == $user->id ? 'active' : '' }}"
+                           href="{{ request()->fullUrlWithQuery(['createdby' => $user->id]) }}">
+                            {{ $user->name }} ({{ $user->created_tasks_count }})
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+
 
         {{-- Priority filter --}}
         <div class="dropdown">
@@ -190,16 +225,16 @@
                             {{ $phaseSynopsis->completed_tasks_count }} of {{ $phaseSynopsis->tasks_count }} tasks completed
                         </div>
                         @php
-                            $completionPercentage = $phaseSynopsis->tasks_count > 0 
-                                ? round(($phaseSynopsis->completed_tasks_count / $phaseSynopsis->tasks_count) * 100) 
+                            $completionPercentage = $phaseSynopsis->tasks_count > 0
+                                ? round(($phaseSynopsis->completed_tasks_count / $phaseSynopsis->tasks_count) * 100)
                                 : 0;
                         @endphp
                         <div class="progress" style="height: 8px;">
-                            <div class="progress-bar {{ $completionPercentage == 100 ? 'bg-success' : ($completionPercentage > 50 ? 'bg-info' : 'bg-warning') }}" 
-                                 role="progressbar" 
-                                 style="width: {{ $completionPercentage }}%" 
-                                 aria-valuenow="{{ $completionPercentage }}" 
-                                 aria-valuemin="0" 
+                            <div class="progress-bar {{ $completionPercentage == 100 ? 'bg-success' : ($completionPercentage > 50 ? 'bg-info' : 'bg-warning') }}"
+                                 role="progressbar"
+                                 style="width: {{ $completionPercentage }}%"
+                                 aria-valuenow="{{ $completionPercentage }}"
+                                 aria-valuemin="0"
                                  aria-valuemax="100">
                             </div>
                         </div>
@@ -303,7 +338,7 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <span class="badge 
+                    <span class="badge
                         @if($filteredPhase->status === 'planned') bg-secondary
                         @elseif($filteredPhase->status === 'active') bg-success
                         @else bg-primary
@@ -373,11 +408,11 @@
             $query->where('project_id', $project->id);
         })->find(request()->get('task'));
     @endphp
-    
+
     @if($targetTask)
         {{-- Hidden trigger that loads and opens the task modal on page load --}}
-        <div 
-            hx-get="{{ route('projects.board.tasks.edit', [$project, $targetTask]) }}" 
+        <div
+            hx-get="{{ route('projects.board.tasks.edit', [$project, $targetTask]) }}"
             hx-target="#taskModalContent"
             hx-trigger="load"
             hx-on::after-request="
@@ -427,11 +462,11 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
     if (boardFilterPhase) {
         evt.detail.parameters['phase'] = boardFilterPhase;
     }
-    
+
     if (boardFilterAssigned) {
         evt.detail.parameters['assigned'] = boardFilterAssigned;
     }
-    
+
     // Add CSRF token to all HTMX requests
     const token = document.querySelector('meta[name="csrf-token"]');
     if (token) {
@@ -718,18 +753,18 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
             column_id: newColumnId,
             position: position
         };
-        
+
         // Include phase/assignee filters using the PHP-rendered variables captured at
         // page load, not window.location.search (which may have changed if the user
         // opened a task detail modal before dragging).
         if (boardFilterPhase) {
             requestBody.filter_phase_id = boardFilterPhase;
         }
-        
+
         if (boardFilterAssigned) {
             requestBody.filter_assigned = boardFilterAssigned;
         }
-        
+
         fetch(`/projects/{{ $project->id }}/board/tasks/${draggedTask.dataset.taskId}/move`, {
             method: 'POST',
             headers: {
@@ -780,44 +815,44 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
 (function() {
     const urlParams = new URLSearchParams(window.location.search);
     const highlightTaskId = urlParams.get('highlight');
-    
+
     if (highlightTaskId) {
         // Wait for DOM to be fully loaded
         setTimeout(function() {
             const taskCard = document.querySelector(`[data-task-id="${highlightTaskId}"]`);
             if (taskCard) {
                 const cardBody = taskCard.querySelector('.card-body');
-                
+
                 // Store original background colors
                 const originalBg = taskCard.style.backgroundColor;
                 const originalBodyBg = cardBody ? cardBody.style.backgroundColor : '';
-                
+
                 // Add highlight with info color
                 taskCard.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease, background-color 0.3s ease';
                 taskCard.style.boxShadow = '0 0 0 4px rgba(13, 110, 253, 0.5)'; // Bootstrap info color
                 taskCard.style.transform = 'scale(1.03)';
                 taskCard.style.backgroundColor = 'rgba(13, 110, 253, 0.15)'; // Light info background
-                
+
                 if (cardBody) {
                     cardBody.style.transition = 'background-color 0.3s ease';
                     cardBody.style.backgroundColor = 'rgba(13, 110, 253, 0.1)'; // Subtle body tint
                 }
-                
+
                 // Scroll to the task card
                 taskCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
+
                 // Fade out after 1 second
                 setTimeout(function() {
                     taskCard.style.transition = 'box-shadow 1s ease, transform 1s ease, background-color 1s ease';
                     taskCard.style.boxShadow = '';
                     taskCard.style.transform = '';
                     taskCard.style.backgroundColor = originalBg;
-                    
+
                     if (cardBody) {
                         cardBody.style.transition = 'background-color 1s ease';
                         cardBody.style.backgroundColor = originalBodyBg;
                     }
-                    
+
                     // Clean up the URL parameter after highlight starts fading
                     const url = new URL(window.location);
                     url.searchParams.delete('highlight');
