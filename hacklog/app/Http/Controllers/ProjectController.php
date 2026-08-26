@@ -956,6 +956,8 @@ class ProjectController extends Controller
      */
     public function updateTask(Request $request, Project $project, \App\Models\Task $task)
     {
+        $user = auth()->user();
+
         // Verify task belongs to this project
         if ($task->phase && $task->phase->project_id !== $project->id) {
             abort(403, 'Task does not belong to this project.');
