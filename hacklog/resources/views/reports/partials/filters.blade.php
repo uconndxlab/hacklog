@@ -35,6 +35,8 @@
 @endphp
 
 <form method="GET" action="{{ route('reports.index') }}" class="mb-4" id="report-filter-form">
+    <input type="hidden" name="sort" value="{{ request('sort', 'name') }}">
+    <input type="hidden" name="direction" value="{{ request('direction', 'asc') }}">
     <div class="row g-2 align-items-end">
         <div class="col-6 col-md-4 col-xl">
             <label for="status" class="form-label small mb-1">Status</label>

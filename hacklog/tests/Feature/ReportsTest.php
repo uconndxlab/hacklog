@@ -170,4 +170,43 @@ class ReportsTest extends TestCase
         $response->assertSee('Workload Project');
         $response->assertDontSeeText('Finished Assignee');
     }
+
+    public function test_inventory_headers_sort_projects(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+        ]);
+
+        Project::create([
+            'name' => 'Zebra Report Project',
+            'description' => 'Second alphabetically',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+            'grant_value' => 100,
+        ]);
+
+        Project::create([
+            'name' => 'Alpha Report Project',
+            'description' => 'First alphabetically',
+            'status' => Project::STATUS_PLANNING,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+            'grant_value' => 500,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('reports.index', ['sort' => 'name', 'direction' => 'asc']))
+            ->assertOk()
+            ->assertSeeInOrder(['Alpha Report Project', 'Zebra Report Project']);
+
+        $this->actingAs($admin)
+            ->get(route('reports.index', ['sort' => 'name', 'direction' => 'desc']))
+            ->assertOk()
+            ->assertSeeInOrder(['Zebra Report Project', 'Alpha Report Project']);
+
+        $this->actingAs($admin)
+            ->get(route('reports.index', ['sort' => 'grant_value', 'direction' => 'desc']))
+            ->assertOk()
+            ->assertSeeInOrder(['Alpha Report Project', 'Zebra Report Project']);
+    }
 }

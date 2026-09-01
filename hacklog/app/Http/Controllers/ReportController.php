@@ -34,52 +34,63 @@ class ReportController extends Controller
 
         $search = trim((string) $request->query('search', ''));
         if ($search !== '') {
-            $query->where('name', 'like', '%'.$search.'%');
+            $query->where('projects.name', 'like', '%'.$search.'%');
         }
 
         $status = $request->query('status');
         if (is_string($status) && in_array($status, Project::STATUS_VALUES, true)) {
-            $query->where('status', $status);
+            $query->where('projects.status', $status);
         }
 
         $type = $request->query('type');
         if (is_string($type) && in_array($type, Project::TYPE_VALUES, true)) {
-            $query->where('project_type', $type);
+            $query->where('projects.project_type', $type);
         }
 
         if ($departmentId = $request->query('department')) {
-            $query->where('department_id', (int) $departmentId);
+            $query->where('projects.department_id', (int) $departmentId);
         }
 
         if ($officeId = $request->query('office')) {
-            $query->where('major_office_id', (int) $officeId);
+            $query->where('projects.major_office_id', (int) $officeId);
         }
 
         $affiliation = $request->query('affiliation');
         if (is_string($affiliation) && in_array($affiliation, Project::AFFILIATION_VALUES, true)) {
-            $query->where('uconn_affiliation', $affiliation);
+            $query->where('projects.uconn_affiliation', $affiliation);
         }
 
         if ($request->query('grant') === '1') {
-            $query->where('grant_value', '>', 0);
+            $query->where('projects.grant_value', '>', 0);
         } elseif ($request->query('grant') === '0') {
             $query->where(function ($grantQuery) {
-                $grantQuery->whereNull('grant_value')->orWhere('grant_value', '<=', 0);
+                $grantQuery->whereNull('projects.grant_value')->orWhere('projects.grant_value', '<=', 0);
             });
         }
 
+        $sort = in_array($request->query('sort'), self::SORTABLE_COLUMNS, true)
+            ? $request->query('sort')
+            : 'name';
+        $direction = $request->query('direction') === 'desc' ? 'desc' : 'asc';
+
         $summary = (clone $query)->toBase()->select([
             DB::raw('COUNT(*) as total'),
-            DB::raw('COUNT(CASE WHEN grant_value > 0 THEN 1 END) as grant_count'),
-            DB::raw('COALESCE(SUM(grant_value), 0) as grant_total'),
-            DB::raw('COUNT(DISTINCT department_id) as dept_count'),
-            DB::raw('COUNT(DISTINCT major_office_id) as office_count'),
+            DB::raw('COUNT(CASE WHEN projects.grant_value > 0 THEN 1 END) as grant_count'),
+            DB::raw('COALESCE(SUM(projects.grant_value), 0) as grant_total'),
+            DB::raw('COUNT(DISTINCT projects.department_id) as dept_count'),
+            DB::raw('COUNT(DISTINCT projects.major_office_id) as office_count'),
         ])->first();
 
-        $projects = (clone $query)
+        $listQuery = (clone $query)
             ->with(['department', 'nestedDepartment', 'majorOffice'])
-            ->orderBy('name')
-            ->get();
+            ->leftJoin('departments as home_departments', 'projects.department_id', '=', 'home_departments.id')
+            ->leftJoin('departments as nested_departments', 'projects.nested_department_id', '=', 'nested_departments.id')
+            ->leftJoin('major_offices', 'projects.major_office_id', '=', 'major_offices.id')
+            ->select('projects.*');
+
+        $this->applyInventorySort($listQuery, $sort, $direction);
+
+        $projects = $listQuery->get();
 
         $statusCounts = Project::query()
             ->select('status', DB::raw('COUNT(*) as projects_count'))
@@ -116,7 +127,53 @@ class ReportController extends Controller
             'departments' => Department::home()->orderBy('name')->get(),
             'offices' => MajorOffice::orderBy('name')->get(),
             'statusColors' => self::STATUS_COLORS,
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
+    }
+
+    private const SORTABLE_COLUMNS = [
+        'status',
+        'name',
+        'type',
+        'department',
+        'nested_department',
+        'office',
+        'affiliation',
+        'grant_value',
+    ];
+
+    private function applyInventorySort($query, string $sort, string $direction): void
+    {
+        $dir = $direction === 'desc' ? 'desc' : 'asc';
+
+        match ($sort) {
+            'status' => $this->orderByEnum($query, 'projects.status', Project::STATUS_VALUES, $dir),
+            'type' => $this->orderByEnum($query, 'projects.project_type', Project::TYPE_VALUES, $dir),
+            'affiliation' => $this->orderByEnum($query, 'projects.uconn_affiliation', Project::AFFILIATION_VALUES, $dir),
+            'department' => $query->orderBy('home_departments.name', $dir),
+            'nested_department' => $query->orderBy('nested_departments.name', $dir),
+            'office' => $query->orderBy('major_offices.name', $dir),
+            'grant_value' => $query->orderByRaw('COALESCE(projects.grant_value, 0) '.$dir),
+            default => $query->orderBy('projects.name', $dir),
+        };
+
+        if ($sort !== 'name') {
+            $query->orderBy('projects.name');
+        }
+    }
+
+    private function orderByEnum($query, string $column, array $values, string $direction): void
+    {
+        $parts = [];
+        $bindings = [];
+
+        foreach (array_values($values) as $index => $value) {
+            $parts[] = 'WHEN '.$column.' = ? THEN '.$index;
+            $bindings[] = $value;
+        }
+
+        $query->orderByRaw('CASE '.implode(' ', $parts).' ELSE 99 END '.$direction, $bindings);
     }
 
     public function workload(Request $request): View
