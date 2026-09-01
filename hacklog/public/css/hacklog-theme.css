@@ -1821,14 +1821,22 @@ body.inventory-editor-fullscreen .inventory-editor-fs-exit {
     padding: 0.4rem 0.55rem;
 }
 
-/* Names wrap to two lines; the fixed row height keeps virtual scrolling exact. */
+/* Names wrap to two lines, then ellipsis; fixed row height keeps virtual scrolling exact. */
 .report-inventory-grid .tabulator-cell[tabulator-field="name"] {
-    display: -webkit-inline-box;
+    overflow: hidden;
+    white-space: normal;
+}
+
+.report-inventory-grid .inventory-editor-name-text {
+    display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: normal;
     overflow-wrap: anywhere;
     line-height: 1.3;
+    max-height: calc(1.3em * 2);
 }
 
 .report-inventory-grid .tabulator-tableholder {

@@ -102,6 +102,13 @@
         };
     }
 
+    function nameFormatter(cell) {
+        const span = document.createElement('span');
+        span.className = 'inventory-editor-name-text';
+        span.textContent = cell.getValue() ?? '';
+        return span;
+    }
+
     const searchCache = new Map();
 
     function searchText(data) {
@@ -184,6 +191,7 @@
                 title: 'Project Name',
                 field: 'name',
                 editor: 'input',
+                formatter: nameFormatter,
                 frozen: true,
                 tooltip: true,
                 minWidth: 140,
