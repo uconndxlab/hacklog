@@ -5,6 +5,7 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\ColumnController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\InventoryEditorController;
 use App\Http\Controllers\MajorOfficeController;
 use App\Http\Controllers\PhaseController;
 use App\Http\Controllers\ProjectController;
@@ -32,9 +33,9 @@ use Illuminate\Support\Facades\Route;
 $authDriver = config('hacklog_auth.driver', 'local');
 
 if ($authDriver === 'cas') {
-    require __DIR__ . '/auth_cas.php';
+    require __DIR__.'/auth_cas.php';
 } else {
-    require __DIR__ . '/auth_local.php';
+    require __DIR__.'/auth_local.php';
 }
 
 // Public home
@@ -42,6 +43,7 @@ Route::get('/', function () {
     if (Auth::check()) {
         return redirect()->route('dashboard');
     }
+
     return redirect()->route('login');
 });
 
@@ -65,6 +67,9 @@ Route::middleware('auth')->group(function () {
         Route::get('projects-table', [ProjectController::class, 'tableView'])->name('projects.table');
         Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('reports/workload', [ReportController::class, 'workload'])->name('reports.workload');
+        Route::get('reports/editor', [InventoryEditorController::class, 'index'])->name('reports.editor');
+        Route::post('reports/inventory', [InventoryEditorController::class, 'store'])->name('reports.editor.store');
+        Route::patch('reports/inventory/{project}', [InventoryEditorController::class, 'update'])->name('reports.editor.update');
     });
 
     Route::resource('tags', TagController::class)->except(['show']);

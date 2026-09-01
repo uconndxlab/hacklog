@@ -38,7 +38,7 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
 </head>
-<body>
+<body class="@yield('body_class')">
     <script>
         if (document.documentElement.classList.contains('theme-dark')) {
             document.body.classList.add('theme-dark');

@@ -1735,3 +1735,189 @@ html.theme-dark .apexcharts-legend-text,
 body.theme-dark .apexcharts-legend-text {
     color: #e2e6eb !important;
 }
+
+body.inventory-editor-body {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+body.inventory-editor-body > .navbar {
+    flex: 0 0 auto;
+    margin-bottom: 0.5rem !important;
+}
+
+body.inventory-editor-body > .container-fluid {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 0.5rem;
+}
+
+.inventory-editor-page {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.inventory-editor-page > .d-flex {
+    flex: 0 0 auto;
+    margin-bottom: 0.5rem !important;
+}
+
+#inventory-editor-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.inventory-editor-fs-exit {
+    display: none;
+}
+
+body.inventory-editor-fullscreen > .navbar,
+body.inventory-editor-fullscreen .inventory-editor-page > .d-flex {
+    display: none !important;
+}
+
+body.inventory-editor-fullscreen > .container-fluid {
+    padding: 0;
+}
+
+body.inventory-editor-fullscreen .inventory-editor-fs-exit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 2.5rem;
+    right: 1rem;
+    z-index: 1100;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+}
+
+.report-inventory-grid .tabulator {
+    font-family: inherit;
+    font-size: 0.85rem;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: transparent;
+}
+
+.report-inventory-grid .tabulator-header {
+    background: var(--bs-light, #f8f9fa);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    font-weight: 600;
+}
+
+.report-inventory-grid .tabulator-col {
+    background: transparent;
+}
+
+.report-inventory-grid .tabulator-cell {
+    padding: 0.4rem 0.55rem;
+}
+
+/* Names wrap to two lines; the fixed row height keeps virtual scrolling exact. */
+.report-inventory-grid .tabulator-cell[tabulator-field="name"] {
+    display: -webkit-inline-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+}
+
+.report-inventory-grid .tabulator-tableholder {
+    overflow: auto !important;
+}
+
+body.theme-dark .report-inventory-grid .tabulator,
+body.theme-dark .report-inventory-grid .tabulator-tableholder,
+body.theme-dark .report-inventory-grid .tabulator-table {
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e2e6eb;
+    background: #1a1f2e;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-header,
+body.theme-dark .report-inventory-grid .tabulator-col,
+body.theme-dark .report-inventory-grid .tabulator-col-content,
+body.theme-dark .report-inventory-grid .tabulator-col-title {
+    background: #232a3b;
+    color: #e2e6eb;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.theme-dark .report-inventory-grid [aria-sort=none] .tabulator-arrow {
+    border-bottom-color: #9aa3b2;
+}
+
+body.theme-dark .report-inventory-grid [aria-sort=ascending] .tabulator-arrow {
+    border-bottom-color: #e2e6eb;
+}
+
+body.theme-dark .report-inventory-grid [aria-sort=descending] .tabulator-arrow {
+    border-top-color: #e2e6eb;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-row {
+    background: #1a1f2e;
+    color: #e2e6eb;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.theme-dark .report-inventory-grid .tabulator-row.tabulator-row-even {
+    background: #1e2536;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-cell,
+body.theme-dark .report-inventory-grid .tabulator-frozen {
+    background: inherit;
+    color: #e2e6eb;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.theme-dark .report-inventory-grid .tabulator-row.tabulator-selectable:hover {
+    background: #2a3348;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-placeholder,
+body.theme-dark .report-inventory-grid .tabulator-placeholder-contents {
+    color: #9aa3b2;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-cell.tabulator-editing {
+    background: #2a3342;
+    border-color: #7ba3ff;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-cell.tabulator-editing input,
+body.theme-dark .report-inventory-grid .tabulator-cell.tabulator-editing select,
+body.theme-dark .report-inventory-grid .tabulator-cell.tabulator-editing textarea {
+    background: #2a3342;
+    color: #e2e6eb;
+    border: none;
+    caret-color: #e2e6eb;
+}
+
+body.theme-dark .tabulator-popup-container,
+body.theme-dark .tabulator-edit-list {
+    background: #232a3b;
+    border-color: rgba(255, 255, 255, 0.16);
+    color: #e2e6eb;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.4);
+}
+
+body.theme-dark .tabulator-edit-list-item {
+    color: #e2e6eb;
+}
+
+body.theme-dark .tabulator-edit-list-item.active,
+body.theme-dark .tabulator-edit-list-item:hover {
+    background: #2f3b55;
+    color: #fff;
+}

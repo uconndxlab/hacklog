@@ -10,6 +10,9 @@
             <a class="nav-link {{ request()->routeIs('reports.index') ? 'active' : '' }}" href="{{ route('reports.index') }}">Inventory</a>
         </li>
         <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('reports.editor') ? 'active' : '' }}" href="{{ route('reports.editor') }}">Editor</a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('reports.workload') ? 'active' : '' }}" href="{{ route('reports.workload') }}">Workload</a>
         </li>
     </ul>
