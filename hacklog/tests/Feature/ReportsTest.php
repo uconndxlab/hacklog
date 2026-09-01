@@ -189,6 +189,73 @@ class ReportsTest extends TestCase
         $response->assertDontSeeText('Stale Assignee');
     }
 
+    public function test_workload_by_project_team_lists_explicit_team_members(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+        ]);
+
+        $teamMember = User::factory()->create([
+            'name' => 'Team Lead',
+            'role' => User::ROLE_TEAM,
+            'active' => true,
+        ]);
+
+        $taskOnly = User::factory()->create([
+            'name' => 'Task Only',
+            'role' => User::ROLE_TEAM,
+            'active' => true,
+        ]);
+
+        $project = Project::create([
+            'name' => 'Team Project',
+            'description' => 'Explicit team assignment',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+        ]);
+
+        $project->shares()->create([
+            'shareable_type' => 'user',
+            'shareable_id' => $teamMember->id,
+        ]);
+
+        $phase = Phase::create([
+            'project_id' => $project->id,
+            'name' => 'Build',
+            'status' => 'active',
+        ]);
+
+        $column = Column::create([
+            'project_id' => $project->id,
+            'name' => 'Backlog',
+            'position' => 1,
+            'is_default' => true,
+        ]);
+
+        $task = Task::create([
+            'phase_id' => $phase->id,
+            'column_id' => $column->id,
+            'title' => 'Assigned work',
+            'status' => 'active',
+            'position' => 1,
+        ]);
+        $task->users()->attach($taskOnly->id);
+
+        $this->actingAs($admin)
+            ->get(route('reports.workload', ['by' => 'team']))
+            ->assertOk()
+            ->assertSeeText('Team Lead')
+            ->assertSee('Team Project')
+            ->assertDontSeeText('Task Only');
+
+        $this->actingAs($admin)
+            ->get(route('reports.workload'))
+            ->assertOk()
+            ->assertSeeText('Task Only')
+            ->assertDontSeeText('Team Lead');
+    }
+
     public function test_workload_includes_planned_board_tasks_without_a_phase(): void
     {
         $admin = User::factory()->create([

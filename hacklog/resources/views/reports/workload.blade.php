@@ -7,12 +7,42 @@
     $totalAssignments = $rows->sum('visible_count');
     $legendStatuses = collect(\App\Http\Controllers\ReportController::STATUS_LABELS)
         ->filter(fn ($label, $status) => in_array($status, $presentStatuses, true));
+    $byTeam = $by === \App\Http\Controllers\ReportController::WORKLOAD_BY_TEAM;
+    $workloadQuery = function (array $overrides = []) use ($by, $hiddenStatuses) {
+        $params = [];
+        if ($by !== \App\Http\Controllers\ReportController::WORKLOAD_BY_ASSIGNMENTS) {
+            $params['by'] = $by;
+        }
+        if (request()->has('hide')) {
+            $params['hide'] = implode(',', $hiddenStatuses);
+        }
+
+        return array_merge($params, $overrides);
+    };
+    $subtitle = $byTeam
+        ? $rows->count().' staff member'.($rows->count() === 1 ? '' : 's').', '.$totalAssignments.' project team assignment'.($totalAssignments === 1 ? '' : 's')
+        : $rows->count().' staff member'.($rows->count() === 1 ? '' : 's').', '.$totalAssignments.' assignment'.($totalAssignments === 1 ? '' : 's').' from open work and completions in the last 20 days';
 @endphp
 
 @include('reports.partials.nav', [
     'title' => 'Staff Workload',
-    'subtitle' => $rows->count().' staff member'.($rows->count() === 1 ? '' : 's').', '.$totalAssignments.' assignment'.($totalAssignments === 1 ? '' : 's').' from open work and completions in the last 20 days',
+    'subtitle' => $subtitle,
 ])
+
+<ul class="nav nav-pills mb-4">
+    <li class="nav-item">
+        <a class="nav-link {{ ! $byTeam ? 'active' : '' }}"
+           href="{{ route('reports.workload', $workloadQuery()) }}">
+            By task assignment
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ $byTeam ? 'active' : '' }}"
+           href="{{ route('reports.workload', $workloadQuery(['by' => \App\Http\Controllers\ReportController::WORKLOAD_BY_TEAM])) }}">
+            By project team
+        </a>
+    </li>
+</ul>
 
 @if($legendStatuses->isNotEmpty())
     <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
@@ -22,9 +52,9 @@
                 $newList = $isHidden
                     ? array_values(array_diff($hiddenStatuses, [$status]))
                     : array_values(array_merge($hiddenStatuses, [$status]));
-                $toggleUrl = count($newList)
-                    ? route('reports.workload', ['hide' => implode(',', $newList)])
-                    : route('reports.workload').'?hide=';
+                $toggleUrl = route('reports.workload', $workloadQuery([
+                    'hide' => count($newList) ? implode(',', $newList) : '',
+                ]));
             @endphp
             <a href="{{ $toggleUrl }}"
                class="badge rounded-pill text-decoration-none report-status-toggle {{ $isHidden ? 'opacity-50' : '' }}">
@@ -34,7 +64,7 @@
         @endforeach
 
         @if(count($hiddenStatuses) > 0)
-            <a href="{{ route('reports.workload').'?hide=' }}" class="small text-muted">Show all</a>
+            <a href="{{ route('reports.workload', $workloadQuery(['hide' => ''])) }}" class="small text-muted">Show all</a>
         @endif
     </div>
 @endif
@@ -42,7 +72,7 @@
 @if($rows->isEmpty())
     <div class="card">
         <div class="card-body text-center text-muted py-5">
-            No current task assignments found.
+            {{ $byTeam ? 'No project team assignments found.' : 'No current task assignments found.' }}
         </div>
     </div>
 @else

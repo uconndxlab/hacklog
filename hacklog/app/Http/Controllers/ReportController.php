@@ -176,20 +176,52 @@ class ReportController extends Controller
         $query->orderByRaw('CASE '.implode(' ', $parts).' ELSE 99 END '.$direction, $bindings);
     }
 
+    public const WORKLOAD_BY_ASSIGNMENTS = 'assignments';
+
+    public const WORKLOAD_BY_TEAM = 'team';
+
     public function workload(Request $request): View
+    {
+        $by = $request->query('by', self::WORKLOAD_BY_ASSIGNMENTS);
+        if (! in_array($by, [self::WORKLOAD_BY_ASSIGNMENTS, self::WORKLOAD_BY_TEAM], true)) {
+            $by = self::WORKLOAD_BY_ASSIGNMENTS;
+        }
+
+        $hiddenStatuses = $this->workloadHiddenStatuses($request);
+
+        if ($by === self::WORKLOAD_BY_TEAM) {
+            [$rows, $presentStatuses] = $this->workloadByProjectTeam($hiddenStatuses);
+        } else {
+            [$rows, $presentStatuses] = $this->workloadByTaskAssignments($hiddenStatuses);
+        }
+
+        return view('reports.workload', [
+            'by' => $by,
+            'rows' => $rows,
+            'hiddenStatuses' => $hiddenStatuses,
+            'presentStatuses' => $presentStatuses,
+            'maxCount' => $rows->max('visible_count') ?: 1,
+            'statusColors' => self::STATUS_COLORS,
+        ]);
+    }
+
+    private function workloadHiddenStatuses(Request $request): array
     {
         $validStatuses = Project::STATUS_VALUES;
         $defaultHidden = [Project::STATUS_COMPLETED, Project::STATUS_ARCHIVED];
 
         if ($request->has('hide')) {
-            $hiddenStatuses = array_values(array_filter(
+            return array_values(array_filter(
                 array_map('trim', explode(',', (string) $request->query('hide', ''))),
                 fn ($status) => in_array($status, $validStatuses, true)
             ));
-        } else {
-            $hiddenStatuses = $defaultHidden;
         }
 
+        return $defaultHidden;
+    }
+
+    private function workloadByTaskAssignments(array $hiddenStatuses): array
+    {
         $recentlyCompletedSince = now()->subDays(20);
 
         $relevantTasks = function ($query) use ($recentlyCompletedSince) {
@@ -230,27 +262,60 @@ class ReportController extends Controller
                     ->unique('id')
                     ->values();
 
-                $visibleCount = $projects
-                    ->filter(fn ($project) => ! in_array($project->status, $hiddenStatuses, true))
-                    ->count();
-
-                return (object) [
-                    'user' => $user,
-                    'projects' => $projects,
-                    'visible_count' => $visibleCount,
-                ];
+                return $this->workloadRow($user, $projects, $hiddenStatuses);
             })
             ->filter(fn ($row) => $row->visible_count > 0)
             ->sortByDesc('visible_count')
             ->values();
 
-        return view('reports.workload', [
-            'rows' => $rows,
-            'hiddenStatuses' => $hiddenStatuses,
-            'presentStatuses' => $presentStatuses,
-            'maxCount' => $rows->max('visible_count') ?: 1,
-            'statusColors' => self::STATUS_COLORS,
-        ]);
+        return [$rows, $presentStatuses];
+    }
+
+    private function workloadByProjectTeam(array $hiddenStatuses): array
+    {
+        $users = User::query()
+            ->where('active', true)
+            ->where('role', '!=', User::ROLE_CLIENT)
+            ->whereHas('projectShares')
+            ->with(['projectShares.project'])
+            ->orderBy('name')
+            ->get();
+
+        $presentStatuses = $users
+            ->flatMap(fn (User $user) => $user->projectShares->map(fn ($share) => $share->project?->status))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $rows = $users
+            ->map(function (User $user) use ($hiddenStatuses) {
+                $projects = $user->projectShares
+                    ->map(fn ($share) => $share->project)
+                    ->filter()
+                    ->unique('id')
+                    ->values();
+
+                return $this->workloadRow($user, $projects, $hiddenStatuses);
+            })
+            ->filter(fn ($row) => $row->visible_count > 0)
+            ->sortByDesc('visible_count')
+            ->values();
+
+        return [$rows, $presentStatuses];
+    }
+
+    private function workloadRow(User $user, $projects, array $hiddenStatuses): object
+    {
+        $visibleCount = $projects
+            ->filter(fn ($project) => ! in_array($project->status, $hiddenStatuses, true))
+            ->count();
+
+        return (object) [
+            'user' => $user,
+            'projects' => $projects,
+            'visible_count' => $visibleCount,
+        ];
     }
 
     private function projectForTask($task): ?Project
