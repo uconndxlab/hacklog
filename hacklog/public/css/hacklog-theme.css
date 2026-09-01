@@ -1622,3 +1622,78 @@ body.theme-dark .inventory-table.table-hover tbody tr.table-light:hover td {
     --bs-table-hover-bg: rgba(255, 255, 255, 0.055);
     background-color: rgba(255, 255, 255, 0.055);
 }
+
+.report-filter-chip,
+.report-status-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(13, 110, 253, 0.08);
+    color: inherit;
+    border: 1px solid rgba(13, 110, 253, 0.25);
+    font-weight: 500;
+    padding: 0.35rem 0.7rem;
+}
+
+.report-status-swatch {
+    display: inline-block;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.report-workload-name {
+    width: 10rem;
+    flex-shrink: 0;
+}
+
+.report-workload-track {
+    display: flex;
+    height: 1.5rem;
+    overflow: hidden;
+    border-radius: 0.25rem;
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.report-workload-segment {
+    flex-shrink: 0;
+    min-width: 4px;
+    cursor: default;
+}
+
+.report-workload-count {
+    width: 2rem;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.report-workload-tooltip {
+    display: none;
+    position: fixed;
+    z-index: 1080;
+    pointer-events: none;
+    max-width: 18rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12);
+}
+
+html.theme-dark .report-workload-track,
+body.theme-dark .report-workload-track {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+html.theme-dark .report-workload-tooltip,
+body.theme-dark .report-workload-tooltip {
+    background: #1f2535;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e2e6eb;
+}
+
+html.theme-dark .apexcharts-legend-text,
+body.theme-dark .apexcharts-legend-text {
+    color: #e2e6eb !important;
+}

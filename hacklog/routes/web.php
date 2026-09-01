@@ -11,6 +11,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectIntakeController;
 use App\Http\Controllers\ProjectResourceController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaskAttachmentController;
@@ -62,6 +63,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('admin/projects/{project}/phases/{phase}/tasks/bulk', [TaskController::class, 'bulkDelete'])->name('admin.phases.tasks.bulk-delete');
         Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
         Route::get('projects-table', [ProjectController::class, 'tableView'])->name('projects.table');
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/workload', [ReportController::class, 'workload'])->name('reports.workload');
     });
 
     Route::resource('tags', TagController::class)->except(['show']);
