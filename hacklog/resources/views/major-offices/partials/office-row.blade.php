@@ -1,5 +1,5 @@
 @php $officeFormId = 'edit-office-'.$office->id; @endphp
-<tr data-inline-edit>
+<tr data-inline-edit data-search-name="{{ mb_strtolower($office->name) }}">
     <td>
         <div class="inventory-inline-name">
             <span data-inline-display>{{ $office->name }}</span>

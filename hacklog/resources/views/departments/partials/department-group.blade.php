@@ -1,17 +1,28 @@
-<tbody id="department-group-{{ $department->id }}">
-    @php $homeFormId = 'edit-department-'.$department->id; @endphp
-    <tr data-inline-edit>
+<tbody id="department-group-{{ $department->id }}" data-department-group @class(['is-expanded' => !empty($expanded)])>
+    @php
+        $homeFormId = 'edit-department-'.$department->id;
+        $nestedCount = $department->children_count ?? $department->children->count();
+    @endphp
+    <tr data-inline-edit data-department-home-row data-search-name="{{ mb_strtolower($department->name) }}" aria-expanded="{{ !empty($expanded) ? 'true' : 'false' }}">
         <td>
-            <div class="inventory-inline-name">
-                <span data-inline-display class="fw-semibold">{{ $department->name }}</span>
-                <input
-                    form="{{ $homeFormId }}"
-                    type="text"
-                    class="form-control form-control-sm"
-                    data-inline-input
-                    name="name"
-                    value="{{ $department->name }}"
-                    required>
+            <div class="d-flex align-items-center gap-2">
+                <div class="inventory-inline-name">
+                    <span data-inline-display class="fw-semibold">{{ $department->name }}</span>
+                    <input
+                        form="{{ $homeFormId }}"
+                        type="text"
+                        class="form-control form-control-sm"
+                        data-inline-input
+                        name="name"
+                        value="{{ $department->name }}"
+                        required>
+                </div>
+                <span
+                    class="text-muted department-nested-toggle"
+                    data-nested-toggle
+                    aria-hidden="true">
+                    ({{ $nestedCount }})
+                </span>
             </div>
         </td>
         <td class="col-projects">{{ $department->projects_count }}</td>
@@ -40,7 +51,7 @@
                 hx-delete="{{ route('departments.destroy', $department) }}"
                 hx-target="closest tbody"
                 hx-swap="delete"
-                hx-confirm="Delete this home department and its nested departments?">
+                hx-confirm="Delete this department and its nested departments?">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
@@ -50,7 +61,7 @@
 
     @foreach($department->children as $nested)
         @php $nestedFormId = 'edit-nested-'.$nested->id; @endphp
-        <tr class="table-light" data-inline-edit>
+        <tr class="table-light" data-inline-edit data-nested-row data-search-name="{{ mb_strtolower($nested->name) }}">
             <td class="ps-5">
                 <div class="d-flex align-items-center gap-2">
                     <span class="text-muted">↳</span>
@@ -102,7 +113,7 @@
         </tr>
     @endforeach
 
-    <tr class="table-light">
+    <tr class="table-light" data-nested-add>
         <td colspan="3" class="ps-5 pb-3">
             <form
                 action="{{ route('departments.nested.store', $department) }}"

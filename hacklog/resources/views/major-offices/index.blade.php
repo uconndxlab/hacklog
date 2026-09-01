@@ -45,9 +45,20 @@
 </div>
 
 <div class="card">
+    <div class="card-header bg-white">
+        <label for="office-search" class="visually-hidden">Search offices</label>
+        <input
+            type="search"
+            id="office-search"
+            class="form-control"
+            placeholder="Search offices…"
+            data-inventory-search="#major-offices-table"
+            data-inventory-search-mode="rows"
+            autocomplete="off">
+    </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle inventory-table">
+            <table id="major-offices-table" class="table table-hover mb-0 align-middle inventory-table">
                 <thead>
                     <tr>
                         <th scope="col">Name</th>
@@ -61,6 +72,7 @@
                     @endforeach
                 </tbody>
             </table>
+            <p class="text-muted small text-center py-3 mb-0 d-none" data-inventory-search-empty>No matching offices.</p>
         </div>
     </div>
 </div>

@@ -1532,6 +1532,21 @@ body.theme-dark .timeline-filter-bar .btn-outline-secondary:hover {
 }
 
 /* Inventory lookup tables (departments, offices) */
+#departments-table tbody:not(.is-expanded) > tr[data-nested-row],
+#departments-table tbody:not(.is-expanded) > tr[data-nested-add] {
+    display: none !important;
+}
+
+.department-nested-toggle {
+    flex-shrink: 0;
+    line-height: 31px;
+    font-variant-numeric: tabular-nums;
+}
+
+#departments-table tr[data-department-home-row] {
+    cursor: pointer;
+}
+
 .inventory-inline-name {
     position: relative;
     display: inline-block;
@@ -1597,6 +1612,14 @@ body.theme-dark .timeline-filter-bar .btn-outline-secondary:hover {
 .inventory-table .col-actions {
     width: 1%;
     white-space: nowrap;
+}
+
+#departments-table .col-actions {
+    min-width: 10rem;
+}
+
+#departments-table tr[data-nested-row] .col-actions {
+    padding-right: 1.25rem;
 }
 
 .inventory-table.table-hover > tbody > tr:hover > * {

@@ -123,6 +123,7 @@ class DepartmentController extends Controller
         if ($this->isHtmx($request)) {
             return view('departments.partials.department-group', [
                 'department' => $this->departmentGroupPayload($department),
+                'expanded' => true,
             ]);
         }
 
@@ -151,6 +152,7 @@ class DepartmentController extends Controller
         if ($this->isHtmx($request)) {
             return view('departments.partials.department-group', [
                 'department' => $this->departmentGroupPayload($department),
+                'expanded' => true,
             ]);
         }
 
