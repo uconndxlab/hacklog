@@ -119,7 +119,13 @@ class ReportsTest extends TestCase
         ]);
 
         $completedOnly = User::factory()->create([
-            'name' => 'Finished Assignee',
+            'name' => 'Stale Assignee',
+            'role' => User::ROLE_TEAM,
+            'active' => true,
+        ]);
+
+        $recentlyDone = User::factory()->create([
+            'name' => 'Recently Finished Assignee',
             'role' => User::ROLE_TEAM,
             'active' => true,
         ]);
@@ -159,16 +165,72 @@ class ReportsTest extends TestCase
             'title' => 'Done work',
             'status' => 'completed',
             'position' => 2,
+            'completed_at' => now()->subDays(40),
         ]);
         $doneTask->users()->attach($completedOnly->id);
+
+        $recentTask = Task::create([
+            'phase_id' => $phase->id,
+            'column_id' => $column->id,
+            'title' => 'Recently done work',
+            'status' => 'completed',
+            'position' => 3,
+            'completed_at' => now()->subDays(5),
+        ]);
+        $recentTask->users()->attach($recentlyDone->id);
 
         $response = $this->actingAs($admin)->get(route('reports.workload'));
 
         $response->assertOk();
         $response->assertSeeText('Staff Workload');
         $response->assertSeeText('Active Assignee');
+        $response->assertSeeText('Recently Finished Assignee');
         $response->assertSee('Workload Project');
-        $response->assertDontSeeText('Finished Assignee');
+        $response->assertDontSeeText('Stale Assignee');
+    }
+
+    public function test_workload_includes_planned_board_tasks_without_a_phase(): void
+    {
+        $admin = User::factory()->create([
+            'name' => 'Admin Reporter',
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+        ]);
+
+        $assignee = User::factory()->create([
+            'name' => 'Board Assignee',
+            'role' => User::ROLE_TEAM,
+            'active' => true,
+        ]);
+
+        $project = Project::create([
+            'name' => 'Rossa',
+            'description' => 'Board-only planned work',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+        ]);
+
+        $column = Column::create([
+            'project_id' => $project->id,
+            'name' => 'Planned',
+            'position' => 1,
+            'is_default' => true,
+        ]);
+
+        $task = Task::create([
+            'phase_id' => null,
+            'column_id' => $column->id,
+            'title' => 'Planned Rossa work',
+            'status' => 'planned',
+            'position' => 1,
+        ]);
+        $task->users()->attach($assignee->id);
+
+        $this->actingAs($admin)
+            ->get(route('reports.workload'))
+            ->assertOk()
+            ->assertSeeText('Board Assignee')
+            ->assertSee('Rossa');
     }
 
     public function test_inventory_headers_sort_projects(): void

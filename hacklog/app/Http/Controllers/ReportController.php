@@ -190,20 +190,33 @@ class ReportController extends Controller
             $hiddenStatuses = $defaultHidden;
         }
 
+        $recentlyCompletedSince = now()->subDays(20);
+
+        $relevantTasks = function ($query) use ($recentlyCompletedSince) {
+            $query->where(function ($taskQuery) use ($recentlyCompletedSince) {
+                $taskQuery->where('tasks.status', '!=', 'completed')
+                    ->orWhere(function ($completedQuery) use ($recentlyCompletedSince) {
+                        $completedQuery->where('tasks.status', 'completed')
+                            ->where('tasks.completed_at', '>=', $recentlyCompletedSince);
+                    });
+            });
+        };
+
         $users = User::query()
             ->where('active', true)
             ->where('role', '!=', User::ROLE_CLIENT)
-            ->whereHas('tasks', fn ($query) => $query->where('tasks.status', '!=', 'completed'))
+            ->whereHas('tasks', $relevantTasks)
             ->with([
-                'tasks' => fn ($query) => $query
-                    ->where('tasks.status', '!=', 'completed')
-                    ->with('phase.project'),
+                'tasks' => function ($query) use ($relevantTasks) {
+                    $relevantTasks($query);
+                    $query->with(['phase.project', 'column.project']);
+                },
             ])
             ->orderBy('name')
             ->get();
 
         $presentStatuses = $users
-            ->flatMap(fn (User $user) => $user->tasks->map(fn ($task) => $task->phase?->project?->status))
+            ->flatMap(fn (User $user) => $user->tasks->map(fn ($task) => $this->projectForTask($task)?->status))
             ->filter()
             ->unique()
             ->values()
@@ -212,7 +225,7 @@ class ReportController extends Controller
         $rows = $users
             ->map(function (User $user) use ($hiddenStatuses) {
                 $projects = $user->tasks
-                    ->map(fn ($task) => $task->phase?->project)
+                    ->map(fn ($task) => $this->projectForTask($task))
                     ->filter()
                     ->unique('id')
                     ->values();
@@ -238,5 +251,10 @@ class ReportController extends Controller
             'maxCount' => $rows->max('visible_count') ?: 1,
             'statusColors' => self::STATUS_COLORS,
         ]);
+    }
+
+    private function projectForTask($task): ?Project
+    {
+        return $task->phase?->project ?? $task->column?->project;
     }
 }

@@ -11,7 +11,7 @@
 
 @include('reports.partials.nav', [
     'title' => 'Staff Workload',
-    'subtitle' => $rows->count().' staff member'.($rows->count() === 1 ? '' : 's').', '.$totalAssignments.' current assignment'.($totalAssignments === 1 ? '' : 's'),
+    'subtitle' => $rows->count().' staff member'.($rows->count() === 1 ? '' : 's').', '.$totalAssignments.' assignment'.($totalAssignments === 1 ? '' : 's').' from open work and completions in the last 20 days',
 ])
 
 @if($legendStatuses->isNotEmpty())
