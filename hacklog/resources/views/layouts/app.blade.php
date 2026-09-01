@@ -70,11 +70,6 @@
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('about') ? 'active' : '' }}" href="{{ route('about') }}">About</a>
                     </li>
-                    @if(Auth::check() && !Auth::user()->isClient())
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('tags.*') ? 'active' : '' }}" href="{{ route('tags.index') }}">Tags</a>
-                        </li>
-                    @endif
                     @if(Auth::check() && Auth::user()->isAdmin())
 
 
@@ -91,6 +86,29 @@
                     @endif
                 </ul>
                 <ul class="navbar-nav ms-auto">
+                    @if(Auth::check() && !Auth::user()->isClient())
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {{ request()->routeIs('tags.*', 'departments.*', 'major-offices.*') ? 'active' : '' }}"
+                               href="#"
+                               id="navbarConfigDropdown"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">
+                                Config
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarConfigDropdown">
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('tags.*') ? 'active' : '' }}" href="{{ route('tags.index') }}">Tags</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('departments.*') ? 'active' : '' }}" href="{{ route('departments.index') }}">Departments</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('major-offices.*') ? 'active' : '' }}" href="{{ route('major-offices.index') }}">Offices</a>
+                                </li>
+                            </ul>
+                        </li>
+                    @endif
                     <li class="nav-item d-flex align-items-center me-2">
                         <button id="hl-theme-toggle"
                                 type="button"

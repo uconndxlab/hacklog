@@ -167,6 +167,12 @@
                         ])
                     @endif
 
+                    @if(!auth()->user()->isClient())
+                        <hr class="my-4">
+                        <h3 class="h6 text-muted text-uppercase mb-3">Inventory classification</h3>
+                        @include('projects.partials.classification-fields')
+                    @endif
+
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </form>
             </div>

@@ -106,6 +106,12 @@
                 ])
             @endif
 
+            @if(!auth()->user()->isClient())
+                <hr class="my-4">
+                <h3 class="h6 text-muted text-uppercase mb-3">Inventory classification</h3>
+                @include('projects.partials.classification-fields')
+            @endif
+
             <div class="mb-3">
                 <div class="form-check">
                     <input 

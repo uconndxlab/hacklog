@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
+use App\Models\MajorOffice;
 use App\Models\Project;
 use App\Models\Tag;
 use App\Models\Task;
@@ -9,6 +11,7 @@ use App\Models\User;
 use App\Services\ProjectSlackNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProjectController extends Controller
 {
@@ -255,7 +258,7 @@ class ProjectController extends Controller
      */
     public function tableView(Request $request)
     {
-        $projects = Project::with(['tags', 'columns.tasks.users', 'shares'])
+        $projects = Project::with(['tags', 'columns.tasks.users', 'shares', 'department', 'nestedDepartment', 'majorOffice'])
             ->orderByRaw("
                 CASE
                     WHEN status = 'planning' THEN 1
@@ -288,7 +291,10 @@ class ProjectController extends Controller
             ? collect()
             : Tag::orderBy('name')->get();
 
-        return view('projects.create', compact('availableTags'));
+        return view('projects.create', array_merge(
+            compact('availableTags'),
+            $this->classificationFormData()
+        ));
     }
 
     /**
@@ -307,14 +313,20 @@ class ProjectController extends Controller
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
             'new_tags' => 'nullable|string|max:1000',
+            ...$this->classificationValidationRules(),
         ]);
 
         if ($request->has('tags_sync') && !$this->canManageProjectTags(auth()->user())) {
             abort(403, 'You are not authorized to modify project tags.');
         }
 
+        $validated = $this->normalizeClassificationInput($validated);
+
         $projectData = collect($validated)
-            ->only(['name', 'description', 'status', 'staffing_model', 'slack_webhook_url'])
+            ->only(array_merge(
+                ['name', 'description', 'status', 'staffing_model', 'slack_webhook_url'],
+                $this->classificationAttributeNames()
+            ))
             ->all();
 
         $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
@@ -369,7 +381,7 @@ class ProjectController extends Controller
             $query->where('status', '!=', 'completed')
                 ->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
                 ->orderBy('start_date', 'asc');
-        }, 'columns', 'tags']);
+        }, 'columns', 'tags', 'department', 'nestedDepartment', 'majorOffice']);
 
         // Get upcoming tasks (next 5, ordered by due date)
         $upcomingTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
@@ -1489,10 +1501,13 @@ class ProjectController extends Controller
             abort(403, 'Clients cannot access project settings.');
         }
 
-        $project->load('tags');
+        $project->load('tags', 'department', 'nestedDepartment', 'majorOffice');
         $availableTags = Tag::orderBy('name')->get();
 
-        return view('projects.edit', compact('project', 'availableTags'));
+        return view('projects.edit', array_merge(
+            compact('project', 'availableTags'),
+            $this->classificationFormData($project)
+        ));
     }
 
     /**
@@ -1513,15 +1528,21 @@ class ProjectController extends Controller
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
             'new_tags' => 'nullable|string|max:1000',
+            ...$this->classificationValidationRules(),
         ]);
 
         if ($request->has('tags_sync') && !$this->canManageProjectTags(auth()->user())) {
             abort(403, 'You are not authorized to modify project tags.');
         }
 
+        $validated = $this->normalizeClassificationInput($validated);
+
         $oldStatus = $project->status;
         $projectData = collect($validated)
-            ->only(['name', 'description', 'status', 'staffing_model', 'launch_date', 'slack_webhook_url', 'slack_channel_id'])
+            ->only(array_merge(
+                ['name', 'description', 'status', 'staffing_model', 'launch_date', 'slack_webhook_url', 'slack_channel_id'],
+                $this->classificationAttributeNames()
+            ))
             ->all();
 
         $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
@@ -1561,6 +1582,100 @@ class ProjectController extends Controller
     protected function canManageProjectTags(?User $user): bool
     {
         return (bool) $user && ($user->isAdmin() || $user->isTeam());
+    }
+
+    protected function classificationAttributeNames(): array
+    {
+        return [
+            'project_type',
+            'department_id',
+            'nested_department_id',
+            'major_office_id',
+            'client_pi',
+            'client_category',
+            'uconn_affiliation',
+            'grant_value',
+            'sponsor',
+        ];
+    }
+
+    protected function classificationValidationRules(): array
+    {
+        return [
+            'project_type' => ['nullable', Rule::in(Project::TYPE_VALUES)],
+            'department_id' => 'nullable|integer|exists:departments,id',
+            'nested_department_id' => 'nullable|integer|exists:departments,id',
+            'major_office_id' => 'nullable|integer|exists:major_offices,id',
+            'client_pi' => 'nullable|string|max:255',
+            'client_category' => ['nullable', Rule::in(Project::CLIENT_CATEGORY_VALUES)],
+            'uconn_affiliation' => ['nullable', Rule::in(Project::AFFILIATION_VALUES)],
+            'grant_value' => 'nullable|numeric|min:0',
+            'sponsor' => 'nullable|string|max:255',
+        ];
+    }
+
+    protected function classificationFormData(?Project $project = null): array
+    {
+        $selectedDepartmentId = old('department_id', $project?->department_id);
+
+        $nestedDepartments = collect();
+        if ($selectedDepartmentId) {
+            $nestedDepartments = Department::where('parent_id', $selectedDepartmentId)
+                ->orderBy('name')
+                ->get();
+        }
+
+        return [
+            'homeDepartments' => Department::home()->orderBy('name')->get(),
+            'nestedDepartments' => $nestedDepartments,
+            'majorOffices' => MajorOffice::orderBy('name')->get(),
+        ];
+    }
+
+    protected function normalizeClassificationInput(array $validated): array
+    {
+        if (!auth()->user() || auth()->user()->isClient()) {
+            foreach ($this->classificationAttributeNames() as $attribute) {
+                unset($validated[$attribute]);
+            }
+
+            return $validated;
+        }
+
+        foreach (['department_id', 'nested_department_id', 'major_office_id', 'project_type', 'client_pi', 'client_category', 'uconn_affiliation', 'sponsor', 'grant_value'] as $attribute) {
+            if (!array_key_exists($attribute, $validated) || $validated[$attribute] === '') {
+                $validated[$attribute] = null;
+            }
+        }
+
+        $departmentId = $validated['department_id'];
+        $nestedId = $validated['nested_department_id'];
+
+        if ($departmentId) {
+            $department = Department::find($departmentId);
+            if (!$department || !$department->isHomeDepartment()) {
+                throw ValidationException::withMessages([
+                    'department_id' => 'Home department must be a top-level department.',
+                ]);
+            }
+        }
+
+        if ($nestedId) {
+            if (!$departmentId) {
+                throw ValidationException::withMessages([
+                    'nested_department_id' => 'Choose a home department before selecting a nested department.',
+                ]);
+            }
+
+            $nested = Department::find($nestedId);
+            if (!$nested || (int) $nested->parent_id !== (int) $departmentId) {
+                throw ValidationException::withMessages([
+                    'nested_department_id' => 'Nested department must belong to the selected home department.',
+                ]);
+            }
+        }
+
+        return $validated;
     }
 
     protected function normalizeSlackWebhookUrl(?string $url): ?string

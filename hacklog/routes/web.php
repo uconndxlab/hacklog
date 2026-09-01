@@ -4,6 +4,8 @@ use App\Http\Controllers\AboutController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\ColumnController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\MajorOfficeController;
 use App\Http\Controllers\PhaseController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFavoriteController;
@@ -63,6 +65,12 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::resource('tags', TagController::class)->except(['show']);
+    Route::get('departments/nested-options', [DepartmentController::class, 'nestedOptions'])->name('departments.nested-options');
+    Route::resource('departments', DepartmentController::class)->except(['show', 'create', 'edit']);
+    Route::post('departments/{department}/nested', [DepartmentController::class, 'storeNested'])->name('departments.nested.store');
+    Route::put('departments/{department}/nested/{nested}', [DepartmentController::class, 'updateNested'])->name('departments.nested.update');
+    Route::delete('departments/{department}/nested/{nested}', [DepartmentController::class, 'destroyNested'])->name('departments.nested.destroy');
+    Route::resource('major-offices', MajorOfficeController::class)->except(['show', 'create', 'edit']);
     Route::resource('projects', ProjectController::class);
     Route::post('projects/{project}/favorite', [ProjectFavoriteController::class, 'toggle'])->name('projects.favorites.toggle');
     Route::get('projects/{project}/sharing', [ProjectController::class, 'sharing'])->name('projects.sharing');

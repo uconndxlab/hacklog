@@ -24,5 +24,9 @@
                 {{ $tag->name }}
             </span>
         @endforeach
+
+        @if($project->projectTypeLabel())
+            <span class="badge rounded-pill text-bg-secondary">{{ $project->projectTypeLabel() }}</span>
+        @endif
     </div>
 </div>

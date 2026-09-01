@@ -16,6 +16,75 @@
             </div>
         @endif
 
+        @php
+            $hasClassification = $project->project_type
+                || $project->department
+                || $project->nestedDepartment
+                || $project->majorOffice
+                || $project->client_pi
+                || $project->client_category
+                || $project->uconn_affiliation
+                || $project->grant_value !== null
+                || $project->sponsor;
+        @endphp
+
+        @if($hasClassification)
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h3 class="h6 mb-0 fw-semibold">Inventory classification</h3>
+                    @if(!auth()->user()->isClient())
+                        <a href="{{ route('projects.edit', $project) }}" class="small">Edit</a>
+                    @endif
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 small">
+                        <div class="col-md-4">
+                            <div class="text-muted">Project Type</div>
+                            <div>{{ $project->projectTypeLabel() ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted">Home Department</div>
+                            <div>{{ $project->department?->name ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted">Nested Department</div>
+                            <div>{{ $project->nestedDepartment?->name ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted">Top Level School or Major Office</div>
+                            <div>{{ $project->majorOffice?->name ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted">Client / PI</div>
+                            <div>{{ $project->client_pi ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted">Client Category</div>
+                            <div>{{ $project->clientCategoryLabel() ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted">UConn Affiliation</div>
+                            <div>{{ $project->uconnAffiliationLabel() ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted">Grant Value</div>
+                            <div>
+                                @if($project->grant_value !== null)
+                                    ${{ number_format((float) $project->grant_value, 2) }}
+                                @else
+                                    —
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted">Sponsor</div>
+                            <div>{{ $project->sponsor ?: '—' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         {{-- Project Health Summary --}}
         <h2 class="h4 mb-3">Project Health</h2>
         <div class="card mb-4">

@@ -21,6 +21,11 @@
                     <tr>
                         <th style="width: 130px;">Status</th>
                         <th>Project</th>
+                        <th>Type</th>
+                        <th>Department</th>
+                        <th>Office</th>
+                        <th>Affiliation</th>
+                        <th class="text-end">Grant</th>
                         <th style="width: 180px;">
                             Team
                             <span class="text-muted fw-normal" style="font-size:0.75rem;">explicit</span>
@@ -67,6 +72,44 @@
                                 <a href="{{ route('projects.show', $project) }}" class="fw-semibold text-decoration-none">
                                     {{ $project->name }}
                                 </a>
+                            </td>
+                            <td>
+                                @if($project->projectTypeLabel())
+                                    <span class="small">{{ $project->projectTypeLabel() }}</span>
+                                @else
+                                    <span class="text-muted small">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($project->department)
+                                    <div class="small">{{ $project->department->name }}</div>
+                                    @if($project->nestedDepartment)
+                                        <div class="text-muted" style="font-size:0.75rem;">{{ $project->nestedDepartment->name }}</div>
+                                    @endif
+                                @else
+                                    <span class="text-muted small">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($project->majorOffice)
+                                    <span class="small">{{ $project->majorOffice->name }}</span>
+                                @else
+                                    <span class="text-muted small">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($project->uconnAffiliationLabel())
+                                    <span class="small">{{ $project->uconnAffiliationLabel() }}</span>
+                                @else
+                                    <span class="text-muted small">—</span>
+                                @endif
+                            </td>
+                            <td class="text-end">
+                                @if($project->grant_value !== null)
+                                    <span class="small">${{ number_format((float) $project->grant_value, 2) }}</span>
+                                @else
+                                    <span class="text-muted small">—</span>
+                                @endif
                             </td>
                             <td>
                                 @if($team->isEmpty())
