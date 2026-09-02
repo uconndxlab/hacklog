@@ -409,7 +409,11 @@ class ReportController extends Controller
             'user' => $user,
             'projects' => $visibleProjects,
             'visible_count' => $visibleProjects->count(),
-            'nearest_launch' => $visibleProjects->min('launch_date'),
+            'nearest_launch' => $visibleProjects
+                ->pluck('launch_date')
+                ->filter()
+                ->sort()
+                ->first(),
         ];
     }
 
@@ -417,11 +421,11 @@ class ReportController extends Controller
     {
         if ($launchFilter !== self::WORKLOAD_LAUNCH_ALL) {
             return $rows
-                ->sortBy([
-                    fn ($row) => $row->nearest_launch === null ? 1 : 0,
-                    fn ($row) => $row->nearest_launch,
-                    fn ($row) => $row->user->name,
-                ])
+                ->sortBy(function ($row) {
+                    $launchTimestamp = $row->nearest_launch?->getTimestamp() ?? PHP_INT_MAX;
+
+                    return sprintf('%010d-%s', $launchTimestamp, $row->user->name);
+                })
                 ->values();
         }
 
