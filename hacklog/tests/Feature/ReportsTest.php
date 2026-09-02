@@ -256,6 +256,66 @@ class ReportsTest extends TestCase
             ->assertDontSeeText('Team Lead');
     }
 
+    public function test_workload_by_project_leader_lists_only_designated_leaders(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+        ]);
+
+        $leader = User::factory()->create([
+            'name' => 'Designated Leader',
+            'role' => User::ROLE_TEAM,
+            'active' => true,
+        ]);
+
+        $teamOnly = User::factory()->create([
+            'name' => 'Team Only',
+            'role' => User::ROLE_TEAM,
+            'active' => true,
+        ]);
+
+        $leaderProject = Project::create([
+            'name' => 'Led Project',
+            'description' => 'Has a project leader',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+        ]);
+
+        $otherProject = Project::create([
+            'name' => 'Team Project',
+            'description' => 'Team member but no leader',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+        ]);
+
+        $leaderProject->shares()->create([
+            'shareable_type' => 'user',
+            'shareable_id' => (string) $leader->id,
+            'is_leader' => true,
+        ]);
+
+        $otherProject->shares()->create([
+            'shareable_type' => 'user',
+            'shareable_id' => (string) $teamOnly->id,
+            'is_leader' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('reports.workload', ['by' => 'leader']))
+            ->assertOk()
+            ->assertSeeText('Designated Leader')
+            ->assertSee('Led Project')
+            ->assertDontSeeText('Team Only')
+            ->assertDontSee('Team Project');
+
+        $this->actingAs($admin)
+            ->get(route('reports.workload', ['by' => 'team']))
+            ->assertOk()
+            ->assertSeeText('Team Only')
+            ->assertSeeText('Designated Leader');
+    }
+
     public function test_workload_includes_planned_board_tasks_without_a_phase(): void
     {
         $admin = User::factory()->create([

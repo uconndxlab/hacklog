@@ -180,10 +180,12 @@ class ReportController extends Controller
 
     public const WORKLOAD_BY_TEAM = 'team';
 
+    public const WORKLOAD_BY_LEADER = 'leader';
+
     public function workload(Request $request): View
     {
         $by = $request->query('by', self::WORKLOAD_BY_ASSIGNMENTS);
-        if (! in_array($by, [self::WORKLOAD_BY_ASSIGNMENTS, self::WORKLOAD_BY_TEAM], true)) {
+        if (! in_array($by, [self::WORKLOAD_BY_ASSIGNMENTS, self::WORKLOAD_BY_TEAM, self::WORKLOAD_BY_LEADER], true)) {
             $by = self::WORKLOAD_BY_ASSIGNMENTS;
         }
 
@@ -191,6 +193,8 @@ class ReportController extends Controller
 
         if ($by === self::WORKLOAD_BY_TEAM) {
             [$rows, $presentStatuses] = $this->workloadByProjectTeam($hiddenStatuses);
+        } elseif ($by === self::WORKLOAD_BY_LEADER) {
+            [$rows, $presentStatuses] = $this->workloadByProjectLeader($hiddenStatuses);
         } else {
             [$rows, $presentStatuses] = $this->workloadByTaskAssignments($hiddenStatuses);
         }
@@ -278,6 +282,40 @@ class ReportController extends Controller
             ->where('role', '!=', User::ROLE_CLIENT)
             ->whereHas('projectShares')
             ->with(['projectShares.project'])
+            ->orderBy('name')
+            ->get();
+
+        $presentStatuses = $users
+            ->flatMap(fn (User $user) => $user->projectShares->map(fn ($share) => $share->project?->status))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $rows = $users
+            ->map(function (User $user) use ($hiddenStatuses) {
+                $projects = $user->projectShares
+                    ->map(fn ($share) => $share->project)
+                    ->filter()
+                    ->unique('id')
+                    ->values();
+
+                return $this->workloadRow($user, $projects, $hiddenStatuses);
+            })
+            ->filter(fn ($row) => $row->visible_count > 0)
+            ->sortByDesc('visible_count')
+            ->values();
+
+        return [$rows, $presentStatuses];
+    }
+
+    private function workloadByProjectLeader(array $hiddenStatuses): array
+    {
+        $users = User::query()
+            ->where('active', true)
+            ->where('role', '!=', User::ROLE_CLIENT)
+            ->whereHas('projectShares', fn ($query) => $query->where('is_leader', true))
+            ->with(['projectShares' => fn ($query) => $query->where('is_leader', true)->with('project')])
             ->orderBy('name')
             ->get();
 
