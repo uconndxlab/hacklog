@@ -12,10 +12,13 @@
     $byParam = $by !== \App\Http\Controllers\ReportController::WORKLOAD_BY_ASSIGNMENTS
         ? ['by' => $by]
         : [];
-    $workloadQuery = function (array $overrides = []) use ($hiddenStatuses) {
+    $workloadQuery = function (array $overrides = []) use ($hiddenStatuses, $launchFilter) {
         $params = [];
         if (request()->has('hide')) {
             $params['hide'] = implode(',', $hiddenStatuses);
+        }
+        if ($launchFilter !== \App\Http\Controllers\ReportController::WORKLOAD_LAUNCH_ALL) {
+            $params['launch'] = $launchFilter;
         }
 
         return array_merge($params, $overrides);
@@ -52,6 +55,25 @@
         </a>
     </li>
 </ul>
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+    <form method="GET" action="{{ route('reports.workload') }}" id="workload-launch-form" class="d-flex flex-wrap align-items-center gap-2">
+        @foreach($byParam as $name => $value)
+            <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+        @endforeach
+        @if(request()->has('hide'))
+            <input type="hidden" name="hide" value="{{ implode(',', $hiddenStatuses) }}">
+        @endif
+        <label for="workload-launch-filter" class="small text-muted mb-0">Launch date</label>
+        <select id="workload-launch-filter" name="launch" class="form-select form-select-sm" style="width: auto; min-width: 11rem;">
+            @foreach(\App\Http\Controllers\ReportController::WORKLOAD_LAUNCH_OPTIONS as $value => $label)
+                <option value="{{ $value }}" @selected((string) $launchFilter === (string) $value)>
+                    {{ $label }}
+                </option>
+            @endforeach
+        </select>
+    </form>
+</div>
 
 @if($legendStatuses->isNotEmpty())
     <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
@@ -102,13 +124,20 @@
                                     $group = $byStatus->get($status, collect());
                                     $count = $group->count();
                                     $pct = round($count / $maxCount * 100, 4);
-                                    $names = $group->pluck('name')->join('|');
+                                    $tooltipProjects = $group->map(function ($project) {
+                                        $label = $project->name;
+                                        if ($project->launch_date) {
+                                            $label .= ' ('.$project->launch_date->format('M j, Y').')';
+                                        }
+
+                                        return $label;
+                                    })->join('|');
                                 @endphp
                                 @if($count > 0 && ! in_array($status, $hiddenStatuses, true))
                                     <div class="report-workload-segment"
                                          style="width: {{ $pct }}%; background-color: {{ $statusColors[$status] ?? '#9ca3af' }};"
                                          data-tooltip-status="{{ \App\Http\Controllers\ReportController::STATUS_LABELS[$status] ?? $status }}"
-                                         data-tooltip-projects="{{ $names }}"></div>
+                                         data-tooltip-projects="{{ $tooltipProjects }}"></div>
                                 @endif
                             @endforeach
                         </div>
@@ -129,6 +158,14 @@
 @push('scripts')
 <script>
 (function () {
+    const launchFilter = document.getElementById('workload-launch-filter');
+    const launchForm = document.getElementById('workload-launch-form');
+    if (launchFilter && launchForm) {
+        launchFilter.addEventListener('change', function () {
+            launchForm.submit();
+        });
+    }
+
     const tooltip = document.getElementById('workload-tooltip');
     const statusEl = document.getElementById('tt-status');
     const projectsEl = document.getElementById('tt-projects');

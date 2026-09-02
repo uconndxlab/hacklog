@@ -398,4 +398,76 @@ class ReportsTest extends TestCase
             ->assertOk()
             ->assertSeeInOrder(['Alpha Report Project', 'Zebra Report Project']);
     }
+
+    public function test_workload_filters_by_launch_date_window(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+        ]);
+
+        $assignee = User::factory()->create([
+            'name' => 'Launch Assignee',
+            'role' => User::ROLE_TEAM,
+            'active' => true,
+        ]);
+
+        $soonProject = Project::create([
+            'name' => 'Launching Soon',
+            'description' => 'Within 30 days',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+            'launch_date' => now()->addDays(10),
+        ]);
+
+        $laterProject = Project::create([
+            'name' => 'Launching Later',
+            'description' => 'Outside 30 days',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+            'launch_date' => now()->addDays(45),
+        ]);
+
+        $pastProject = Project::create([
+            'name' => 'Missed Launch',
+            'description' => 'Past launch date',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+            'launch_date' => now()->subDays(5),
+        ]);
+
+        foreach ([$soonProject, $laterProject, $pastProject] as $project) {
+            $column = Column::create([
+                'project_id' => $project->id,
+                'name' => 'Backlog',
+                'position' => 1,
+                'is_default' => true,
+            ]);
+
+            $task = Task::create([
+                'column_id' => $column->id,
+                'title' => 'Work for '.$project->name,
+                'status' => 'active',
+                'position' => 1,
+            ]);
+            $task->users()->attach($assignee->id);
+        }
+
+        $this->actingAs($admin)
+            ->get(route('reports.workload', ['launch' => '30']))
+            ->assertOk()
+            ->assertSeeText('Launch Assignee')
+            ->assertSee('Launching Soon')
+            ->assertDontSee('Launching Later')
+            ->assertDontSee('Missed Launch')
+            ->assertSee('value="30" selected', false);
+
+        $this->actingAs($admin)
+            ->get(route('reports.workload', ['launch' => 'past']))
+            ->assertOk()
+            ->assertSeeText('Launch Assignee')
+            ->assertSee('Missed Launch')
+            ->assertDontSee('Launching Soon')
+            ->assertDontSee('Launching Later');
+    }
 }

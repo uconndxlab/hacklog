@@ -182,6 +182,27 @@ class ReportController extends Controller
 
     public const WORKLOAD_BY_LEADER = 'leader';
 
+    public const WORKLOAD_LAUNCH_ALL = 'all';
+
+    public const WORKLOAD_LAUNCH_30 = '30';
+
+    public const WORKLOAD_LAUNCH_60 = '60';
+
+    public const WORKLOAD_LAUNCH_90 = '90';
+
+    public const WORKLOAD_LAUNCH_PAST = 'past';
+
+    public const WORKLOAD_LAUNCH_NONE = 'none';
+
+    public const WORKLOAD_LAUNCH_OPTIONS = [
+        self::WORKLOAD_LAUNCH_ALL => 'All launch dates',
+        self::WORKLOAD_LAUNCH_30 => 'Next 30 days',
+        self::WORKLOAD_LAUNCH_60 => 'Next 60 days',
+        self::WORKLOAD_LAUNCH_90 => 'Next 90 days',
+        self::WORKLOAD_LAUNCH_PAST => 'Past launch date',
+        self::WORKLOAD_LAUNCH_NONE => 'No launch date',
+    ];
+
     public function workload(Request $request): View
     {
         $by = $request->query('by', self::WORKLOAD_BY_ASSIGNMENTS);
@@ -190,19 +211,21 @@ class ReportController extends Controller
         }
 
         $hiddenStatuses = $this->workloadHiddenStatuses($request);
+        $launchFilter = $this->workloadLaunchFilter($request);
 
         if ($by === self::WORKLOAD_BY_TEAM) {
-            [$rows, $presentStatuses] = $this->workloadByProjectTeam($hiddenStatuses);
+            [$rows, $presentStatuses] = $this->workloadByProjectTeam($hiddenStatuses, $launchFilter);
         } elseif ($by === self::WORKLOAD_BY_LEADER) {
-            [$rows, $presentStatuses] = $this->workloadByProjectLeader($hiddenStatuses);
+            [$rows, $presentStatuses] = $this->workloadByProjectLeader($hiddenStatuses, $launchFilter);
         } else {
-            [$rows, $presentStatuses] = $this->workloadByTaskAssignments($hiddenStatuses);
+            [$rows, $presentStatuses] = $this->workloadByTaskAssignments($hiddenStatuses, $launchFilter);
         }
 
         return view('reports.workload', [
             'by' => $by,
             'rows' => $rows,
             'hiddenStatuses' => $hiddenStatuses,
+            'launchFilter' => $launchFilter,
             'presentStatuses' => $presentStatuses,
             'maxCount' => $rows->max('visible_count') ?: 1,
             'statusColors' => self::STATUS_COLORS,
@@ -224,7 +247,42 @@ class ReportController extends Controller
         return $defaultHidden;
     }
 
-    private function workloadByTaskAssignments(array $hiddenStatuses): array
+    private function workloadLaunchFilter(Request $request): string
+    {
+        $launch = (string) $request->query('launch', self::WORKLOAD_LAUNCH_ALL);
+
+        return array_key_exists($launch, self::WORKLOAD_LAUNCH_OPTIONS)
+            ? $launch
+            : self::WORKLOAD_LAUNCH_ALL;
+    }
+
+    private function workloadMatchesLaunchFilter(Project $project, string $launchFilter): bool
+    {
+        if ($launchFilter === self::WORKLOAD_LAUNCH_ALL) {
+            return true;
+        }
+
+        if ($launchFilter === self::WORKLOAD_LAUNCH_NONE) {
+            return $project->launch_date === null;
+        }
+
+        if ($project->launch_date === null) {
+            return false;
+        }
+
+        $today = today();
+
+        return match ($launchFilter) {
+            self::WORKLOAD_LAUNCH_30 => $project->launch_date->between($today, $today->copy()->addDays(30)),
+            self::WORKLOAD_LAUNCH_60 => $project->launch_date->between($today, $today->copy()->addDays(60)),
+            self::WORKLOAD_LAUNCH_90 => $project->launch_date->between($today, $today->copy()->addDays(90)),
+            self::WORKLOAD_LAUNCH_PAST => $project->launch_date->isBefore($today)
+                && ! in_array($project->status, [Project::STATUS_COMPLETED, Project::STATUS_ARCHIVED], true),
+            default => true,
+        };
+    }
+
+    private function workloadByTaskAssignments(array $hiddenStatuses, string $launchFilter): array
     {
         $recentlyCompletedSince = now()->subDays(20);
 
@@ -259,23 +317,21 @@ class ReportController extends Controller
             ->all();
 
         $rows = $users
-            ->map(function (User $user) use ($hiddenStatuses) {
+            ->map(function (User $user) use ($hiddenStatuses, $launchFilter) {
                 $projects = $user->tasks
                     ->map(fn ($task) => $this->projectForTask($task))
                     ->filter()
                     ->unique('id')
                     ->values();
 
-                return $this->workloadRow($user, $projects, $hiddenStatuses);
+                return $this->workloadRow($user, $projects, $hiddenStatuses, $launchFilter);
             })
-            ->filter(fn ($row) => $row->visible_count > 0)
-            ->sortByDesc('visible_count')
-            ->values();
+            ->filter(fn ($row) => $row->visible_count > 0);
 
-        return [$rows, $presentStatuses];
+        return [$this->sortWorkloadRows($rows, $launchFilter), $presentStatuses];
     }
 
-    private function workloadByProjectTeam(array $hiddenStatuses): array
+    private function workloadByProjectTeam(array $hiddenStatuses, string $launchFilter): array
     {
         $users = User::query()
             ->where('active', true)
@@ -293,23 +349,21 @@ class ReportController extends Controller
             ->all();
 
         $rows = $users
-            ->map(function (User $user) use ($hiddenStatuses) {
+            ->map(function (User $user) use ($hiddenStatuses, $launchFilter) {
                 $projects = $user->projectShares
                     ->map(fn ($share) => $share->project)
                     ->filter()
                     ->unique('id')
                     ->values();
 
-                return $this->workloadRow($user, $projects, $hiddenStatuses);
+                return $this->workloadRow($user, $projects, $hiddenStatuses, $launchFilter);
             })
-            ->filter(fn ($row) => $row->visible_count > 0)
-            ->sortByDesc('visible_count')
-            ->values();
+            ->filter(fn ($row) => $row->visible_count > 0);
 
-        return [$rows, $presentStatuses];
+        return [$this->sortWorkloadRows($rows, $launchFilter), $presentStatuses];
     }
 
-    private function workloadByProjectLeader(array $hiddenStatuses): array
+    private function workloadByProjectLeader(array $hiddenStatuses, string $launchFilter): array
     {
         $users = User::query()
             ->where('active', true)
@@ -327,33 +381,51 @@ class ReportController extends Controller
             ->all();
 
         $rows = $users
-            ->map(function (User $user) use ($hiddenStatuses) {
+            ->map(function (User $user) use ($hiddenStatuses, $launchFilter) {
                 $projects = $user->projectShares
                     ->map(fn ($share) => $share->project)
                     ->filter()
                     ->unique('id')
                     ->values();
 
-                return $this->workloadRow($user, $projects, $hiddenStatuses);
+                return $this->workloadRow($user, $projects, $hiddenStatuses, $launchFilter);
             })
-            ->filter(fn ($row) => $row->visible_count > 0)
-            ->sortByDesc('visible_count')
-            ->values();
+            ->filter(fn ($row) => $row->visible_count > 0);
 
-        return [$rows, $presentStatuses];
+        return [$this->sortWorkloadRows($rows, $launchFilter), $presentStatuses];
     }
 
-    private function workloadRow(User $user, $projects, array $hiddenStatuses): object
+    private function workloadRow(User $user, $projects, array $hiddenStatuses, string $launchFilter): object
     {
-        $visibleCount = $projects
-            ->filter(fn ($project) => ! in_array($project->status, $hiddenStatuses, true))
-            ->count();
+        $visibleProjects = $projects->filter(function ($project) use ($hiddenStatuses, $launchFilter) {
+            if (in_array($project->status, $hiddenStatuses, true)) {
+                return false;
+            }
+
+            return $this->workloadMatchesLaunchFilter($project, $launchFilter);
+        })->values();
 
         return (object) [
             'user' => $user,
-            'projects' => $projects,
-            'visible_count' => $visibleCount,
+            'projects' => $visibleProjects,
+            'visible_count' => $visibleProjects->count(),
+            'nearest_launch' => $visibleProjects->min('launch_date'),
         ];
+    }
+
+    private function sortWorkloadRows($rows, string $launchFilter)
+    {
+        if ($launchFilter !== self::WORKLOAD_LAUNCH_ALL) {
+            return $rows
+                ->sortBy([
+                    fn ($row) => $row->nearest_launch === null ? 1 : 0,
+                    fn ($row) => $row->nearest_launch,
+                    fn ($row) => $row->user->name,
+                ])
+                ->values();
+        }
+
+        return $rows->sortByDesc('visible_count')->values();
     }
 
     private function projectForTask($task): ?Project
