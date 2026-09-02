@@ -2085,6 +2085,7 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'shareable_type' => 'required|in:user,role',
             'shareable_id' => 'required|string',
+            'is_leader' => 'sometimes|boolean',
         ]);
 
         // Validate shareable_id based on type
@@ -2099,9 +2100,23 @@ class ProjectController extends Controller
             }
         }
 
+        $isLeader = ($validated['shareable_type'] === 'user')
+            && !empty($validated['is_leader'])
+            && isset($user)
+            && !$user->isClient();
+
         // Create share (will be ignored if duplicate due to unique constraint)
         try {
-            $project->shares()->create($validated);
+            if ($isLeader) {
+                $project->shares()->where('is_leader', true)->update(['is_leader' => false]);
+            }
+
+            $project->shares()->create([
+                'shareable_type' => $validated['shareable_type'],
+                'shareable_id' => $validated['shareable_id'],
+                'is_leader' => $isLeader,
+            ]);
+
             $message = $validated['shareable_type'] === 'user'
                 ? 'Project shared with user successfully.'
                 : 'Project shared with role successfully.';
@@ -2112,6 +2127,39 @@ class ProjectController extends Controller
             }
             throw $e;
         }
+    }
+
+    /**
+     * Update a project share (e.g. project leader designation).
+     */
+    public function shareUpdate(Request $request, Project $project, $shareId)
+    {
+        $share = $project->shares()->findOrFail($shareId);
+
+        $validated = $request->validate([
+            'is_leader' => 'required|boolean',
+        ]);
+
+        if ($validated['is_leader']) {
+            if (!$share->isUserShare()) {
+                return back()->withErrors(['is_leader' => 'Only team members can be designated as project leader.']);
+            }
+
+            $user = $share->getUser();
+            if (!$user || $user->isClient()) {
+                return back()->withErrors(['is_leader' => 'Only team members can be designated as project leader.']);
+            }
+
+            $project->shares()->where('is_leader', true)->update(['is_leader' => false]);
+        }
+
+        $share->update(['is_leader' => $validated['is_leader']]);
+
+        $message = $validated['is_leader']
+            ? 'Project leader updated.'
+            : 'Project leader designation removed.';
+
+        return back()->with('success', $message);
     }
 
     /**

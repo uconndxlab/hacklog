@@ -83,6 +83,7 @@ Route::middleware('auth')->group(function () {
     Route::post('projects/{project}/favorite', [ProjectFavoriteController::class, 'toggle'])->name('projects.favorites.toggle');
     Route::get('projects/{project}/sharing', [ProjectController::class, 'sharing'])->name('projects.sharing');
     Route::post('projects/{project}/shares', [ProjectController::class, 'shareStore'])->name('projects.shares.store');
+    Route::patch('projects/{project}/shares/{share}', [ProjectController::class, 'shareUpdate'])->name('projects.shares.update');
     Route::delete('projects/{project}/shares/{share}', [ProjectController::class, 'shareDestroy'])->name('projects.shares.destroy');
     Route::get('projects/{project}/board', [ProjectController::class, 'board'])->name('projects.board');
     Route::post('projects/{project}/board/create-default-columns', [ProjectController::class, 'createDefaultColumns'])->name('projects.board.create-default-columns');

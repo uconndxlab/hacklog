@@ -21,6 +21,11 @@ class ProjectShare extends Model
         'project_id',
         'shareable_type',
         'shareable_id',
+        'is_leader',
+    ];
+
+    protected $casts = [
+        'is_leader' => 'boolean',
     ];
 
     /**

@@ -42,12 +42,18 @@
                     @foreach($projects as $project)
                         @php
                             // Team: explicit non-client user shares
-                            $team = $project->shares
+                            $teamSharesByUser = $project->shares
                                 ->where('shareable_type', 'user')
+                                ->keyBy('shareable_id');
+
+                            $team = $teamSharesByUser
                                 ->map(fn($s) => $sharedUsers->get($s->shareable_id))
                                 ->filter(fn($u) => $u && !$u->isClient())
                                 ->unique('id')
-                                ->sortBy('name');
+                                ->sortBy(function ($member) use ($teamSharesByUser) {
+                                    $share = $teamSharesByUser->get((string) $member->id);
+                                    return [$share && $share->is_leader ? 0 : 1, $member->name];
+                                });
 
                             // Contributors: users assigned to tasks on the project
                             $contributors = $project->columns
@@ -120,10 +126,12 @@
                                             @php
                                                 $parts = explode(' ', $member->name);
                                                 $initials = strtoupper(substr($parts[0], 0, 1) . (isset($parts[1]) ? substr($parts[1], 0, 1) : ''));
+                                                $share = $teamSharesByUser->get((string) $member->id);
+                                                $isLeader = $share && $share->is_leader;
                                             @endphp
-                                            <span class="badge rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center"
+                                            <span class="badge rounded-circle {{ $isLeader ? 'bg-primary' : 'bg-secondary' }} d-inline-flex align-items-center justify-content-center"
                                                   style="width:28px; height:28px; font-size:0.7rem;"
-                                                  title="{{ $member->name }}">
+                                                  title="{{ $member->name }}{{ $isLeader ? ' (Project Leader)' : '' }}">
                                                 {{ $initials }}
                                             </span>
                                         @endforeach
