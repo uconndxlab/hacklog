@@ -2,6 +2,7 @@
 
 namespace App\AI;
 
+use App\Services\SlackIntentMatcher;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -18,17 +19,13 @@ class SlackIntentClassifier
 {
     /**
      * The only intent values this classifier may return.
-     * Must be kept in sync with SlackIntentMatcher constants + help/unknown.
+     *
+     * @return string[]
      */
-    const ALLOWED_INTENTS = [
-        'tasks_due_this_week',
-        'overdue_tasks',
-        'my_open_tasks',
-        'open_tasks',
-        'create_ai_intake_from_slack',
-        'help',
-        'unknown',
-    ];
+    public static function allowedIntents(): array
+    {
+        return SlackIntentMatcher::classifierIntents();
+    }
 
     /**
      * Classify a normalized Slack message into one of the allowed intents.
@@ -78,7 +75,7 @@ class SlackIntentClassifier
         $confidence = isset($raw['confidence']) ? round((float) $raw['confidence'], 2) : null;
 
         // Validate against allowlist to prevent any out-of-band values
-        if (!in_array($intent, self::ALLOWED_INTENTS, true)) {
+        if (!in_array($intent, self::allowedIntents(), true)) {
             Log::warning('Slack bot: AI returned out-of-allowlist intent.', [
                 'intent'   => $intent,
                 'provider' => $provider,
@@ -252,7 +249,7 @@ PROMPT;
                 'properties'           => [
                     'intent'     => [
                         'type' => 'string',
-                        'enum' => self::ALLOWED_INTENTS,
+                        'enum' => self::allowedIntents(),
                     ],
                     'confidence' => ['type' => 'number'],
                 ],

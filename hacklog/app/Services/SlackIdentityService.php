@@ -77,15 +77,28 @@ class SlackIdentityService
     }
 
     /**
+     * Slack user mention, including the optional display-label form `<@U123|label>`.
+     */
+    public const USER_MENTION_PATTERN = '/<@([A-Z0-9]+)(?:\|[^>]+)?>/i';
+
+    /**
      * Slack user IDs mentioned in message text, in order of appearance.
      *
      * @return string[]
      */
     public function slackIdsFromMentions(string $text): array
     {
-        preg_match_all('/<@([A-Z0-9]+)(?:\|[^>]+)?>/i', $text, $matches);
+        preg_match_all(self::USER_MENTION_PATTERN, $text, $matches);
 
         return array_values(array_unique($matches[1] ?? []));
+    }
+
+    /**
+     * Remove Slack user mentions (bare or labeled) from message text.
+     */
+    public function stripUserMentions(string $text): string
+    {
+        return (string) preg_replace(self::USER_MENTION_PATTERN, '', $text);
     }
 
     /**
@@ -142,20 +155,4 @@ class SlackIdentityService
             ->first();
     }
 
-    /**
-     * First mentioned Slack ID that is linked to an active Hacklog user.
-     *
-     * @param  string[]  $slackIds
-     */
-    public function firstLinkedUser(array $slackIds): ?User
-    {
-        foreach ($slackIds as $slackId) {
-            $user = $this->linkedUserBySlackId($slackId);
-            if ($user) {
-                return $user;
-            }
-        }
-
-        return null;
-    }
 }

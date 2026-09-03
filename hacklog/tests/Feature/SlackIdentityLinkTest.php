@@ -58,12 +58,40 @@ class SlackIdentityLinkTest extends TestCase
 
     public function test_identity_command_is_global_and_does_not_require_a_project_channel(): void
     {
-        $service = new SlackIdentityService;
+        config(['slack.bot_token' => 'test-token']);
+        Http::fake([
+            'https://slack.com/api/chat.postMessage' => Http::response([
+                'ok' => true,
+                'ts' => '1700000000.000002',
+            ]),
+        ]);
 
-        $this->assertSame('jmk22028', $service->netidFromCommand('I am JMK22028.'));
-        $this->assertSame('jmk22028', $service->netidFromCommand("I'm jmk22028"));
-        $this->assertNull($service->netidFromCommand('show tasks for jmk22028'));
-        $this->assertNull($service->netidFromCommand('I am jmk22028 and show my tasks'));
+        $user = User::factory()->create([
+            'netid' => 'jmk22028',
+            'name' => 'Jay Kay',
+            'active' => true,
+        ]);
+
+        $this->assertDatabaseMissing('projects', ['slack_channel_id' => 'CUNMAPPED']);
+
+        $job = new ProcessSlackEventJob($this->slackEventPayload([
+            'type' => 'app_mention',
+            'channel' => 'CUNMAPPED',
+            'user' => 'U123456',
+            'text' => '<@UBOT123|Hacklog> I am JMK22028',
+            'ts' => '1700000000.000001',
+        ]), 'Ev129');
+
+        $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
+
+        $this->assertSame('U123456', $user->refresh()->slack_id);
+        Http::assertSent(function ($request): bool {
+            return $request->url() === 'https://slack.com/api/chat.postMessage'
+                && $request['channel'] === 'CUNMAPPED'
+                && str_contains($request['text'], "You're linked to *Jay Kay*")
+                && ! str_contains($request['text'], "isn't connected")
+                && ! str_contains($request['text'], 'not enabled');
+        });
     }
 
     public function test_linking_is_idempotent(): void
@@ -390,6 +418,61 @@ class SlackIdentityLinkTest extends TestCase
 
         Http::assertSent(function ($request): bool {
             return str_contains($request['text'], "I don't have a Hacklog account linked to that Slack user yet");
+        });
+    }
+
+    public function test_multiple_other_mentions_ask_for_a_single_teammate(): void
+    {
+        config(['slack.bot_token' => 'test-token']);
+        Http::fake([
+            'https://slack.com/api/chat.postMessage' => Http::response(['ok' => true]),
+        ]);
+
+        User::factory()->create([
+            'name' => 'Asker',
+            'slack_id' => 'UASKER',
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+        ]);
+        $teammate = User::factory()->create([
+            'name' => 'Jay Kay',
+            'slack_id' => 'UJAY',
+            'active' => true,
+        ]);
+        $project = Project::create([
+            'name' => 'Website',
+            'status' => Project::STATUS_ACTIVE,
+            'slack_channel_id' => 'C123456',
+            'slack_bot_enabled' => true,
+        ]);
+        $phase = Phase::create(['project_id' => $project->id, 'name' => 'Build']);
+        $column = Column::create([
+            'project_id' => $project->id,
+            'name' => 'Planned',
+            'position' => 1,
+        ]);
+        $theirs = Task::create([
+            'phase_id' => $phase->id,
+            'column_id' => $column->id,
+            'title' => 'Jay website work',
+            'status' => 'planned',
+            'position' => 1,
+        ]);
+        $theirs->users()->attach($teammate);
+
+        $job = new ProcessSlackEventJob($this->slackEventPayload([
+            'type' => 'app_mention',
+            'channel' => 'C123456',
+            'user' => 'UASKER',
+            'text' => "<@UBOT123> what are <@UJAY> and <@USTRANGER>'s tasks",
+            'ts' => '1700000000.000001',
+        ]), 'Ev130');
+
+        $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request['text'], 'Mention a single teammate so I know whose tasks to show')
+                && ! str_contains($request['text'], 'Jay website work');
         });
     }
 

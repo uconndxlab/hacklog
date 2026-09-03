@@ -162,6 +162,21 @@ class SlackIntentMatcher
     }
 
     /**
+     * Route “@someone’s tasks” to the personalized open-tasks handler.
+     *
+     * Call after deterministic matching (so task-ish mention phrases skip AI)
+     * and again after AI classification (so open_tasks with a mention remaps).
+     */
+    public static function remapSomeoneElsesTasks(?string $intent, string $message, bool $hasOtherMention): ?string
+    {
+        if ($hasOtherMention && self::isSomeoneElsesTasks($intent, $message)) {
+            return self::INTENT_MY_OPEN;
+        }
+
+        return $intent;
+    }
+
+    /**
      * All supported intent identifiers.
      *
      * @return string[]
@@ -175,5 +190,15 @@ class SlackIntentMatcher
             self::INTENT_MY_OPEN,
             self::INTENT_OPEN,
         ];
+    }
+
+    /**
+     * Intents the AI classifier may return: matcher intents plus help/unknown.
+     *
+     * @return string[]
+     */
+    public static function classifierIntents(): array
+    {
+        return array_merge(self::allIntents(), ['help', 'unknown']);
     }
 }
