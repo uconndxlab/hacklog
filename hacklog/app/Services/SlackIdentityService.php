@@ -89,16 +89,49 @@ class SlackIdentityService
     }
 
     /**
-     * Slack user IDs mentioned in the message, excluding the sender.
+     * Slack user IDs mentioned in the message, excluding the sender and bot.
      *
      * @return string[]
      */
-    public function otherMentionedSlackIds(string $text, string $senderSlackId): array
+    public function otherMentionedSlackIds(string $text, string $senderSlackId, ?string $botSlackId = null): array
     {
+        $exclude = array_values(array_filter(
+            [$senderSlackId, $botSlackId],
+            fn (?string $id): bool => is_string($id) && $id !== ''
+        ));
+
         return array_values(array_filter(
             $this->slackIdsFromMentions($text),
-            fn (string $id): bool => strcasecmp($id, $senderSlackId) !== 0
+            function (string $id) use ($exclude): bool {
+                foreach ($exclude as $skip) {
+                    if (strcasecmp($id, $skip) === 0) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
         ));
+    }
+
+    /**
+     * Installed bot Slack user ID from an Events API payload, if present.
+     */
+    public function botSlackUserIdFromPayload(array $payload): ?string
+    {
+        foreach ($payload['authorizations'] ?? [] as $auth) {
+            if (! is_array($auth) || empty($auth['user_id'])) {
+                continue;
+            }
+
+            if (($auth['is_bot'] ?? false) === true) {
+                return (string) $auth['user_id'];
+            }
+        }
+
+        $first = $payload['authorizations'][0]['user_id'] ?? null;
+
+        return is_string($first) && $first !== '' ? $first : null;
     }
 
     public function linkedUserBySlackId(string $slackId): ?User

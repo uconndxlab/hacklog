@@ -150,15 +150,13 @@ class SlackIdentityLinkTest extends TestCase
         ]);
         $waiting->users()->attach($linkedUser);
 
-        $job = new ProcessSlackEventJob([
-            'event' => [
-                'type' => 'app_mention',
-                'channel' => 'C123456',
-                'user' => 'U123456',
-                'text' => '<@UBOT123> show me my tasks',
-                'ts' => '1700000000.000001',
-            ],
-        ], 'Ev124');
+        $job = new ProcessSlackEventJob($this->slackEventPayload([
+            'type' => 'app_mention',
+            'channel' => 'C123456',
+            'user' => 'U123456',
+            'text' => '<@UBOT123> show me my tasks',
+            'ts' => '1700000000.000001',
+        ]), 'Ev124');
 
         $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
 
@@ -224,15 +222,13 @@ class SlackIdentityLinkTest extends TestCase
         ]);
         $otherMine->users()->attach($linkedUser);
 
-        $job = new ProcessSlackEventJob([
-            'event' => [
-                'type' => 'app_mention',
-                'channel' => 'C123456',
-                'user' => 'U123456',
-                'text' => '<@UBOT123> my tasks in this project',
-                'ts' => '1700000000.000001',
-            ],
-        ], 'Ev125');
+        $job = new ProcessSlackEventJob($this->slackEventPayload([
+            'type' => 'app_mention',
+            'channel' => 'C123456',
+            'user' => 'U123456',
+            'text' => '<@UBOT123> my tasks in this project',
+            'ts' => '1700000000.000001',
+        ]), 'Ev125');
 
         $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
 
@@ -290,15 +286,13 @@ class SlackIdentityLinkTest extends TestCase
         ]);
         $mine->users()->attach($asker);
 
-        $job = new ProcessSlackEventJob([
-            'event' => [
-                'type' => 'app_mention',
-                'channel' => 'C123456',
-                'user' => 'UASKER',
-                'text' => "<@UBOT123> what are <@UJAY>'s tasks",
-                'ts' => '1700000000.000001',
-            ],
-        ], 'Ev126');
+        $job = new ProcessSlackEventJob($this->slackEventPayload([
+            'type' => 'app_mention',
+            'channel' => 'C123456',
+            'user' => 'UASKER',
+            'text' => "<@UBOT123> what are <@UJAY>'s tasks",
+            'ts' => '1700000000.000001',
+        ]), 'Ev126');
 
         $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
 
@@ -349,15 +343,13 @@ class SlackIdentityLinkTest extends TestCase
         ]);
         $theirs->users()->attach($teammate);
 
-        $job = new ProcessSlackEventJob([
-            'event' => [
-                'type' => 'app_mention',
-                'channel' => 'C123456',
-                'user' => 'UASKER',
-                'text' => "<@UBOT123> what are <@UJAY>'s tasks",
-                'ts' => '1700000000.000001',
-            ],
-        ], 'Ev128');
+        $job = new ProcessSlackEventJob($this->slackEventPayload([
+            'type' => 'app_mention',
+            'channel' => 'C123456',
+            'user' => 'UASKER',
+            'text' => "<@UBOT123> what are <@UJAY>'s tasks",
+            'ts' => '1700000000.000001',
+        ]), 'Ev128');
 
         $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
 
@@ -386,15 +378,13 @@ class SlackIdentityLinkTest extends TestCase
             'slack_bot_enabled' => true,
         ]);
 
-        $job = new ProcessSlackEventJob([
-            'event' => [
-                'type' => 'app_mention',
-                'channel' => 'C123456',
-                'user' => 'UASKER',
-                'text' => "<@UBOT123> what are <@USTRANGER>'s tasks",
-                'ts' => '1700000000.000001',
-            ],
-        ], 'Ev127');
+        $job = new ProcessSlackEventJob($this->slackEventPayload([
+            'type' => 'app_mention',
+            'channel' => 'C123456',
+            'user' => 'UASKER',
+            'text' => "what are <@USTRANGER>'s tasks",
+            'ts' => '1700000000.000001',
+        ]), 'Ev127');
 
         $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
 
@@ -440,5 +430,19 @@ class SlackIdentityLinkTest extends TestCase
         $this->assertSame(SlackIdentityService::USER_NOT_FOUND, $unknown['status']);
         $this->assertDatabaseMissing('users', ['slack_id' => 'U-INACTIVE']);
         $this->assertDatabaseMissing('users', ['slack_id' => 'U-UNKNOWN']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     * @return array<string, mixed>
+     */
+    private function slackEventPayload(array $event): array
+    {
+        return [
+            'authorizations' => [
+                ['user_id' => 'UBOT123', 'is_bot' => true],
+            ],
+            'event' => $event,
+        ];
     }
 }

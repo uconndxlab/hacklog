@@ -124,10 +124,11 @@ class ProcessSlackEventJob implements ShouldQueue
         // ── Step 1: Deterministic keyword matching (fast, no AI) ──────────────
         $intent = SlackIntentMatcher::match($cleanedText);
 
-        $otherMentionedIds = $identityService->otherMentionedSlackIds($rawText, $userId);
+        $botSlackId = $identityService->botSlackUserIdFromPayload($this->payload);
+        $otherMentionedIds = $identityService->otherMentionedSlackIds($rawText, $userId, $botSlackId);
         $linkedOther = $identityService->firstLinkedUser($otherMentionedIds);
         $askingAboutSomeone = SlackIntentMatcher::isSomeoneElsesTasks($intent, $cleanedText)
-            && ($linkedOther || count($otherMentionedIds) > 1);
+            && ($linkedOther || count($otherMentionedIds) >= 1);
         if ($askingAboutSomeone) {
             $intent = SlackIntentMatcher::INTENT_MY_OPEN;
         }
@@ -160,7 +161,7 @@ class ProcessSlackEventJob implements ShouldQueue
 
         if (! $askingAboutSomeone
             && SlackIntentMatcher::isSomeoneElsesTasks($intent, $cleanedText)
-            && ($linkedOther || count($otherMentionedIds) > 1)) {
+            && ($linkedOther || count($otherMentionedIds) >= 1)) {
             $intent = SlackIntentMatcher::INTENT_MY_OPEN;
         }
 
@@ -168,7 +169,7 @@ class ProcessSlackEventJob implements ShouldQueue
         $response = match ($intent) {
             SlackIntentMatcher::INTENT_DUE_THIS_WEEK  => $this->respondDueThisWeek($project, $queryService),
             SlackIntentMatcher::INTENT_OVERDUE         => $this->respondOverdue($project, $queryService),
-            SlackIntentMatcher::INTENT_MY_OPEN          => $this->respondMyOpen($project, $userId, $rawText, $cleanedText, $queryService, $identityService),
+            SlackIntentMatcher::INTENT_MY_OPEN          => $this->respondMyOpen($project, $userId, $rawText, $cleanedText, $botSlackId, $queryService, $identityService),
             SlackIntentMatcher::INTENT_OPEN            => $this->respondOpen($project, $queryService),
             SlackIntentMatcher::INTENT_CREATE_INTAKE   => null, // handled separately below
             default                                    => $this->respondUnknown(),
@@ -282,13 +283,14 @@ class ProcessSlackEventJob implements ShouldQueue
         string $senderSlackId,
         string $rawText,
         string $cleanedText,
+        ?string $botSlackId,
         SlackQueryService $service,
         SlackIdentityService $identityService
     ): string {
-        $otherMentionedIds = $identityService->otherMentionedSlackIds($rawText, $senderSlackId);
+        $otherMentionedIds = $identityService->otherMentionedSlackIds($rawText, $senderSlackId, $botSlackId);
         $linkedOther = $identityService->firstLinkedUser($otherMentionedIds);
 
-        if ($linkedOther || count($otherMentionedIds) > 1) {
+        if ($linkedOther || count($otherMentionedIds) >= 1) {
             $asker = $identityService->linkedUserBySlackId($senderSlackId);
             if (!$asker || !$asker->isAdmin()) {
                 return "Only a Hacklog admin can look up another person's tasks.";
@@ -298,7 +300,7 @@ class ProcessSlackEventJob implements ShouldQueue
         if ($linkedOther) {
             $user = $linkedOther;
             $forSomeoneElse = true;
-        } elseif (count($otherMentionedIds) > 1) {
+        } elseif (count($otherMentionedIds) >= 1) {
             return "I don't have a Hacklog account linked to that Slack user yet. They can reply with `@Hacklog I am theirNetID`.";
         } else {
             $user = $identityService->linkedUserBySlackId($senderSlackId);
