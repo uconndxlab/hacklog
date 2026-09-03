@@ -146,8 +146,8 @@ class SlackQueryService
 
     /**
      * Return actionable open tasks assigned to one user, either in one project
-     * or across all non-archived / non-completed projects. Completed and
-     * awaiting-feedback tasks are omitted.
+     * or across planning and active projects (on-hold, completed, and archived
+     * are omitted). Completed and awaiting-feedback tasks are omitted.
      *
      * @return array{
      *   total: int,
@@ -167,9 +167,9 @@ class SlackQueryService
             if ($project) {
                 $query->where('columns.project_id', $project->id);
             } else {
-                $query->whereNotIn('projects.status', [
-                    Project::STATUS_ARCHIVED,
-                    Project::STATUS_COMPLETED,
+                $query->whereIn('projects.status', [
+                    Project::STATUS_PLANNING,
+                    Project::STATUS_ACTIVE,
                 ]);
             }
 
