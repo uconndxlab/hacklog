@@ -168,6 +168,7 @@ class UsersController extends Controller
             $validated = $request->validate([
                 'role' => 'required|in:admin,team,client',
                 'nicknames' => 'nullable|string|max:500',
+                'slack_id' => 'nullable|string|max:64|unique:users,slack_id,' . $user->id,
                 'refresh_ldap' => 'boolean',
             ]);
 
@@ -194,6 +195,7 @@ class UsersController extends Controller
             $validationRules = [
                 'name' => 'required|string|max:255',
                 'nicknames' => 'nullable|string|max:500',
+                'slack_id' => 'nullable|string|max:64|unique:users,slack_id,' . $user->id,
                 'email' => 'required|email|max:255|unique:users,email,' . $user->id,
                 'role' => 'required|in:admin,team,client',
             ];
@@ -219,10 +221,18 @@ class UsersController extends Controller
         }
 
         $validated['nicknames'] = $this->nicknamesFromRequest($request);
+        $validated['slack_id'] = $this->slackIdFromRequest($request);
 
         $user->update($validated);
 
         return redirect()->route('users.index')->with('success', $message);
+    }
+
+    private function slackIdFromRequest(Request $request): ?string
+    {
+        $slackId = trim((string) $request->input('slack_id'));
+
+        return $slackId === '' ? null : $slackId;
     }
 
     /**

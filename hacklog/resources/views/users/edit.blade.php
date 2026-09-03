@@ -14,7 +14,7 @@
     <div class="col-lg-8">
         <div class="mb-4">
             <h1 class="mb-1">Edit User</h1>
-            <p class="text-muted mb-0">Update user nicknames, role, and status</p>
+            <p class="text-muted mb-0">Update user nicknames, Slack ID, role, and status</p>
         </div>
 
         <div class="card">
@@ -128,6 +128,22 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="slack_id" class="form-label">Slack ID</label>
+                        <input
+                            type="text"
+                            class="form-control @error('slack_id') is-invalid @enderror"
+                            id="slack_id"
+                            name="slack_id"
+                            value="{{ old('slack_id', $user->slack_id) }}"
+                            maxlength="64"
+                            autocomplete="off">
+                        @error('slack_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <div class="form-text">Optional. Slack member ID used to link this user for Slack commands (for example U12345678).</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="role" class="form-label">Role</label>
                         <select 
                             class="form-select @error('role') is-invalid @enderror" 
@@ -178,7 +194,7 @@
                     <p class="mb-0">
                         Name and email are automatically managed through the University directory.
                         Click "Refresh from Directory" to update these fields with the latest information.
-                        Nicknames, role, and active status can be changed manually.
+                        Nicknames, Slack ID, role, and active status can be changed manually.
                     </p>
                 </div>
             </div>
