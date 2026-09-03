@@ -253,6 +253,7 @@ class SlackIdentityLinkTest extends TestCase
         $asker = User::factory()->create([
             'name' => 'Asker',
             'slack_id' => 'UASKER',
+            'role' => User::ROLE_ADMIN,
             'active' => true,
         ]);
         $teammate = User::factory()->create([
@@ -308,6 +309,64 @@ class SlackIdentityLinkTest extends TestCase
         });
     }
 
+    public function test_non_admin_cannot_look_up_another_users_tasks(): void
+    {
+        config(['slack.bot_token' => 'test-token']);
+        Http::fake([
+            'https://slack.com/api/chat.postMessage' => Http::response(['ok' => true]),
+        ]);
+
+        User::factory()->create([
+            'name' => 'Client Asker',
+            'slack_id' => 'UASKER',
+            'role' => User::ROLE_CLIENT,
+            'active' => true,
+        ]);
+        $teammate = User::factory()->create([
+            'name' => 'Jay Kay',
+            'slack_id' => 'UJAY',
+            'role' => User::ROLE_TEAM,
+            'active' => true,
+        ]);
+        $project = Project::create([
+            'name' => 'Website',
+            'status' => Project::STATUS_ACTIVE,
+            'slack_channel_id' => 'C123456',
+            'slack_bot_enabled' => true,
+        ]);
+        $phase = Phase::create(['project_id' => $project->id, 'name' => 'Build']);
+        $column = Column::create([
+            'project_id' => $project->id,
+            'name' => 'Planned',
+            'position' => 1,
+        ]);
+        $theirs = Task::create([
+            'phase_id' => $phase->id,
+            'column_id' => $column->id,
+            'title' => 'Secret other-client work',
+            'status' => 'planned',
+            'position' => 1,
+        ]);
+        $theirs->users()->attach($teammate);
+
+        $job = new ProcessSlackEventJob([
+            'event' => [
+                'type' => 'app_mention',
+                'channel' => 'C123456',
+                'user' => 'UASKER',
+                'text' => "<@UBOT123> what are <@UJAY>'s tasks",
+                'ts' => '1700000000.000001',
+            ],
+        ], 'Ev128');
+
+        $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request['text'], "Only a Hacklog admin can look up another person's tasks")
+                && ! str_contains($request['text'], 'Secret other-client work');
+        });
+    }
+
     public function test_mentioning_an_unlinked_slack_user_asks_them_to_link(): void
     {
         config(['slack.bot_token' => 'test-token']);
@@ -317,6 +376,7 @@ class SlackIdentityLinkTest extends TestCase
 
         User::factory()->create([
             'slack_id' => 'UASKER',
+            'role' => User::ROLE_ADMIN,
             'active' => true,
         ]);
         $project = Project::create([

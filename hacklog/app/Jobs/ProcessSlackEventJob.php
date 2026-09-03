@@ -288,6 +288,13 @@ class ProcessSlackEventJob implements ShouldQueue
         $otherMentionedIds = $identityService->otherMentionedSlackIds($rawText, $senderSlackId);
         $linkedOther = $identityService->firstLinkedUser($otherMentionedIds);
 
+        if ($linkedOther || count($otherMentionedIds) > 1) {
+            $asker = $identityService->linkedUserBySlackId($senderSlackId);
+            if (!$asker || !$asker->isAdmin()) {
+                return "Only a Hacklog admin can look up another person's tasks.";
+            }
+        }
+
         if ($linkedOther) {
             $user = $linkedOther;
             $forSomeoneElse = true;
@@ -347,7 +354,7 @@ class ProcessSlackEventJob implements ShouldQueue
         return "I can currently answer these questions or take these actions for this Hacklog project:\n"
             . "• *I am yourNetID* — link your Slack and Hacklog accounts\n"
             . "• *my tasks* — open tasks assigned to you across projects (`in this project` to limit)\n"
-            . "• *@someone's tasks* — open tasks assigned to a linked Slack user\n"
+            . "• *@someone's tasks* — (admins) open tasks assigned to a linked Slack user\n"
             . "• *tasks due this week* — what's coming up\n"
             . "• *overdue tasks* — what's past due\n"
             . "• *open tasks* — everything still in progress\n"
