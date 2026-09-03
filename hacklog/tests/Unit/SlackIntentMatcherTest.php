@@ -46,6 +46,7 @@ class SlackIntentMatcherTest extends TestCase
             'with please prefix'              => ['please add this as a task'],
             'turn into tasks'                 => ['turn this into tasks'],
             'turn into a task'                => ['turn this into a task'],
+            'turn these into tasks'           => ['please turn these into tasks'],
             'turn this thread'                => ['turn this thread into tasks'],
             'turn thread with can you prefix' => ['can you turn this thread into tasks'],
             'capture this'                    => ['capture this'],

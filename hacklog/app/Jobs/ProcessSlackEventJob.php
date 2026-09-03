@@ -308,7 +308,8 @@ class ProcessSlackEventJob implements ShouldQueue
             // Remove capture command keywords to isolate any trailing content
             $commandPhrases = [
                 'add this as a task', 'add this to hacklog', 'turn this into tasks',
-                'turn this into a task', 'capture this', 'send this to hacklog',
+                'turn this into a task', 'turn these into tasks', 'turn these into a task',
+                'capture this', 'send this to hacklog',
                 'log this', 'make this a task', 'create tasks from this', 'put this in hacklog',
             ];
             foreach ($commandPhrases as $phrase) {

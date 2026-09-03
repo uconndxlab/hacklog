@@ -39,6 +39,7 @@ class SlackIntentMatcher
             'turn this into a task',
             'turn this thread',        // covers "turn this thread into tasks/a task"
             'turn this into',          // covers any "turn this into …" variant
+            'turn these into',         // covers plural "turn these into …" variants
             'capture this',
             'send this to hacklog',
             'log this',
