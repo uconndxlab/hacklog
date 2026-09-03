@@ -14,6 +14,7 @@ class SlackIntentMatcher
     const INTENT_DUE_THIS_WEEK  = 'tasks_due_this_week';
     const INTENT_OVERDUE         = 'overdue_tasks';
     const INTENT_OPEN            = 'open_tasks';
+    const INTENT_MY_OPEN         = 'my_open_tasks';
     const INTENT_CREATE_INTAKE   = 'create_ai_intake_from_slack';
 
     /**
@@ -67,6 +68,16 @@ class SlackIntentMatcher
             'we\'re late',
             'we are late',
         ],
+        // Check personalized phrases before general open-task phrases.
+        self::INTENT_MY_OPEN => [
+            'my tasks',
+            'my open tasks',
+            'tasks assigned to me',
+            'what is assigned to me',
+            'what\'s assigned to me',
+            'whats assigned to me',
+            'what do i need to do',
+        ],
         self::INTENT_OPEN => [
             'open tasks',
             'open task',
@@ -113,6 +124,7 @@ class SlackIntentMatcher
             self::INTENT_CREATE_INTAKE,
             self::INTENT_DUE_THIS_WEEK,
             self::INTENT_OVERDUE,
+            self::INTENT_MY_OPEN,
             self::INTENT_OPEN,
         ];
     }

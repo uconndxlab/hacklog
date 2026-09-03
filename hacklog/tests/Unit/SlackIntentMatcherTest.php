@@ -123,6 +123,22 @@ class SlackIntentMatcherTest extends TestCase
         ];
     }
 
+    /** @dataProvider myOpenTasksProvider */
+    #[\PHPUnit\Framework\Attributes\DataProvider('myOpenTasksProvider')]
+    public function test_my_open_tasks_intent_recognized(string $text): void
+    {
+        $this->assertSame(SlackIntentMatcher::INTENT_MY_OPEN, SlackIntentMatcher::match($text));
+    }
+
+    public static function myOpenTasksProvider(): array
+    {
+        return [
+            'my tasks' => ['show me my tasks'],
+            'assigned to me' => ["what's assigned to me?"],
+            'need to do' => ['what do I need to do?'],
+        ];
+    }
+
     // -------------------------------------------------------------------------
     // Unknown / no match
     // -------------------------------------------------------------------------
@@ -153,8 +169,8 @@ class SlackIntentMatcherTest extends TestCase
         $this->assertContains(SlackIntentMatcher::INTENT_CREATE_INTAKE, SlackIntentMatcher::allIntents());
     }
 
-    public function test_all_intents_returns_four_intents(): void
+    public function test_all_intents_returns_five_intents(): void
     {
-        $this->assertCount(4, SlackIntentMatcher::allIntents());
+        $this->assertCount(5, SlackIntentMatcher::allIntents());
     }
 }

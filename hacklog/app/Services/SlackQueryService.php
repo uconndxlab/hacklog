@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
 
 /**
  * Deterministic project task queries for the Hacklog Slack bot.
@@ -135,6 +136,42 @@ class SlackQueryService
                 return [
                     'title'     => $task->title,
                     'status'    => $task->status,
+                    'assignees' => $task->users->pluck('name')->values()->all(),
+                ];
+            })
+            ->all();
+
+        return compact('total', 'tasks');
+    }
+
+    /**
+     * Return open tasks assigned to one user in the project.
+     *
+     * @return array{
+     *   total: int,
+     *   tasks: array<int, array{title: string, status: string, assignees: string[]}>,
+     * }
+     */
+    public function openForUser(Project $project, User $user, int $limit = 10): array
+    {
+        $baseQuery = fn () => Task::withoutGlobalScope('ordered')
+            ->select('tasks.*')
+            ->join('columns', 'tasks.column_id', '=', 'columns.id')
+            ->where('columns.project_id', $project->id)
+            ->where('tasks.status', '!=', 'completed')
+            ->whereHas('users', fn ($query) => $query->where('users.id', $user->id));
+
+        $total = $baseQuery()->count();
+
+        $tasks = $baseQuery()
+            ->orderByRaw('tasks.position IS NULL, tasks.position ASC')
+            ->limit($limit)
+            ->with(['users:id,name'])
+            ->get()
+            ->map(function (Task $task): array {
+                return [
+                    'title' => $task->title,
+                    'status' => $task->status,
                     'assignees' => $task->users->pluck('name')->values()->all(),
                 ];
             })
