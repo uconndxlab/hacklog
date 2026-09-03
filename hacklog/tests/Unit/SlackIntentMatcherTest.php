@@ -189,4 +189,12 @@ class SlackIntentMatcherTest extends TestCase
         $this->assertTrue(SlackIntentMatcher::isCurrentProjectOnly('what is open for me in this channel'));
         $this->assertTrue(SlackIntentMatcher::isCurrentProjectOnly('only this project'));
     }
+
+    public function test_someone_elses_tasks_are_detected_from_mentions_and_task_words(): void
+    {
+        $this->assertTrue(SlackIntentMatcher::isSomeoneElsesTasks(null, "what are 's tasks"));
+        $this->assertTrue(SlackIntentMatcher::isSomeoneElsesTasks(SlackIntentMatcher::INTENT_OPEN, 'show tasks'));
+        $this->assertFalse(SlackIntentMatcher::isSomeoneElsesTasks(SlackIntentMatcher::INTENT_CREATE_INTAKE, 'turn this into tasks'));
+        $this->assertFalse(SlackIntentMatcher::isSomeoneElsesTasks(SlackIntentMatcher::INTENT_OVERDUE, 'overdue'));
+    }
 }

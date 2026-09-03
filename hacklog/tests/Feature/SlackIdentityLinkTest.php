@@ -243,6 +243,106 @@ class SlackIdentityLinkTest extends TestCase
         });
     }
 
+    public function test_mentioning_another_linked_slack_user_shows_their_tasks(): void
+    {
+        config(['slack.bot_token' => 'test-token']);
+        Http::fake([
+            'https://slack.com/api/chat.postMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $asker = User::factory()->create([
+            'name' => 'Asker',
+            'slack_id' => 'UASKER',
+            'active' => true,
+        ]);
+        $teammate = User::factory()->create([
+            'name' => 'Jay Kay',
+            'slack_id' => 'UJAY',
+            'active' => true,
+        ]);
+        $project = Project::create([
+            'name' => 'Website',
+            'status' => Project::STATUS_ACTIVE,
+            'slack_channel_id' => 'C123456',
+            'slack_bot_enabled' => true,
+        ]);
+        $phase = Phase::create(['project_id' => $project->id, 'name' => 'Build']);
+        $column = Column::create([
+            'project_id' => $project->id,
+            'name' => 'Planned',
+            'position' => 1,
+        ]);
+        $theirs = Task::create([
+            'phase_id' => $phase->id,
+            'column_id' => $column->id,
+            'title' => 'Jay website work',
+            'status' => 'planned',
+            'position' => 1,
+        ]);
+        $theirs->users()->attach($teammate);
+        $mine = Task::create([
+            'phase_id' => $phase->id,
+            'column_id' => $column->id,
+            'title' => 'Asker only task',
+            'status' => 'planned',
+            'position' => 2,
+        ]);
+        $mine->users()->attach($asker);
+
+        $job = new ProcessSlackEventJob([
+            'event' => [
+                'type' => 'app_mention',
+                'channel' => 'C123456',
+                'user' => 'UASKER',
+                'text' => "<@UBOT123> what are <@UJAY>'s tasks",
+                'ts' => '1700000000.000001',
+            ],
+        ], 'Ev126');
+
+        $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request['text'], '*1 open task assigned to Jay Kay*')
+                && str_contains($request['text'], 'Jay website work')
+                && ! str_contains($request['text'], 'Asker only task');
+        });
+    }
+
+    public function test_mentioning_an_unlinked_slack_user_asks_them_to_link(): void
+    {
+        config(['slack.bot_token' => 'test-token']);
+        Http::fake([
+            'https://slack.com/api/chat.postMessage' => Http::response(['ok' => true]),
+        ]);
+
+        User::factory()->create([
+            'slack_id' => 'UASKER',
+            'active' => true,
+        ]);
+        $project = Project::create([
+            'name' => 'Website',
+            'status' => Project::STATUS_ACTIVE,
+            'slack_channel_id' => 'C123456',
+            'slack_bot_enabled' => true,
+        ]);
+
+        $job = new ProcessSlackEventJob([
+            'event' => [
+                'type' => 'app_mention',
+                'channel' => 'C123456',
+                'user' => 'UASKER',
+                'text' => "<@UBOT123> what are <@USTRANGER>'s tasks",
+                'ts' => '1700000000.000001',
+            ],
+        ], 'Ev127');
+
+        $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request['text'], "I don't have a Hacklog account linked to that Slack user yet");
+        });
+    }
+
     public function test_linking_cannot_take_over_either_side_of_an_existing_link(): void
     {
         $firstUser = User::factory()->create([

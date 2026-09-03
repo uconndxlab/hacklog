@@ -75,4 +75,54 @@ class SlackIdentityService
             return ['status' => self::LINKED, 'user' => $user];
         });
     }
+
+    /**
+     * Slack user IDs mentioned in message text, in order of appearance.
+     *
+     * @return string[]
+     */
+    public function slackIdsFromMentions(string $text): array
+    {
+        preg_match_all('/<@([A-Z0-9]+)(?:\|[^>]+)?>/i', $text, $matches);
+
+        return array_values(array_unique($matches[1] ?? []));
+    }
+
+    /**
+     * Slack user IDs mentioned in the message, excluding the sender.
+     *
+     * @return string[]
+     */
+    public function otherMentionedSlackIds(string $text, string $senderSlackId): array
+    {
+        return array_values(array_filter(
+            $this->slackIdsFromMentions($text),
+            fn (string $id): bool => strcasecmp($id, $senderSlackId) !== 0
+        ));
+    }
+
+    public function linkedUserBySlackId(string $slackId): ?User
+    {
+        return User::query()
+            ->where('slack_id', $slackId)
+            ->where('active', true)
+            ->first();
+    }
+
+    /**
+     * First mentioned Slack ID that is linked to an active Hacklog user.
+     *
+     * @param  string[]  $slackIds
+     */
+    public function firstLinkedUser(array $slackIds): ?User
+    {
+        foreach ($slackIds as $slackId) {
+            $user = $this->linkedUserBySlackId($slackId);
+            if ($user) {
+                return $user;
+            }
+        }
+
+        return null;
+    }
 }

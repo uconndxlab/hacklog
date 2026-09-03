@@ -124,6 +124,14 @@ class ProcessSlackEventJob implements ShouldQueue
         // ── Step 1: Deterministic keyword matching (fast, no AI) ──────────────
         $intent = SlackIntentMatcher::match($cleanedText);
 
+        $otherMentionedIds = $identityService->otherMentionedSlackIds($rawText, $userId);
+        $linkedOther = $identityService->firstLinkedUser($otherMentionedIds);
+        $askingAboutSomeone = SlackIntentMatcher::isSomeoneElsesTasks($intent, $cleanedText)
+            && ($linkedOther || count($otherMentionedIds) > 1);
+        if ($askingAboutSomeone) {
+            $intent = SlackIntentMatcher::INTENT_MY_OPEN;
+        }
+
         Log::info('Slack bot: intent matched.', [
             'event_id'  => $this->eventId,
             'intent'    => $intent ?? 'none',
@@ -150,11 +158,17 @@ class ProcessSlackEventJob implements ShouldQueue
             }
         }
 
+        if (! $askingAboutSomeone
+            && SlackIntentMatcher::isSomeoneElsesTasks($intent, $cleanedText)
+            && ($linkedOther || count($otherMentionedIds) > 1)) {
+            $intent = SlackIntentMatcher::INTENT_MY_OPEN;
+        }
+
         // Build and post response
         $response = match ($intent) {
             SlackIntentMatcher::INTENT_DUE_THIS_WEEK  => $this->respondDueThisWeek($project, $queryService),
             SlackIntentMatcher::INTENT_OVERDUE         => $this->respondOverdue($project, $queryService),
-            SlackIntentMatcher::INTENT_MY_OPEN          => $this->respondMyOpen($project, $userId, $cleanedText, $queryService),
+            SlackIntentMatcher::INTENT_MY_OPEN          => $this->respondMyOpen($project, $userId, $rawText, $cleanedText, $queryService, $identityService),
             SlackIntentMatcher::INTENT_OPEN            => $this->respondOpen($project, $queryService),
             SlackIntentMatcher::INTENT_CREATE_INTAKE   => null, // handled separately below
             default                                    => $this->respondUnknown(),
@@ -263,30 +277,48 @@ class ProcessSlackEventJob implements ShouldQueue
         return implode("\n", $lines);
     }
 
-    private function respondMyOpen(Project $project, string $slackId, string $cleanedText, SlackQueryService $service): string
-    {
-        $user = User::where('slack_id', $slackId)->where('active', true)->first();
+    private function respondMyOpen(
+        Project $project,
+        string $senderSlackId,
+        string $rawText,
+        string $cleanedText,
+        SlackQueryService $service,
+        SlackIdentityService $identityService
+    ): string {
+        $otherMentionedIds = $identityService->otherMentionedSlackIds($rawText, $senderSlackId);
+        $linkedOther = $identityService->firstLinkedUser($otherMentionedIds);
 
-        if (!$user) {
-            return "I don't know which Hacklog user you are yet. Reply with `@Hacklog I am yourNetID` to link your account.";
+        if ($linkedOther) {
+            $user = $linkedOther;
+            $forSomeoneElse = true;
+        } elseif (count($otherMentionedIds) > 1) {
+            return "I don't have a Hacklog account linked to that Slack user yet. They can reply with `@Hacklog I am theirNetID`.";
+        } else {
+            $user = $identityService->linkedUserBySlackId($senderSlackId);
+            $forSomeoneElse = false;
+            if (!$user) {
+                return "I don't know which Hacklog user you are yet. Reply with `@Hacklog I am yourNetID` to link your account.";
+            }
         }
 
         $thisProjectOnly = SlackIntentMatcher::isCurrentProjectOnly($cleanedText);
         $result = $service->openForUser($user, $thisProjectOnly ? $project : null, limit: 10);
         $total = $result['total'];
         $tasks = $result['tasks'];
+        $who = $forSomeoneElse ? $user->name : 'you';
+        $emptyWho = $forSomeoneElse ? "*{$user->name}* has" : 'You have';
 
         if ($total === 0) {
             return $thisProjectOnly
-                ? "You have no open {$project->name} tasks. :white_check_mark:"
-                : 'You have no open tasks. :white_check_mark:';
+                ? "{$emptyWho} no open {$project->name} tasks. :white_check_mark:"
+                : "{$emptyWho} no open tasks. :white_check_mark:";
         }
 
         $noun = $total === 1 ? 'task' : 'tasks';
         $shown = count($tasks);
         $header = $thisProjectOnly
-            ? "*{$total} open {$project->name} {$noun} assigned to you*"
-            : "*{$total} open {$noun} assigned to you*";
+            ? "*{$total} open {$project->name} {$noun} assigned to {$who}*"
+            : "*{$total} open {$noun} assigned to {$who}*";
         $lines = [$header];
 
         $currentProjectName = null;
@@ -315,6 +347,7 @@ class ProcessSlackEventJob implements ShouldQueue
         return "I can currently answer these questions or take these actions for this Hacklog project:\n"
             . "• *I am yourNetID* — link your Slack and Hacklog accounts\n"
             . "• *my tasks* — open tasks assigned to you across projects (`in this project` to limit)\n"
+            . "• *@someone's tasks* — open tasks assigned to a linked Slack user\n"
             . "• *tasks due this week* — what's coming up\n"
             . "• *overdue tasks* — what's past due\n"
             . "• *open tasks* — everything still in progress\n"

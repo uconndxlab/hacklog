@@ -135,6 +135,33 @@ class SlackIntentMatcher
     }
 
     /**
+     * Whether a message that @mentions someone else is asking about their tasks.
+     * Capture / due / overdue intents are left alone.
+     */
+    public static function isSomeoneElsesTasks(?string $intent, string $message): bool
+    {
+        if ($intent === self::INTENT_CREATE_INTAKE
+            || $intent === self::INTENT_DUE_THIS_WEEK
+            || $intent === self::INTENT_OVERDUE) {
+            return false;
+        }
+
+        if ($intent === self::INTENT_MY_OPEN || $intent === self::INTENT_OPEN) {
+            return true;
+        }
+
+        $normalized = strtolower(trim($message));
+
+        foreach (['task', 'assigned', 'working on', 'need to do', 'open for'] as $keyword) {
+            if (str_contains($normalized, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * All supported intent identifiers.
      *
      * @return string[]
