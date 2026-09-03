@@ -136,6 +136,13 @@ class SlackIntentMatcherTest extends TestCase
             'my tasks' => ['show me my tasks'],
             'assigned to me' => ["what's assigned to me?"],
             'need to do' => ['what do I need to do?'],
+            'what tasks do i have' => ['what tasks do I have?'],
+            'what can i do' => ['what can I do'],
+            'what can i work on' => ['what can I work on?'],
+            'whats open for me' => ["whats open for me"],
+            'whats open for me apostrophe' => ["what's open for me?"],
+            'what is open for me' => ['what is open for me'],
+            'in this project' => ['my tasks in this project'],
         ];
     }
 
@@ -172,5 +179,14 @@ class SlackIntentMatcherTest extends TestCase
     public function test_all_intents_returns_five_intents(): void
     {
         $this->assertCount(5, SlackIntentMatcher::allIntents());
+    }
+
+    public function test_my_tasks_defaults_to_all_projects_unless_this_project_is_specified(): void
+    {
+        $this->assertFalse(SlackIntentMatcher::isCurrentProjectOnly('show me my tasks'));
+        $this->assertFalse(SlackIntentMatcher::isCurrentProjectOnly('what can I do'));
+        $this->assertTrue(SlackIntentMatcher::isCurrentProjectOnly('my tasks in this project'));
+        $this->assertTrue(SlackIntentMatcher::isCurrentProjectOnly('what is open for me in this channel'));
+        $this->assertTrue(SlackIntentMatcher::isCurrentProjectOnly('only this project'));
     }
 }

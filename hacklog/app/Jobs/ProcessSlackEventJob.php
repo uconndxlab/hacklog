@@ -154,7 +154,7 @@ class ProcessSlackEventJob implements ShouldQueue
         $response = match ($intent) {
             SlackIntentMatcher::INTENT_DUE_THIS_WEEK  => $this->respondDueThisWeek($project, $queryService),
             SlackIntentMatcher::INTENT_OVERDUE         => $this->respondOverdue($project, $queryService),
-            SlackIntentMatcher::INTENT_MY_OPEN          => $this->respondMyOpen($project, $userId, $queryService),
+            SlackIntentMatcher::INTENT_MY_OPEN          => $this->respondMyOpen($project, $userId, $cleanedText, $queryService),
             SlackIntentMatcher::INTENT_OPEN            => $this->respondOpen($project, $queryService),
             SlackIntentMatcher::INTENT_CREATE_INTAKE   => null, // handled separately below
             default                                    => $this->respondUnknown(),
@@ -263,7 +263,7 @@ class ProcessSlackEventJob implements ShouldQueue
         return implode("\n", $lines);
     }
 
-    private function respondMyOpen(Project $project, string $slackId, SlackQueryService $service): string
+    private function respondMyOpen(Project $project, string $slackId, string $cleanedText, SlackQueryService $service): string
     {
         $user = User::where('slack_id', $slackId)->where('active', true)->first();
 
@@ -271,25 +271,40 @@ class ProcessSlackEventJob implements ShouldQueue
             return "I don't know which Hacklog user you are yet. Reply with `@Hacklog I am yourNetID` to link your account.";
         }
 
-        $result = $service->openForUser($project, $user, limit: 10);
+        $thisProjectOnly = SlackIntentMatcher::isCurrentProjectOnly($cleanedText);
+        $result = $service->openForUser($user, $thisProjectOnly ? $project : null, limit: 10);
         $total = $result['total'];
         $tasks = $result['tasks'];
 
         if ($total === 0) {
-            return "You have no open {$project->name} tasks. :white_check_mark:";
+            return $thisProjectOnly
+                ? "You have no open {$project->name} tasks. :white_check_mark:"
+                : 'You have no open tasks. :white_check_mark:';
         }
 
         $noun = $total === 1 ? 'task' : 'tasks';
         $shown = count($tasks);
-        $lines = ["*{$total} open {$project->name} {$noun} assigned to you*"];
+        $header = $thisProjectOnly
+            ? "*{$total} open {$project->name} {$noun} assigned to you*"
+            : "*{$total} open {$noun} assigned to you*";
+        $lines = [$header];
 
+        $currentProjectName = null;
         foreach ($tasks as $task) {
+            if (! $thisProjectOnly && $task['project_name'] !== $currentProjectName) {
+                $currentProjectName = $task['project_name'];
+                $lines[] = "*{$currentProjectName}*";
+            }
             $lines[] = '• '.$task['title'];
         }
 
         if ($total > $shown) {
             $more = $total - $shown;
-            $lines[] = "…and {$more} more — <".route('projects.board', $project).'|View board>';
+            $moreLine = "…and {$more} more";
+            if ($thisProjectOnly) {
+                $moreLine .= ' — <'.route('projects.board', $project).'|View board>';
+            }
+            $lines[] = $moreLine;
         }
 
         return implode("\n", $lines);
@@ -299,7 +314,7 @@ class ProcessSlackEventJob implements ShouldQueue
     {
         return "I can currently answer these questions or take these actions for this Hacklog project:\n"
             . "• *I am yourNetID* — link your Slack and Hacklog accounts\n"
-            . "• *my tasks* — open tasks assigned to you\n"
+            . "• *my tasks* — open tasks assigned to you across projects (`in this project` to limit)\n"
             . "• *tasks due this week* — what's coming up\n"
             . "• *overdue tasks* — what's past due\n"
             . "• *open tasks* — everything still in progress\n"

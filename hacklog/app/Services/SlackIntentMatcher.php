@@ -77,6 +77,15 @@ class SlackIntentMatcher
             'what\'s assigned to me',
             'whats assigned to me',
             'what do i need to do',
+            'what tasks do i have',
+            'what do i have',
+            'what can i do',
+            'what can i work on',
+            'what should i do',
+            'whats open for me',
+            'what\'s open for me',
+            'what is open for me',
+            'open for me',
         ],
         self::INTENT_OPEN => [
             'open tasks',
@@ -111,6 +120,18 @@ class SlackIntentMatcher
         }
 
         return null;
+    }
+
+    /**
+     * Whether a "my tasks" message is limited to the current Slack channel's project.
+     * Default is all projects.
+     */
+    public static function isCurrentProjectOnly(string $message): bool
+    {
+        $normalized = strtolower(trim($message));
+
+        return str_contains($normalized, 'this project')
+            || str_contains($normalized, 'this channel');
     }
 
     /**

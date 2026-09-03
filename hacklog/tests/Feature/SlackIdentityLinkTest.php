@@ -101,9 +101,19 @@ class SlackIdentityLinkTest extends TestCase
             'slack_channel_id' => 'C123456',
             'slack_bot_enabled' => true,
         ]);
+        $otherProject = Project::create([
+            'name' => 'API',
+            'status' => Project::STATUS_ACTIVE,
+        ]);
         $phase = Phase::create(['project_id' => $project->id, 'name' => 'Build']);
+        $otherPhase = Phase::create(['project_id' => $otherProject->id, 'name' => 'Build']);
         $column = Column::create([
             'project_id' => $project->id,
+            'name' => 'Planned',
+            'position' => 1,
+        ]);
+        $otherColumn = Column::create([
+            'project_id' => $otherProject->id,
             'name' => 'Planned',
             'position' => 1,
         ]);
@@ -115,6 +125,14 @@ class SlackIdentityLinkTest extends TestCase
             'position' => 1,
         ]);
         $mine->users()->attach($linkedUser);
+        $otherMine = Task::create([
+            'phase_id' => $otherPhase->id,
+            'column_id' => $otherColumn->id,
+            'title' => 'API work',
+            'status' => 'planned',
+            'position' => 1,
+        ]);
+        $otherMine->users()->attach($linkedUser);
         $theirs = Task::create([
             'phase_id' => $phase->id,
             'column_id' => $column->id,
@@ -123,6 +141,14 @@ class SlackIdentityLinkTest extends TestCase
             'position' => 2,
         ]);
         $theirs->users()->attach($otherUser);
+        $waiting = Task::create([
+            'phase_id' => $phase->id,
+            'column_id' => $column->id,
+            'title' => 'Waiting on feedback',
+            'status' => 'awaiting_feedback',
+            'position' => 3,
+        ]);
+        $waiting->users()->attach($linkedUser);
 
         $job = new ProcessSlackEventJob([
             'event' => [
@@ -137,9 +163,83 @@ class SlackIdentityLinkTest extends TestCase
         $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
 
         Http::assertSent(function ($request): bool {
-            return str_contains($request['text'], '*1 open Website task assigned to you*')
+            return str_contains($request['text'], '*2 open tasks assigned to you*')
+                && str_contains($request['text'], '*Website*')
                 && str_contains($request['text'], 'My assigned task')
-                && ! str_contains($request['text'], 'Someone else task');
+                && str_contains($request['text'], '*API*')
+                && str_contains($request['text'], 'API work')
+                && ! str_contains($request['text'], 'Someone else task')
+                && ! str_contains($request['text'], 'Waiting on feedback');
+        });
+    }
+
+    public function test_my_tasks_in_this_project_is_limited_to_the_current_channel(): void
+    {
+        config(['slack.bot_token' => 'test-token']);
+        Http::fake([
+            'https://slack.com/api/chat.postMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $linkedUser = User::factory()->create([
+            'netid' => 'jmk22028',
+            'slack_id' => 'U123456',
+            'active' => true,
+        ]);
+        $project = Project::create([
+            'name' => 'Website',
+            'status' => Project::STATUS_ACTIVE,
+            'slack_channel_id' => 'C123456',
+            'slack_bot_enabled' => true,
+        ]);
+        $otherProject = Project::create([
+            'name' => 'API',
+            'status' => Project::STATUS_ACTIVE,
+        ]);
+        $phase = Phase::create(['project_id' => $project->id, 'name' => 'Build']);
+        $otherPhase = Phase::create(['project_id' => $otherProject->id, 'name' => 'Build']);
+        $column = Column::create([
+            'project_id' => $project->id,
+            'name' => 'Planned',
+            'position' => 1,
+        ]);
+        $otherColumn = Column::create([
+            'project_id' => $otherProject->id,
+            'name' => 'Planned',
+            'position' => 1,
+        ]);
+        $mine = Task::create([
+            'phase_id' => $phase->id,
+            'column_id' => $column->id,
+            'title' => 'Website task',
+            'status' => 'planned',
+            'position' => 1,
+        ]);
+        $mine->users()->attach($linkedUser);
+        $otherMine = Task::create([
+            'phase_id' => $otherPhase->id,
+            'column_id' => $otherColumn->id,
+            'title' => 'API work',
+            'status' => 'planned',
+            'position' => 1,
+        ]);
+        $otherMine->users()->attach($linkedUser);
+
+        $job = new ProcessSlackEventJob([
+            'event' => [
+                'type' => 'app_mention',
+                'channel' => 'C123456',
+                'user' => 'U123456',
+                'text' => '<@UBOT123> my tasks in this project',
+                'ts' => '1700000000.000001',
+            ],
+        ], 'Ev125');
+
+        $job->handle(new SlackBotService, new SlackQueryService, new SlackIdentityService);
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request['text'], '*1 open Website task assigned to you*')
+                && str_contains($request['text'], 'Website task')
+                && ! str_contains($request['text'], 'API work');
         });
     }
 
