@@ -103,7 +103,7 @@
                     </li>
                     @auth
                         <li class="nav-item">
-                            <span class="nav-link text-light">{{ Auth::user()->name }}</span>
+                            <a class="nav-link text-light {{ request()->routeIs('users.edit') && request()->route('user')?->is(Auth::user()) ? 'active' : '' }}" href="{{ route('users.edit', Auth::user()) }}">{{ Auth::user()->name }}</a>
                         </li>
                         <li class="nav-item">
                             <form action="{{ route('logout') }}" method="POST" class="d-inline">

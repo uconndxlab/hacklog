@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Services\LdapService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * User Management Controller for Admins
@@ -153,16 +154,24 @@ class UsersController extends Controller
      */
     public function edit(User $user)
     {
+        Gate::authorize('update-user', $user);
+
         return view('users.edit', compact('user'));
     }
 
     /**
      * Update the specified user.
-     * For CAS: Allow updating role and active status. Name/email can be refreshed from LDAP.
-     * For Local: Allow updating name, email, password, role, and active status.
+     * Admins can update role, status, and auth-driver-specific fields.
+     * Users may update their own name, email, nicknames, and Slack ID.
      */
     public function update(Request $request, User $user)
     {
+        Gate::authorize('update-user', $user);
+
+        if (!auth()->user()->isAdmin()) {
+            return $this->updateOwnProfile($request, $user);
+        }
+
         if (config('hacklog_auth.driver') === 'cas') {
             // CAS Authentication - limited fields + optional LDAP refresh
             $validated = $request->validate([
@@ -226,6 +235,25 @@ class UsersController extends Controller
         $user->update($validated);
 
         return redirect()->route('users.index')->with('success', $message);
+    }
+
+    private function updateOwnProfile(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+            'nicknames' => 'nullable|string|max:500',
+            'slack_id' => 'nullable|string|max:64|unique:users,slack_id,' . $user->id,
+        ]);
+
+        $user->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'nicknames' => $this->nicknamesFromRequest($request),
+            'slack_id' => $this->slackIdFromRequest($request),
+        ]);
+
+        return redirect()->route('users.edit', $user)->with('success', 'Profile updated successfully.');
     }
 
     private function slackIdFromRequest(Request $request): ?string

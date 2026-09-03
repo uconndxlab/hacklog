@@ -49,10 +49,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
     Route::get('/timeline', [TimelineController::class, 'index'])->name('timeline.index');
     Route::get('/team', [TeamDashboardController::class, 'index'])->name('team.dashboard');
+    Route::get('users/{user}/edit', [UsersController::class, 'edit'])->name('users.edit');
+    Route::put('users/{user}', [UsersController::class, 'update'])->name('users.update');
 
     // Admin-only: User management and task cleanup
     Route::middleware('admin')->group(function () {
-        Route::resource('users', UsersController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+        Route::resource('users', UsersController::class)->only(['index', 'create', 'store', 'destroy']);
         Route::get('users/{user}', [UserProfileController::class, 'show'])->name('users.show');
         Route::post('users/search', [UsersController::class, 'searchUsers'])->name('users.search');
         Route::post('users/lookup-netid', [UsersController::class, 'lookupNetid'])->name('users.lookup-netid');
