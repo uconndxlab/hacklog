@@ -14,6 +14,7 @@ class SlackIntentMatcher
     const INTENT_DUE_THIS_WEEK  = 'tasks_due_this_week';
     const INTENT_OVERDUE         = 'overdue_tasks';
     const INTENT_OPEN            = 'open_tasks';
+    const INTENT_MY_OPEN         = 'my_open_tasks';
     const INTENT_CREATE_INTAKE   = 'create_ai_intake_from_slack';
 
     /**
@@ -39,6 +40,7 @@ class SlackIntentMatcher
             'turn this into a task',
             'turn this thread',        // covers "turn this thread into tasks/a task"
             'turn this into',          // covers any "turn this into …" variant
+            'turn these into',         // covers plural "turn these into …" variants
             'capture this',
             'send this to hacklog',
             'log this',
@@ -65,6 +67,25 @@ class SlackIntentMatcher
             'behind on',
             'we\'re late',
             'we are late',
+        ],
+        // Check personalized phrases before general open-task phrases.
+        self::INTENT_MY_OPEN => [
+            'my tasks',
+            'my open tasks',
+            'tasks assigned to me',
+            'what is assigned to me',
+            'what\'s assigned to me',
+            'whats assigned to me',
+            'what do i need to do',
+            'what tasks do i have',
+            'what do i have',
+            'what can i do',
+            'what can i work on',
+            'what should i do',
+            'whats open for me',
+            'what\'s open for me',
+            'what is open for me',
+            'open for me',
         ],
         self::INTENT_OPEN => [
             'open tasks',
@@ -102,6 +123,60 @@ class SlackIntentMatcher
     }
 
     /**
+     * Whether a "my tasks" message is limited to the current Slack channel's project.
+     * Default is all projects.
+     */
+    public static function isCurrentProjectOnly(string $message): bool
+    {
+        $normalized = strtolower(trim($message));
+
+        return str_contains($normalized, 'this project')
+            || str_contains($normalized, 'this channel');
+    }
+
+    /**
+     * Whether a message that @mentions someone else is asking about their tasks.
+     * Capture / due / overdue intents are left alone.
+     */
+    public static function isSomeoneElsesTasks(?string $intent, string $message): bool
+    {
+        if ($intent === self::INTENT_CREATE_INTAKE
+            || $intent === self::INTENT_DUE_THIS_WEEK
+            || $intent === self::INTENT_OVERDUE) {
+            return false;
+        }
+
+        if ($intent === self::INTENT_MY_OPEN || $intent === self::INTENT_OPEN) {
+            return true;
+        }
+
+        $normalized = strtolower(trim($message));
+
+        foreach (['task', 'assigned', 'working on', 'need to do', 'open for'] as $keyword) {
+            if (str_contains($normalized, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Route “@someone’s tasks” to the personalized open-tasks handler.
+     *
+     * Call after deterministic matching (so task-ish mention phrases skip AI)
+     * and again after AI classification (so open_tasks with a mention remaps).
+     */
+    public static function remapSomeoneElsesTasks(?string $intent, string $message, bool $hasOtherMention): ?string
+    {
+        if ($hasOtherMention && self::isSomeoneElsesTasks($intent, $message)) {
+            return self::INTENT_MY_OPEN;
+        }
+
+        return $intent;
+    }
+
+    /**
      * All supported intent identifiers.
      *
      * @return string[]
@@ -112,7 +187,18 @@ class SlackIntentMatcher
             self::INTENT_CREATE_INTAKE,
             self::INTENT_DUE_THIS_WEEK,
             self::INTENT_OVERDUE,
+            self::INTENT_MY_OPEN,
             self::INTENT_OPEN,
         ];
+    }
+
+    /**
+     * Intents the AI classifier may return: matcher intents plus help/unknown.
+     *
+     * @return string[]
+     */
+    public static function classifierIntents(): array
+    {
+        return array_merge(self::allIntents(), ['help', 'unknown']);
     }
 }

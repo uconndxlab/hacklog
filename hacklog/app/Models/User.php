@@ -32,6 +32,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'netid',
+        'slack_id',
         'name',
         'nicknames',
         'email',

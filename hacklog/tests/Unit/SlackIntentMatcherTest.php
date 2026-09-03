@@ -46,6 +46,7 @@ class SlackIntentMatcherTest extends TestCase
             'with please prefix'              => ['please add this as a task'],
             'turn into tasks'                 => ['turn this into tasks'],
             'turn into a task'                => ['turn this into a task'],
+            'turn these into tasks'           => ['please turn these into tasks'],
             'turn this thread'                => ['turn this thread into tasks'],
             'turn thread with can you prefix' => ['can you turn this thread into tasks'],
             'capture this'                    => ['capture this'],
@@ -122,6 +123,29 @@ class SlackIntentMatcherTest extends TestCase
         ];
     }
 
+    /** @dataProvider myOpenTasksProvider */
+    #[\PHPUnit\Framework\Attributes\DataProvider('myOpenTasksProvider')]
+    public function test_my_open_tasks_intent_recognized(string $text): void
+    {
+        $this->assertSame(SlackIntentMatcher::INTENT_MY_OPEN, SlackIntentMatcher::match($text));
+    }
+
+    public static function myOpenTasksProvider(): array
+    {
+        return [
+            'my tasks' => ['show me my tasks'],
+            'assigned to me' => ["what's assigned to me?"],
+            'need to do' => ['what do I need to do?'],
+            'what tasks do i have' => ['what tasks do I have?'],
+            'what can i do' => ['what can I do'],
+            'what can i work on' => ['what can I work on?'],
+            'whats open for me' => ["whats open for me"],
+            'whats open for me apostrophe' => ["what's open for me?"],
+            'what is open for me' => ['what is open for me'],
+            'in this project' => ['my tasks in this project'],
+        ];
+    }
+
     // -------------------------------------------------------------------------
     // Unknown / no match
     // -------------------------------------------------------------------------
@@ -152,8 +176,58 @@ class SlackIntentMatcherTest extends TestCase
         $this->assertContains(SlackIntentMatcher::INTENT_CREATE_INTAKE, SlackIntentMatcher::allIntents());
     }
 
-    public function test_all_intents_returns_four_intents(): void
+    public function test_all_intents_returns_five_intents(): void
     {
-        $this->assertCount(4, SlackIntentMatcher::allIntents());
+        $this->assertCount(5, SlackIntentMatcher::allIntents());
+    }
+
+    public function test_my_tasks_defaults_to_all_projects_unless_this_project_is_specified(): void
+    {
+        $this->assertFalse(SlackIntentMatcher::isCurrentProjectOnly('show me my tasks'));
+        $this->assertFalse(SlackIntentMatcher::isCurrentProjectOnly('what can I do'));
+        $this->assertTrue(SlackIntentMatcher::isCurrentProjectOnly('my tasks in this project'));
+        $this->assertTrue(SlackIntentMatcher::isCurrentProjectOnly('what is open for me in this channel'));
+        $this->assertTrue(SlackIntentMatcher::isCurrentProjectOnly('only this project'));
+    }
+
+    public function test_someone_elses_tasks_are_detected_from_mentions_and_task_words(): void
+    {
+        $this->assertTrue(SlackIntentMatcher::isSomeoneElsesTasks(null, "what are 's tasks"));
+        $this->assertTrue(SlackIntentMatcher::isSomeoneElsesTasks(SlackIntentMatcher::INTENT_OPEN, 'show tasks'));
+        $this->assertFalse(SlackIntentMatcher::isSomeoneElsesTasks(SlackIntentMatcher::INTENT_CREATE_INTAKE, 'turn this into tasks'));
+        $this->assertFalse(SlackIntentMatcher::isSomeoneElsesTasks(SlackIntentMatcher::INTENT_OVERDUE, 'overdue'));
+    }
+
+    public function test_someone_elses_tasks_remap_to_my_open_when_another_person_is_mentioned(): void
+    {
+        $this->assertSame(
+            SlackIntentMatcher::INTENT_MY_OPEN,
+            SlackIntentMatcher::remapSomeoneElsesTasks(null, "what are 's tasks", true)
+        );
+        $this->assertSame(
+            SlackIntentMatcher::INTENT_MY_OPEN,
+            SlackIntentMatcher::remapSomeoneElsesTasks(SlackIntentMatcher::INTENT_OPEN, 'open tasks', true)
+        );
+        $this->assertNull(SlackIntentMatcher::remapSomeoneElsesTasks(null, 'hello there', true));
+        $this->assertSame(
+            SlackIntentMatcher::INTENT_OPEN,
+            SlackIntentMatcher::remapSomeoneElsesTasks(SlackIntentMatcher::INTENT_OPEN, 'open tasks', false)
+        );
+        $this->assertSame(
+            SlackIntentMatcher::INTENT_CREATE_INTAKE,
+            SlackIntentMatcher::remapSomeoneElsesTasks(SlackIntentMatcher::INTENT_CREATE_INTAKE, 'turn this into tasks', true)
+        );
+    }
+
+    public function test_classifier_intents_are_matcher_intents_plus_help_and_unknown(): void
+    {
+        $this->assertSame(
+            array_merge(SlackIntentMatcher::allIntents(), ['help', 'unknown']),
+            SlackIntentMatcher::classifierIntents()
+        );
+        $this->assertSame(
+            SlackIntentMatcher::classifierIntents(),
+            \App\AI\SlackIntentClassifier::allowedIntents()
+        );
     }
 }

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
 
 /**
  * Deterministic project task queries for the Hacklog Slack bot.
@@ -135,6 +136,60 @@ class SlackQueryService
                 return [
                     'title'     => $task->title,
                     'status'    => $task->status,
+                    'assignees' => $task->users->pluck('name')->values()->all(),
+                ];
+            })
+            ->all();
+
+        return compact('total', 'tasks');
+    }
+
+    /**
+     * Return actionable open tasks assigned to one user, either in one project
+     * or across all non-archived / non-completed projects. Completed and
+     * awaiting-feedback tasks are omitted.
+     *
+     * @return array{
+     *   total: int,
+     *   tasks: array<int, array{title: string, status: string, project_name: string, project_id: int, assignees: string[]}>,
+     * }
+     */
+    public function openForUser(User $user, ?Project $project = null, int $limit = 10): array
+    {
+        $baseQuery = function () use ($user, $project) {
+            $query = Task::withoutGlobalScope('ordered')
+                ->select('tasks.*')
+                ->join('columns', 'tasks.column_id', '=', 'columns.id')
+                ->join('projects', 'columns.project_id', '=', 'projects.id')
+                ->whereNotIn('tasks.status', ['completed', 'awaiting_feedback'])
+                ->whereHas('users', fn ($q) => $q->where('users.id', $user->id));
+
+            if ($project) {
+                $query->where('columns.project_id', $project->id);
+            } else {
+                $query->whereNotIn('projects.status', [
+                    Project::STATUS_ARCHIVED,
+                    Project::STATUS_COMPLETED,
+                ]);
+            }
+
+            return $query;
+        };
+
+        $total = $baseQuery()->count('tasks.id');
+
+        $tasks = $baseQuery()
+            ->orderBy('projects.name')
+            ->orderByRaw('tasks.position IS NULL, tasks.position ASC')
+            ->limit($limit)
+            ->with(['users:id,name', 'column:id,project_id', 'column.project:id,name'])
+            ->get()
+            ->map(function (Task $task): array {
+                return [
+                    'title' => $task->title,
+                    'status' => $task->status,
+                    'project_name' => $task->column->project->name,
+                    'project_id' => $task->column->project_id,
                     'assignees' => $task->users->pluck('name')->values()->all(),
                 ];
             })

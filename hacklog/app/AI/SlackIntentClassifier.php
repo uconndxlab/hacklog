@@ -2,6 +2,7 @@
 
 namespace App\AI;
 
+use App\Services\SlackIntentMatcher;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -18,16 +19,13 @@ class SlackIntentClassifier
 {
     /**
      * The only intent values this classifier may return.
-     * Must be kept in sync with SlackIntentMatcher constants + help/unknown.
+     *
+     * @return string[]
      */
-    const ALLOWED_INTENTS = [
-        'tasks_due_this_week',
-        'overdue_tasks',
-        'open_tasks',
-        'create_ai_intake_from_slack',
-        'help',
-        'unknown',
-    ];
+    public static function allowedIntents(): array
+    {
+        return SlackIntentMatcher::classifierIntents();
+    }
 
     /**
      * Classify a normalized Slack message into one of the allowed intents.
@@ -77,7 +75,7 @@ class SlackIntentClassifier
         $confidence = isset($raw['confidence']) ? round((float) $raw['confidence'], 2) : null;
 
         // Validate against allowlist to prevent any out-of-band values
-        if (!in_array($intent, self::ALLOWED_INTENTS, true)) {
+        if (!in_array($intent, self::allowedIntents(), true)) {
             Log::warning('Slack bot: AI returned out-of-allowlist intent.', [
                 'intent'   => $intent,
                 'provider' => $provider,
@@ -107,7 +105,8 @@ You classify Slack commands sent to the Hacklog project management bot. Reply ON
 Allowed intents:
 - tasks_due_this_week: asking about tasks due this week or soon (e.g. "what do we owe this week?", "anything coming up?", "what's due soon?", "what needs to be done by Friday?")
 - overdue_tasks: asking about tasks that are late or past due (e.g. "what are we late on?", "anything past due?", "what are we behind on?")
-- open_tasks: asking what work is still open or outstanding (e.g. "what's left?", "what's still outstanding?", "what needs doing?", "what's not done?")
+- my_open_tasks: asking about the speaker's own assigned work (e.g. "what am I working on?", "what's on my plate?", "what should I work on?", "what do I have going on?"). Use this whenever the request is first-person or about "my" workload, even if it also sounds like open/outstanding work.
+- open_tasks: asking what work is still open or outstanding for the project/team as a whole (e.g. "what's left?", "what's still outstanding?", "what needs doing?", "what's not done?"). Do not use this for first-person workload questions.
 - create_ai_intake_from_slack: user wants to save, capture, or convert content into Hacklog tasks. This includes ANY of: "task me", "task this", "grab this", "save this", "capture", "make actionable", "put in Hacklog", "turn into work", "make tasks", "create tasks". Classify as this intent regardless of whether in_thread is yes or no — the handler will ask for content if needed.
 - help: asking what the bot can do or how to use it
 - unknown: anything else, clearly unrelated requests (e.g. "order me a pizza"), or genuinely unclear intent
@@ -250,7 +249,7 @@ PROMPT;
                 'properties'           => [
                     'intent'     => [
                         'type' => 'string',
-                        'enum' => self::ALLOWED_INTENTS,
+                        'enum' => self::allowedIntents(),
                     ],
                     'confidence' => ['type' => 'number'],
                 ],

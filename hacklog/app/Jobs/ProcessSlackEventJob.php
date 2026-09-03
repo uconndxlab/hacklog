@@ -5,8 +5,10 @@ namespace App\Jobs;
 use App\AI\SlackIntentClassifier;
 use App\Models\Project;
 use App\Models\ProjectIntake;
+use App\Models\User;
 use App\Services\SlackBotService;
 use App\Services\SlackIntentMatcher;
+use App\Services\SlackIdentityService;
 use App\Services\SlackQueryService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -39,7 +41,8 @@ class ProcessSlackEventJob implements ShouldQueue
 
     public function handle(
         SlackBotService   $botService,
-        SlackQueryService $queryService
+        SlackQueryService $queryService,
+        SlackIdentityService $identityService
     ): void {
         $event = $this->payload['event'] ?? [];
 
@@ -64,6 +67,18 @@ class ProcessSlackEventJob implements ShouldQueue
             'channel_id' => $channelId,
             'user_id'    => $userId,
         ]);
+
+        // Strip <@USER> mentions (bare or labeled) and normalize whitespace before
+        // command matching. This happens before project resolution because a Slack
+        // identity belongs to a Hacklog user globally, not to a particular project.
+        $cleanedText = $identityService->stripUserMentions($rawText);
+        $cleanedText = (string) preg_replace('/\s+/', ' ', $cleanedText);
+        $cleanedText = trim($cleanedText);
+
+        if (($netid = $identityService->netidFromCommand($cleanedText)) !== null) {
+            $this->handleIdentityLink($channelId, $threadTs, $userId, $netid, $botService, $identityService);
+            return;
+        }
 
         // Resolve channel → project
         $project = Project::where('slack_channel_id', $channelId)
@@ -93,12 +108,6 @@ class ProcessSlackEventJob implements ShouldQueue
             'project'    => $project->name,
         ]);
 
-        // Strip <@BOT_ID> mentions and normalize whitespace before intent matching.
-        // Stripping a mid-sentence mention leaves extra spaces; collapse them to one.
-        $cleanedText = preg_replace('/<@[A-Z0-9]+>/i', '', $rawText);
-        $cleanedText = (string) preg_replace('/\s+/', ' ', (string) $cleanedText);
-        $cleanedText = trim($cleanedText);
-
         // Determine whether this message is a reply inside an existing thread.
         // Used by the capture handler and supplied as context to the AI classifier.
         $messageTs   = (string) ($event['ts'] ?? '');
@@ -113,7 +122,12 @@ class ProcessSlackEventJob implements ShouldQueue
         }
 
         // ── Step 1: Deterministic keyword matching (fast, no AI) ──────────────
+        $botSlackId = $identityService->botSlackUserIdFromPayload($this->payload);
+        $otherMentionedIds = $identityService->otherMentionedSlackIds($rawText, $userId, $botSlackId);
+        $hasOtherMention = $otherMentionedIds !== [];
+
         $intent = SlackIntentMatcher::match($cleanedText);
+        $intent = SlackIntentMatcher::remapSomeoneElsesTasks($intent, $cleanedText, $hasOtherMention);
 
         Log::info('Slack bot: intent matched.', [
             'event_id'  => $this->eventId,
@@ -139,19 +153,22 @@ class ProcessSlackEventJob implements ShouldQueue
                     'intent'   => $intent,
                 ]);
             }
+
+            $intent = SlackIntentMatcher::remapSomeoneElsesTasks($intent, $cleanedText, $hasOtherMention);
         }
 
         // Build and post response
         $response = match ($intent) {
             SlackIntentMatcher::INTENT_DUE_THIS_WEEK  => $this->respondDueThisWeek($project, $queryService),
             SlackIntentMatcher::INTENT_OVERDUE         => $this->respondOverdue($project, $queryService),
+            SlackIntentMatcher::INTENT_MY_OPEN          => $this->respondMyOpen($project, $userId, $rawText, $cleanedText, $botSlackId, $queryService, $identityService),
             SlackIntentMatcher::INTENT_OPEN            => $this->respondOpen($project, $queryService),
             SlackIntentMatcher::INTENT_CREATE_INTAKE   => null, // handled separately below
             default                                    => $this->respondUnknown(),
         };
 
         if ($intent === SlackIntentMatcher::INTENT_CREATE_INTAKE) {
-            $this->handleCreateIntake($project, $event, $botService);
+            $this->handleCreateIntake($project, $event, $botService, $identityService);
             return;
         }
 
@@ -253,13 +270,128 @@ class ProcessSlackEventJob implements ShouldQueue
         return implode("\n", $lines);
     }
 
+    private function respondMyOpen(
+        Project $project,
+        string $senderSlackId,
+        string $rawText,
+        string $cleanedText,
+        ?string $botSlackId,
+        SlackQueryService $service,
+        SlackIdentityService $identityService
+    ): string {
+        $otherMentionedIds = $identityService->otherMentionedSlackIds($rawText, $senderSlackId, $botSlackId);
+
+        if ($otherMentionedIds !== []) {
+            $asker = $identityService->linkedUserBySlackId($senderSlackId);
+            if (!$asker || !$asker->isAdmin()) {
+                return "Only a Hacklog admin can look up another person's tasks.";
+            }
+        }
+
+        if (count($otherMentionedIds) > 1) {
+            return 'Mention a single teammate so I know whose tasks to show.';
+        }
+
+        if (count($otherMentionedIds) === 1) {
+            $user = $identityService->linkedUserBySlackId($otherMentionedIds[0]);
+            if (!$user) {
+                return "I don't have a Hacklog account linked to that Slack user yet. They can reply with `@Hacklog I am theirNetID`.";
+            }
+            $forSomeoneElse = true;
+        } else {
+            $user = $identityService->linkedUserBySlackId($senderSlackId);
+            $forSomeoneElse = false;
+            if (!$user) {
+                return "I don't know which Hacklog user you are yet. Reply with `@Hacklog I am yourNetID` to link your account.";
+            }
+        }
+
+        $thisProjectOnly = SlackIntentMatcher::isCurrentProjectOnly($cleanedText);
+        $result = $service->openForUser($user, $thisProjectOnly ? $project : null, limit: 10);
+        $total = $result['total'];
+        $tasks = $result['tasks'];
+        $who = $forSomeoneElse ? $user->name : 'you';
+        $emptyWho = $forSomeoneElse ? "*{$user->name}* has" : 'You have';
+
+        if ($total === 0) {
+            return $thisProjectOnly
+                ? "{$emptyWho} no open {$project->name} tasks. :white_check_mark:"
+                : "{$emptyWho} no open tasks. :white_check_mark:";
+        }
+
+        $noun = $total === 1 ? 'task' : 'tasks';
+        $shown = count($tasks);
+        $header = $thisProjectOnly
+            ? "*{$total} open {$project->name} {$noun} assigned to {$who}*"
+            : "*{$total} open {$noun} assigned to {$who}*";
+        $lines = [$header];
+
+        $currentProjectName = null;
+        foreach ($tasks as $task) {
+            if (! $thisProjectOnly && $task['project_name'] !== $currentProjectName) {
+                $currentProjectName = $task['project_name'];
+                $lines[] = "*{$currentProjectName}*";
+            }
+            $lines[] = '• '.$task['title'];
+        }
+
+        if ($total > $shown) {
+            $more = $total - $shown;
+            $moreLine = "…and {$more} more";
+            if ($thisProjectOnly) {
+                $moreLine .= ' — <'.route('projects.board', $project).'|View board>';
+            }
+            $lines[] = $moreLine;
+        }
+
+        return implode("\n", $lines);
+    }
+
     private function respondUnknown(): string
     {
         return "I can currently answer these questions or take these actions for this Hacklog project:\n"
+            . "• *I am yourNetID* — link your Slack and Hacklog accounts\n"
+            . "• *my tasks* — open tasks assigned to you across projects (`in this project` to limit)\n"
+            . "• *@someone's tasks* — (admins) open tasks assigned to a linked Slack user\n"
             . "• *tasks due this week* — what's coming up\n"
             . "• *overdue tasks* — what's past due\n"
             . "• *open tasks* — everything still in progress\n"
-            . "• *turn this into tasks* — (reply in a thread) analyze the thread and propose Hacklog tasks";
+            . "• *turn this/these into tasks* — (reply in a thread) analyze the thread and propose Hacklog tasks";
+    }
+
+    private function handleIdentityLink(
+        string $channelId,
+        string $threadTs,
+        string $slackId,
+        string $netid,
+        SlackBotService $botService,
+        SlackIdentityService $identityService
+    ): void {
+        if ($channelId === '' || $slackId === '') {
+            Log::warning('Slack bot: identity command missing Slack event identifiers.', [
+                'event_id' => $this->eventId,
+            ]);
+            return;
+        }
+
+        $result = $identityService->link($slackId, $netid);
+
+        $message = match ($result['status']) {
+            SlackIdentityService::LINKED => "You're linked to *{$result['user']->name}* (`{$result['user']->netid}`). I can now use your Slack identity for personalized Hacklog requests.",
+            SlackIdentityService::ALREADY_LINKED => "You're already linked to *{$result['user']->name}* (`{$result['user']->netid}`).",
+            SlackIdentityService::USER_NOT_FOUND => "I couldn't find an active Hacklog user with NetID `{$netid}`. Check the NetID or ask a Hacklog admin to create/activate the account.",
+            SlackIdentityService::SLACK_ALREADY_LINKED => 'Your Slack account is already linked to a different Hacklog user. Ask a Hacklog admin to change it.',
+            SlackIdentityService::USER_ALREADY_LINKED => "The Hacklog user `{$netid}` is already linked to another Slack account. Ask a Hacklog admin to change it.",
+        };
+
+        $botService->postMessage($channelId, $message, $threadTs ?: null);
+
+        Log::info('Slack bot: identity link command handled.', [
+            'event_id' => $this->eventId,
+            'slack_id' => $slackId,
+            'netid' => $netid,
+            'status' => $result['status'],
+        ]);
     }
 
     // -------------------------------------------------------------------------
@@ -273,7 +405,7 @@ class ProcessSlackEventJob implements ShouldQueue
      * Thread reply: fetch the full thread and assemble source content.
      * Creates a ProjectIntake, dispatches ProcessProjectIntakeJob, acknowledges in Slack.
      */
-    private function handleCreateIntake(Project $project, array $event, SlackBotService $botService): void
+    private function handleCreateIntake(Project $project, array $event, SlackBotService $botService, SlackIdentityService $identityService): void
     {
         $channelId = (string) ($event['channel'] ?? '');
         $userId    = (string) ($event['user'] ?? '');
@@ -300,15 +432,15 @@ class ProcessSlackEventJob implements ShouldQueue
         if ($isThreadReply) {
             // Fetch the full thread and assemble source content
             $messages      = $botService->fetchThreadMessages($channelId, $threadTs);
-            $sourceContent = $this->assembleThreadContent($messages, $messageTs);
+            $sourceContent = $this->assembleThreadContent($messages, $messageTs, $identityService);
         } else {            // Top-level: try to extract content from the message itself
-            $stripped = preg_replace('/<@[A-Z0-9]+>/i', '', $rawText);
-            $stripped = (string) $stripped;
+            $stripped = $identityService->stripUserMentions($rawText);
 
             // Remove capture command keywords to isolate any trailing content
             $commandPhrases = [
                 'add this as a task', 'add this to hacklog', 'turn this into tasks',
-                'turn this into a task', 'capture this', 'send this to hacklog',
+                'turn this into a task', 'turn these into tasks', 'turn these into a task',
+                'capture this', 'send this to hacklog',
                 'log this', 'make this a task', 'create tasks from this', 'put this in hacklog',
             ];
             foreach ($commandPhrases as $phrase) {
@@ -346,10 +478,14 @@ class ProcessSlackEventJob implements ShouldQueue
             return;
         }
 
+        $hacklogUserId = User::where('slack_id', $userId)
+            ->where('active', true)
+            ->value('id');
+
         // Persist the intake using the existing AI Intake pipeline
         $intake = ProjectIntake::create([
             'project_id'     => $project->id,
-            'user_id'        => null,  // Slack user not mapped to Hacklog user in V1
+            'user_id'        => $hacklogUserId,
             'source_type'    => ProjectIntake::SOURCE_TYPE_SLACK,
             'source_content' => $sourceContent,
             'status'         => ProjectIntake::STATUS_QUEUED,
@@ -388,7 +524,7 @@ class ProcessSlackEventJob implements ShouldQueue
      * @param  array<int, array<string, mixed>>  $messages  From conversations.replies
      * @param  string  $triggerTs  Timestamp of the @hacklog command message (to exclude)
      */
-    private function assembleThreadContent(array $messages, string $triggerTs): string
+    private function assembleThreadContent(array $messages, string $triggerTs, SlackIdentityService $identityService): string
     {
         $lines = [];
 
@@ -409,7 +545,7 @@ class ProcessSlackEventJob implements ShouldQueue
             $text = trim((string) ($msg['text'] ?? ''));
 
             // Strip bot/user/channel mentions
-            $text = preg_replace('/<@[A-Z0-9]+>/i', '', $text);
+            $text = $identityService->stripUserMentions($text);
             $text = preg_replace('/<#[A-Z0-9]+(?:\|[^>]*)?>/', '', $text);
             $text = trim((string) $text);
 
