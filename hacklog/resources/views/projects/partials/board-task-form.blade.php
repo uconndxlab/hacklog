@@ -71,6 +71,7 @@
     @if(request('assigned'))
         <input type="hidden" name="filter_assigned" value="{{ request('assigned') }}">
     @endif
+    <input type="hidden" name="filter_completed_days" value="{{ request('completed_days', '30') }}">
 
     {{-- Header placeholders (out-of-band swaps) --}}
     <h5 id="taskModalLabel" class="modal-title mb-0" hx-swap-oob="true">

@@ -67,7 +67,7 @@
 {{-- Page Actions --}}
 <div class="d-flex justify-content-between align-items-center mb-4">
 
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
         <div class="dropdown">
             <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Filter by Phase">
                 @php
@@ -80,12 +80,12 @@
                 @endif
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item {{ !request('phase') ? 'active' : '' }}" href="{{ route('projects.board', $project) }}">All Phases</a></li>
+                <li><a class="dropdown-item {{ !request('phase') ? 'active' : '' }}" href="{{ request()->fullUrlWithQuery(['phase' => null]) }}">All Phases</a></li>
                 <li><hr class="dropdown-divider"></li>
                 @foreach($phases as $phase)
                     <li>
                         <a class="dropdown-item {{ request('phase') == $phase->id ? 'active' : '' }}" 
-                           href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}">
+                           href="{{ request()->fullUrlWithQuery(['phase' => $phase->id]) }}">
                             {{ $phase->name }}
                         </a>
                     </li>
@@ -162,6 +162,33 @@
                 @endforeach
             </ul>
         </div>
+
+        {{-- Completed task age filter --}}
+        <form method="GET" action="{{ route('projects.board', $project) }}" class="d-flex align-items-center flex-shrink-0">
+            @foreach(request()->except('completed_days') as $name => $value)
+                @if(is_scalar($value))
+                    <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+                @endif
+            @endforeach
+            <div class="input-group input-group-sm" style="width: 360px; max-width: 100%;">
+                <span class="input-group-text">Hide completed after</span>
+                <input type="number"
+                       class="form-control"
+                       name="completed_days"
+                       value="{{ $completedDays === null ? 30 : $completedDays }}"
+                       min="1"
+                       max="3650"
+                       style="flex: 0 0 72px; width: 72px; min-width: 72px;"
+                       aria-label="Days to show completed tasks"
+                       placeholder="30">
+                <span class="input-group-text">days</span>
+                <button class="btn btn-outline-secondary" type="submit">Apply</button>
+            </div>
+        </form>
+        <a class="btn btn-sm btn-outline-secondary {{ $completedDays === null ? 'active' : '' }}"
+           href="{{ request()->fullUrlWithQuery(['completed_days' => 'all']) }}">
+            Show all completed
+        </a>
     </div>
 </div>
 
@@ -398,6 +425,7 @@
 // browser URL (e.g. when a task title is clicked to open the detail modal).
 const boardFilterPhase    = '{{ request('phase') }}';
 const boardFilterAssigned = '{{ request('assigned') }}';
+const boardFilterCompletedDays = '{{ $completedDays === null ? 'all' : $completedDays }}';
 
 // Restore the board URL (with filters) whenever the task modal closes, undoing
 // any URL change caused by hx-push-url on task title links.
@@ -406,6 +434,7 @@ const boardFilterAssigned = '{{ request('assigned') }}';
     const filterParts  = [];
     if (boardFilterPhase)    filterParts.push('phase='    + encodeURIComponent(boardFilterPhase));
     if (boardFilterAssigned) filterParts.push('assigned=' + encodeURIComponent(boardFilterAssigned));
+    filterParts.push('completed_days=' + encodeURIComponent(boardFilterCompletedDays));
     @if(request('priority'))
     filterParts.push('priority=' + encodeURIComponent('{{ request('priority') }}'));
     @endif
@@ -431,6 +460,8 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
     if (boardFilterAssigned) {
         evt.detail.parameters['assigned'] = boardFilterAssigned;
     }
+
+    evt.detail.parameters['completed_days'] = boardFilterCompletedDays;
     
     // Add CSRF token to all HTMX requests
     const token = document.querySelector('meta[name="csrf-token"]');
@@ -729,6 +760,8 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         if (boardFilterAssigned) {
             requestBody.filter_assigned = boardFilterAssigned;
         }
+
+        requestBody.filter_completed_days = boardFilterCompletedDays;
         
         fetch(`/projects/{{ $project->id }}/board/tasks/${draggedTask.dataset.taskId}/move`, {
             method: 'POST',

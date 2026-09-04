@@ -561,6 +561,8 @@ class ProjectController extends Controller
         if ($filterWeight && in_array($filterWeight, \App\Models\Task::WEIGHT_VALUES)) {
             $tasksQuery->where('weight', $filterWeight);
         }
+        $completedDays = $this->resolveBoardCompletedDays($request);
+        $this->applyBoardCompletedFilter($tasksQuery, $completedDays);
 
         // Load all tasks for this project (optionally filtered by phase)
         // Eager load phase, users, and creator relationships and order by position within each column
@@ -577,7 +579,7 @@ class ProjectController extends Controller
             })->where('status', '!=', 'completed');
         }])->orderBy('name')->get();
 
-        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks'));
+        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks', 'completedDays'));
     }
 
     /**
@@ -845,6 +847,8 @@ class ProjectController extends Controller
                 $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
             }
 
+            $this->preserveBoardCompletedDays($request, $queryParams);
+
             $redirectUrl = route('projects.board', array_merge(['project' => $project], $queryParams));
 
             return response('')
@@ -865,6 +869,8 @@ class ProjectController extends Controller
         if ($request->has('filter_assigned') || $request->query('assigned')) {
             $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
         }
+
+        $this->preserveBoardCompletedDays($request, $queryParams);
 
         return redirect()->route('projects.board', array_merge(['project' => $project], $queryParams))
             ->with('success', 'Task created successfully.');
@@ -1168,6 +1174,9 @@ class ProjectController extends Controller
                 });
             }
 
+            $completedDays = $this->resolveBoardCompletedDays($request);
+            $this->applyBoardCompletedFilter($tasksQuery, $completedDays);
+
             $tasks = $this->constrainBoardTaskPayload($tasksQuery)
                 ->get()
                 ->groupBy('column_id');
@@ -1208,6 +1217,7 @@ class ProjectController extends Controller
                 if ($filterAssigned) {
                     $queryParams['assigned'] = $filterAssigned;
                 }
+                $this->preserveBoardCompletedDays($request, $queryParams);
                 $boardUrl = route('projects.board', array_merge(['project' => $project], $queryParams));
 
                 return response($html)->header('HX-Push-Url', $boardUrl);
@@ -1234,6 +1244,7 @@ class ProjectController extends Controller
                 if ($filterAssigned) {
                     $queryParams['assigned'] = $filterAssigned;
                 }
+                $this->preserveBoardCompletedDays($request, $queryParams);
                 $boardUrl = route('projects.board', array_merge(['project' => $project], $queryParams));
 
                 return response($html)->header('HX-Push-Url', $boardUrl);
@@ -1248,6 +1259,7 @@ class ProjectController extends Controller
         if ($request->has('filter_assigned') || $request->query('assigned')) {
             $queryParams['assigned'] = $request->input('filter_assigned') ?? $request->query('assigned');
         }
+        $this->preserveBoardCompletedDays($request, $queryParams);
 
         return redirect()->route('projects.board', array_merge(['project' => $project], $queryParams))
             ->with('success', 'Task updated successfully.');
@@ -1275,6 +1287,67 @@ class ProjectController extends Controller
             'users:id,name',
             'creator:id,name',
         ])->withBoardDependencySummary();
+    }
+
+    /**
+     * Resolve the board's completed-task age filter. Defaults to 30 days;
+     * "all" disables the filter.
+     */
+    protected function resolveBoardCompletedDays(Request $request): ?int
+    {
+        $value = $request->query('completed_days');
+
+        if ($value === null) {
+            $value = $request->input('filter_completed_days', 30);
+        }
+
+        if ($value === 'all') {
+            return null;
+        }
+
+        $days = filter_var($value, FILTER_VALIDATE_INT);
+
+        return $days !== false && $days >= 1 && $days <= 3650 ? $days : 30;
+    }
+
+    /**
+     * Hide completed tasks older than the selected number of days. Older data
+     * may not have completed_at populated, so updated_at is its best fallback.
+     */
+    protected function applyBoardCompletedFilter($query, ?int $completedDays): void
+    {
+        if ($completedDays === null) {
+            return;
+        }
+
+        $cutoff = now()->subDays($completedDays);
+
+        $query->where(function ($query) use ($cutoff) {
+            $query->where('status', '!=', 'completed')
+                ->orWhere(function ($query) use ($cutoff) {
+                    $query->where('status', 'completed')
+                        ->where(function ($query) use ($cutoff) {
+                            $query->where('completed_at', '>=', $cutoff)
+                                ->orWhere(function ($query) use ($cutoff) {
+                                    $query->whereNull('completed_at')
+                                        ->where('updated_at', '>=', $cutoff);
+                                });
+                        });
+                });
+        });
+    }
+
+    /**
+     * Preserve an explicitly selected completed-task filter across redirects.
+     * The absent/default state does not need to add noise to the URL.
+     */
+    protected function preserveBoardCompletedDays(Request $request, array &$queryParams): void
+    {
+        $value = $request->input('filter_completed_days', $request->query('completed_days'));
+
+        if ($value !== null && ($value === 'all' || ctype_digit((string) $value))) {
+            $queryParams['completed_days'] = $value;
+        }
     }
 
     /**
