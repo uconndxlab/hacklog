@@ -5,12 +5,57 @@ namespace Database\Seeders;
 use App\Models\Department;
 use App\Models\MajorOffice;
 use App\Models\Project;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class ProjectInventorySeeder extends Seeder
 {
+    /**
+     * Current i3 Staffing spreadsheet labels mapped to stable user identifiers.
+     *
+     * Client accounts and names without a matching user are intentionally omitted.
+     */
+    protected array $staffingNetids = [
+        'Aaron M.' => 'ajm22074',
+        'Brian D.' => 'bpd01001',
+        'Brian K.' => 'bak11004',
+        'Brooke G.' => 'bef10003',
+        'Casper A.' => 'cea22004',
+        'Dan S.' => 'das10009',
+        'Jay K.' => 'jmk22028',
+        'Jeff W.' => 'jdw01001',
+        'Joel S.' => 'jrs06005',
+        'Kailey M.' => 'kam21027',
+        'Krish S.' => 'kss22006',
+        'Maggie D.' => 'mmd21011',
+        'Natalie L.' => 'nml17005',
+        'Phoebe L.' => 'phl19002',
+        'Sara S.' => 'sas16119',
+        'Soonwoo K.' => 'sok23005',
+        'Sue S.' => 'sls02010',
+        'Victoria B.' => 'tib21003',
+        'Will S.' => 'wis19003',
+    ];
+
+    /** Spreadsheet labels from the i3 Primary column. */
+    protected array $primaryNetids = [
+        'BK' => 'bak11004',
+        'Brian' => 'bpd01001',
+        'Brian Daley' => 'bpd01001',
+        'Brooke' => 'bef10003',
+        'Dan' => 'das10009',
+        'Jeff' => 'jdw01001',
+        'Joel' => 'jrs06005',
+        'Maggie' => 'mmd21011',
+        'Natalie' => 'nml17005',
+        'Phoebe' => 'phl19002',
+        'Sara' => 'sas16119',
+        'Sue' => 'sls02010',
+    ];
+
     /**
      * CSV names that already exist in Hacklog under a different title.
      * Keys are original spreadsheet names; values are current project names.
@@ -66,7 +111,7 @@ class ProjectInventorySeeder extends Seeder
     {
         $path = database_path('data/project-inventory.csv');
 
-        if (!is_readable($path)) {
+        if (! is_readable($path)) {
             $this->command?->error("Inventory CSV not found at {$path}");
 
             return;
@@ -81,6 +126,15 @@ class ProjectInventorySeeder extends Seeder
             $existingByName[$this->normalizeName($project->name)] = $project;
         }
 
+        $staffingUsers = User::query()
+            ->whereIn('netid', array_unique(array_merge(
+                array_values($this->staffingNetids),
+                array_values($this->primaryNetids)
+            )))
+            ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_TEAM])
+            ->get()
+            ->keyBy('netid');
+
         $updated = 0;
         $created = 0;
         $skipped = 0;
@@ -91,6 +145,7 @@ class ProjectInventorySeeder extends Seeder
 
             if ($csvName === '') {
                 $skipped++;
+
                 continue;
             }
 
@@ -99,21 +154,23 @@ class ProjectInventorySeeder extends Seeder
             $classification = $this->classificationFromRecord($record);
 
             if (isset($existingByName[$normalized])) {
-                $existingByName[$normalized]->fill(array_filter(
+                $project = $existingByName[$normalized];
+                $project->fill(array_filter(
                     $classification,
                     fn ($value) => $value !== null
                 ))->save();
                 $updated++;
-                continue;
+            } else {
+                $project = Project::create(array_merge($classification, [
+                    'name' => $name,
+                    'status' => $this->mapStatus($record['Status'] ?? ''),
+                    'staffing_model' => Project::STAFFING_DEDICATED,
+                ]));
+                $existingByName[$normalized] = $project;
+                $created++;
             }
 
-            $project = Project::create(array_merge($classification, [
-                'name' => $name,
-                'status' => $this->mapStatus($record['Status'] ?? ''),
-                'staffing_model' => Project::STAFFING_DEDICATED,
-            ]));
-            $existingByName[$normalized] = $project;
-            $created++;
+            $this->syncProjectTeam($project, $record, $staffingUsers);
         }
 
         fclose($handle);
@@ -143,6 +200,64 @@ class ProjectInventorySeeder extends Seeder
         $name = str_replace(['&', '’', "'"], ['and', '', ''], $name);
 
         return trim(preg_replace('/[^a-z0-9]+/', ' ', $name) ?? '');
+    }
+
+    /** @param Collection<string, User> $staffingUsers */
+    protected function syncProjectTeam(Project $project, array $record, Collection $staffingUsers): void
+    {
+        $staffingLabels = preg_split(
+            '/\s*,\s*/',
+            trim((string) ($record['Current i3 Staffing'] ?? '')),
+            -1,
+            PREG_SPLIT_NO_EMPTY
+        ) ?: [];
+
+        $teamUserIds = collect($staffingLabels)
+            ->map(fn (string $label) => $this->staffingNetids[$label] ?? null)
+            ->filter()
+            ->map(fn (string $netid) => $staffingUsers->get($netid)?->id)
+            ->filter()
+            ->unique()
+            ->map(fn ($id) => (string) $id)
+            ->values();
+
+        $primaryLabel = trim((string) ($record['i3 Primary'] ?? ''));
+        $primaryNetid = $this->primaryNetids[$primaryLabel] ?? null;
+        $primaryUserId = $primaryNetid !== null
+            ? $staffingUsers->get($primaryNetid)?->id
+            : null;
+
+        if ($primaryUserId !== null) {
+            $teamUserIds->push((string) $primaryUserId);
+            $teamUserIds = $teamUserIds->unique()->values();
+        }
+
+        $internalUserIds = User::query()
+            ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_TEAM])
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id);
+
+        $project->shares()
+            ->where('shareable_type', 'user')
+            ->whereIn('shareable_id', $internalUserIds)
+            ->when($teamUserIds->isNotEmpty(), fn ($query) => $query->whereNotIn('shareable_id', $teamUserIds))
+            ->delete();
+
+        foreach ($teamUserIds as $userId) {
+            $project->shares()->firstOrCreate(
+                ['shareable_type' => 'user', 'shareable_id' => $userId],
+                ['is_leader' => false]
+            );
+        }
+
+        $project->shares()->where('is_leader', true)->update(['is_leader' => false]);
+
+        if ($primaryUserId !== null) {
+            $project->shares()->updateOrCreate(
+                ['shareable_type' => 'user', 'shareable_id' => (string) $primaryUserId],
+                ['is_leader' => true]
+            );
+        }
     }
 
     protected function classificationFromRecord(array $record): array
