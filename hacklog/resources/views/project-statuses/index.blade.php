@@ -53,8 +53,10 @@
                         <tr>
                             <td>
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge" style="background-color: {{ $status->color }}; color: {{ $status->textColor() }}">{{ $status->name }}</span>
-                                    <input form="{{ $formId }}" name="name" class="form-control form-control-sm" value="{{ $status->name }}" required maxlength="80" style="max-width: 16rem;">
+                                    <div class="flex-shrink-0" style="width: 8rem;">
+                                        <span class="badge d-inline-block text-truncate" style="max-width: 100%; background-color: {{ $status->color }}; color: {{ $status->textColor() }}" title="{{ $status->name }}">{{ $status->name }}</span>
+                                    </div>
+                                    <input form="{{ $formId }}" name="name" class="form-control form-control-sm flex-shrink-0" value="{{ $status->name }}" required maxlength="80" style="width: 16rem;">
                                     <input form="{{ $formId }}" name="color" type="color" class="form-control form-control-color form-control-sm" value="{{ $status->color }}" required>
                                     <input form="{{ $formId }}" name="position" type="number" class="form-control form-control-sm" value="{{ $status->position }}" min="0" max="9999" required style="width: 5rem;" title="Sort order">
                                 </div>
