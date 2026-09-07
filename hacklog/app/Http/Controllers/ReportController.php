@@ -24,12 +24,14 @@ class ReportController extends Controller
         $status = $request->query('status');
         $statusValues = Project::statusValues();
         $statusLabels = Project::statusLabels();
+        $typeValues = Project::typeValues();
+        $typeLabels = Project::typeLabels();
         if (is_string($status) && in_array($status, $statusValues, true)) {
             $query->where('projects.status', $status);
         }
 
         $type = $request->query('type');
-        if (is_string($type) && in_array($type, Project::TYPE_VALUES, true)) {
+        if (is_string($type) && in_array($type, $typeValues, true)) {
             $query->where('projects.project_type', $type);
         }
 
@@ -66,7 +68,7 @@ class ReportController extends Controller
         ])->first();
 
         $listQuery = (clone $query)
-            ->with(['department', 'nestedDepartment', 'majorOffice'])
+            ->with(['department', 'nestedDepartment', 'majorOffice', 'typeDefinition'])
             ->leftJoin('departments as home_departments', 'projects.department_id', '=', 'home_departments.id')
             ->leftJoin('departments as nested_departments', 'projects.nested_department_id', '=', 'nested_departments.id')
             ->leftJoin('major_offices', 'projects.major_office_id', '=', 'major_offices.id')
@@ -94,13 +96,13 @@ class ReportController extends Controller
             ->select('project_type', DB::raw('COUNT(*) as projects_count'))
             ->groupBy('project_type')
             ->get()
-            ->filter(fn ($row) => in_array($row->project_type, Project::TYPE_VALUES, true) && $row->projects_count > 0)
+            ->filter(fn ($row) => in_array($row->project_type, $typeValues, true) && $row->projects_count > 0)
             ->map(fn ($row) => (object) [
                 'value' => $row->project_type,
-                'label' => Project::TYPE_LABELS[$row->project_type] ?? $row->project_type,
+                'label' => $typeLabels[$row->project_type] ?? $row->project_type,
                 'projects_count' => (int) $row->projects_count,
             ])
-            ->sortBy(fn ($row) => array_search($row->value, Project::TYPE_VALUES, true))
+            ->sortBy(fn ($row) => array_search($row->value, $typeValues, true))
             ->values();
 
         return view('reports.inventory', [
@@ -111,6 +113,8 @@ class ReportController extends Controller
             'departments' => Department::home()->orderBy('name')->get(),
             'offices' => MajorOffice::orderBy('name')->get(),
             'statusLabels' => $statusLabels,
+            'typeLabels' => $typeLabels,
+            'typeValues' => $typeValues,
             'statusColors' => Project::statusColors(),
             'statusTextColors' => Project::statusTextColors(),
             'sort' => $sort,
@@ -135,7 +139,7 @@ class ReportController extends Controller
 
         match ($sort) {
             'status' => $this->orderByEnum($query, 'projects.status', Project::statusValues(), $dir),
-            'type' => $this->orderByEnum($query, 'projects.project_type', Project::TYPE_VALUES, $dir),
+            'type' => $this->orderByEnum($query, 'projects.project_type', Project::typeValues(), $dir),
             'affiliation' => $this->orderByEnum($query, 'projects.uconn_affiliation', Project::AFFILIATION_VALUES, $dir),
             'department' => $query->orderBy('home_departments.name', $dir),
             'nested_department' => $query->orderBy('nested_departments.name', $dir),

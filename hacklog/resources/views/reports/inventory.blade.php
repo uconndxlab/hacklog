@@ -47,7 +47,7 @@
                 @forelse($projects as $project)
                     @php
                         $statusOrder = array_search($project->status, array_keys($statusLabels), true);
-                        $typeOrder = array_search($project->project_type, \App\Models\Project::TYPE_VALUES, true);
+                        $typeOrder = array_search($project->project_type, $typeValues, true);
                         $affiliationOrder = array_search($project->uconn_affiliation, \App\Models\Project::AFFILIATION_VALUES, true);
                     @endphp
                     <tr data-sortable-row>

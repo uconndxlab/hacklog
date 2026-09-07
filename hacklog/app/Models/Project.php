@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class Project extends Model
 {
@@ -55,15 +56,7 @@ class Project extends Model
 
     const TYPE_OTHER = 'other';
 
-    const TYPE_VALUES = [
-        self::TYPE_WEBSITE,
-        self::TYPE_WEBAPP,
-        self::TYPE_GRAPHIC_DESIGN,
-        self::TYPE_PROGRAM,
-        self::TYPE_OTHER,
-    ];
-
-    const TYPE_LABELS = [
+    const DEFAULT_TYPE_LABELS = [
         self::TYPE_WEBSITE => 'Website',
         self::TYPE_WEBAPP => 'Webapp',
         self::TYPE_GRAPHIC_DESIGN => 'Graphic design',
@@ -201,9 +194,41 @@ class Project extends Model
         return $this->belongsTo(ProjectStatus::class, 'status', 'key');
     }
 
+    public function typeDefinition(): BelongsTo
+    {
+        return $this->belongsTo(ProjectType::class, 'project_type', 'key');
+    }
+
     public static function statusDefinitions()
     {
         return ProjectStatus::definitions();
+    }
+
+    public static function typeDefinitions()
+    {
+        return ProjectType::definitions();
+    }
+
+    public static function typeValues(): array
+    {
+        return array_keys(static::typeLabels());
+    }
+
+    public static function typeLabels(): array
+    {
+        $labels = static::typeDefinitions()->pluck('name', 'key')->all();
+
+        if (! Schema::hasTable('projects')) {
+            return $labels;
+        }
+
+        // Keep manually orphaned legacy values visible and valid until they are
+        // explicitly reassigned to a configured type.
+        foreach (static::query()->whereNotNull('project_type')->distinct()->pluck('project_type') as $key) {
+            $labels[$key] ??= str($key)->replace('_', ' ')->title().' (unconfigured)';
+        }
+
+        return $labels;
     }
 
     public static function statusValues(): array
@@ -268,7 +293,13 @@ class Project extends Model
 
     public function projectTypeLabel(): ?string
     {
-        return self::TYPE_LABELS[$this->project_type] ?? null;
+        if ($this->project_type === null) {
+            return null;
+        }
+
+        return $this->typeDefinition?->name
+            ?? static::typeLabels()[$this->project_type]
+            ?? null;
     }
 
     public function clientCategoryLabel(): ?string

@@ -13,7 +13,7 @@
             id="project_type"
             name="project_type">
             <option value="">Select type…</option>
-            @foreach(\App\Models\Project::TYPE_LABELS as $value => $label)
+            @foreach(\App\Models\Project::typeLabels() as $value => $label)
                 <option value="{{ $value }}" @selected(old('project_type', $project?->project_type) === $value)>{{ $label }}</option>
             @endforeach
         </select>

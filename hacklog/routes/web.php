@@ -13,6 +13,7 @@ use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectIntakeController;
 use App\Http\Controllers\ProjectResourceController;
 use App\Http\Controllers\ProjectStatusController;
+use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TagController;
@@ -81,6 +82,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('departments/{department}/nested/{nested}', [DepartmentController::class, 'destroyNested'])->name('departments.nested.destroy');
     Route::resource('major-offices', MajorOfficeController::class)->except(['show', 'create', 'edit']);
     Route::resource('project-statuses', ProjectStatusController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('project-types', ProjectTypeController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('projects', ProjectController::class);
     Route::post('projects/{project}/favorite', [ProjectFavoriteController::class, 'toggle'])->name('projects.favorites.toggle');
     Route::get('projects/{project}/sharing', [ProjectController::class, 'sharing'])->name('projects.sharing');

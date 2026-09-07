@@ -262,7 +262,7 @@ class ProjectController extends Controller
      */
     public function tableView(Request $request)
     {
-        $projects = Project::with(['tags', 'columns.tasks.users', 'shares', 'department', 'nestedDepartment', 'majorOffice', 'statusDefinition'])
+        $projects = Project::with(['tags', 'columns.tasks.users', 'shares', 'department', 'nestedDepartment', 'majorOffice', 'statusDefinition', 'typeDefinition'])
             ->orderBy(ProjectStatus::select('position')->whereColumn('project_statuses.key', 'projects.status'))
             ->orderBy('name', 'asc')
             ->get();
@@ -1597,7 +1597,7 @@ class ProjectController extends Controller
     protected function classificationValidationRules(): array
     {
         return [
-            'project_type' => ['nullable', Rule::in(Project::TYPE_VALUES)],
+            'project_type' => ['nullable', Rule::in(Project::typeValues())],
             'department_id' => 'nullable|integer|exists:departments,id',
             'nested_department_id' => 'nullable|integer|exists:departments,id',
             'major_office_id' => 'nullable|integer|exists:major_offices,id',

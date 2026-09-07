@@ -10,8 +10,8 @@
     if (request()->filled('status') && isset($statusLabels[request('status')])) {
         $chips[] = ['label' => $statusLabels[request('status')], 'url' => route('reports.index', $filterQuery(['status']))];
     }
-    if (request()->filled('type') && isset(\App\Models\Project::TYPE_LABELS[request('type')])) {
-        $chips[] = ['label' => \App\Models\Project::TYPE_LABELS[request('type')], 'url' => route('reports.index', $filterQuery(['type']))];
+    if (request()->filled('type') && isset($typeLabels[request('type')])) {
+        $chips[] = ['label' => $typeLabels[request('type')], 'url' => route('reports.index', $filterQuery(['type']))];
     }
     if (request()->filled('department')) {
         $deptName = $departments->firstWhere('id', (int) request('department'))?->name ?? 'Department';
@@ -51,7 +51,7 @@
             <label for="type" class="form-label small mb-1">Type</label>
             <select id="type" name="type" class="form-select form-select-sm" onchange="this.form.submit()">
                 <option value="">All types</option>
-                @foreach(\App\Models\Project::TYPE_LABELS as $value => $label)
+                @foreach($typeLabels as $value => $label)
                     <option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>
                 @endforeach
             </select>

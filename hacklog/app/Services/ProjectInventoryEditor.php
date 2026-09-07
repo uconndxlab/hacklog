@@ -56,7 +56,7 @@ class ProjectInventoryEditor
                 ])
                 ->values()
                 ->all(),
-            'types' => collect(Project::TYPE_LABELS)
+            'types' => collect(Project::typeLabels())
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
                 ->values()
                 ->all(),
@@ -291,7 +291,7 @@ class ProjectInventoryEditor
         return [
             'status' => ['required', Rule::in(Project::statusValues())],
             'name' => 'required|string|max:255',
-            'project_type' => ['nullable', Rule::in(Project::TYPE_VALUES)],
+            'project_type' => ['nullable', Rule::in(Project::typeValues())],
             'launch_date' => 'nullable|date',
             'department_id' => 'nullable|integer|exists:departments,id',
             'nested_department_id' => 'nullable|integer|exists:departments,id',
