@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Http\Request;
 
@@ -24,6 +25,9 @@ class DashboardController extends Controller
             $query->where('users.id', $user->id);
         })
         ->whereNotIn('status', $excludedStatuses)
+        ->whereDoesntHave('column.project', function ($query) {
+            $query->where('status', Project::STATUS_ON_HOLD);
+        })
         ->with(['phase.project', 'column.project'])
         ->get();
 
@@ -63,13 +67,16 @@ class DashboardController extends Controller
         if ($user->isClient()) {
             $awaitingFeedbackTasks = Task::where('status', 'awaiting_feedback')
                 ->whereHas('phase.project', function($query) use ($user) {
-                    $query->whereHas('shares', function($shareQuery) use ($user) {
-                        $shareQuery->where('shareable_type', 'user')
-                                   ->where('shareable_id', (string)$user->id);
-                    })
-                    ->orWhereHas('resources', function($resourceQuery) use ($user) {
-                        $resourceQuery->where('user_id', $user->id);
-                    });
+                    $query->where('status', '!=', Project::STATUS_ON_HOLD)
+                        ->where(function ($projectQuery) use ($user) {
+                            $projectQuery->whereHas('shares', function($shareQuery) use ($user) {
+                                $shareQuery->where('shareable_type', 'user')
+                                           ->where('shareable_id', (string)$user->id);
+                            })
+                            ->orWhereHas('resources', function($resourceQuery) use ($user) {
+                                $resourceQuery->where('user_id', $user->id);
+                            });
+                        });
                 })
                 ->with(['phase.project', 'column'])
                 ->orderBy('updated_at', 'desc')
@@ -77,6 +84,9 @@ class DashboardController extends Controller
         } else {
             // Admins and team members see all awaiting_feedback tasks across the org
             $awaitingFeedbackTasks = Task::where('status', 'awaiting_feedback')
+                ->whereDoesntHave('column.project', function ($query) {
+                    $query->where('status', Project::STATUS_ON_HOLD);
+                })
                 ->with(['phase.project', 'column', 'users'])
                 ->orderBy('updated_at', 'desc')
                 ->get();
