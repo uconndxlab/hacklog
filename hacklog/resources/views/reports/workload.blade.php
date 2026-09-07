@@ -5,7 +5,7 @@
 @section('content')
 @php
     $totalAssignments = $rows->sum('visible_count');
-    $legendStatuses = collect(\App\Http\Controllers\ReportController::STATUS_LABELS)
+    $legendStatuses = collect($statusLabels)
         ->filter(fn ($label, $status) => in_array($status, $presentStatuses, true));
     $byTeam = $by === \App\Http\Controllers\ReportController::WORKLOAD_BY_TEAM;
     $byLeader = $by === \App\Http\Controllers\ReportController::WORKLOAD_BY_LEADER;
@@ -119,7 +119,7 @@
                     </div>
                     <div class="flex-grow-1">
                         <div class="report-workload-track">
-                            @foreach(\App\Models\Project::STATUS_VALUES as $status)
+                            @foreach(array_keys($statusLabels) as $status)
                                 @php
                                     $group = $byStatus->get($status, collect());
                                     $count = $group->count();
@@ -136,7 +136,7 @@
                                 @if($count > 0 && ! in_array($status, $hiddenStatuses, true))
                                     <div class="report-workload-segment"
                                          style="width: {{ $pct }}%; background-color: {{ $statusColors[$status] ?? '#9ca3af' }};"
-                                         data-tooltip-status="{{ \App\Http\Controllers\ReportController::STATUS_LABELS[$status] ?? $status }}"
+                                         data-tooltip-status="{{ $statusLabels[$status] ?? $status }}"
                                          data-tooltip-projects="{{ $tooltipProjects }}"></div>
                                 @endif
                             @endforeach

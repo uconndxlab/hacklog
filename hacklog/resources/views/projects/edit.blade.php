@@ -52,11 +52,9 @@
                             id="status" 
                             name="status" 
                             required>
-                            <option value="planning" {{ old('status', $project->status) === 'planning' ? 'selected' : '' }}>Planning</option>
-                            <option value="active" {{ old('status', $project->status) === 'active' ? 'selected' : '' }}>Active</option>
-                            <option value="on_hold" {{ old('status', $project->status) === 'on_hold' ? 'selected' : '' }}>On Hold</option>
-                            <option value="completed" {{ old('status', $project->status) === 'completed' ? 'selected' : '' }}>Completed</option>
-                            <option value="archived" {{ old('status', $project->status) === 'archived' ? 'selected' : '' }}>Archived</option>
+                            @foreach(\App\Models\Project::statusDefinitions() as $statusOption)
+                                <option value="{{ $statusOption->key }}" @selected(old('status', $project->status) === $statusOption->key)>{{ $statusOption->name }}</option>
+                            @endforeach
                         </select>
                         @error('status')
                             <div class="invalid-feedback">{{ $message }}</div>

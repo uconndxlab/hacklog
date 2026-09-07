@@ -64,14 +64,8 @@
                         @endphp
                         <tr>
                             <td>
-                                <span class="badge
-                                    @if($project->status === 'planning') bg-info
-                                    @elseif($project->status === 'active') bg-success
-                                    @elseif($project->status === 'on_hold') bg-warning text-dark
-                                    @elseif($project->status === 'completed') bg-primary
-                                    @else bg-secondary
-                                    @endif">
-                                    {{ ucfirst(str_replace('_', ' ', $project->status)) }}
+                                <span class="badge" style="background-color: {{ $project->statusColor() }}; color: {{ $project->statusTextColor() }}">
+                                    {{ $project->statusLabel() }}
                                 </span>
                             </td>
                             <td>

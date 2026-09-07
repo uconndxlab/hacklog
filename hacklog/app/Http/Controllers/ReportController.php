@@ -12,22 +12,6 @@ use Illuminate\View\View;
 
 class ReportController extends Controller
 {
-    public const STATUS_LABELS = [
-        Project::STATUS_PLANNING => 'Planning',
-        Project::STATUS_ACTIVE => 'Active',
-        Project::STATUS_ON_HOLD => 'On hold',
-        Project::STATUS_COMPLETED => 'Completed',
-        Project::STATUS_ARCHIVED => 'Archived',
-    ];
-
-    public const STATUS_COLORS = [
-        Project::STATUS_PLANNING => '#7c3aed',
-        Project::STATUS_ACTIVE => '#2563eb',
-        Project::STATUS_ON_HOLD => '#ea580c',
-        Project::STATUS_COMPLETED => '#16a34a',
-        Project::STATUS_ARCHIVED => '#6c757d',
-    ];
-
     public function index(Request $request): View
     {
         $query = Project::query();
@@ -38,7 +22,9 @@ class ReportController extends Controller
         }
 
         $status = $request->query('status');
-        if (is_string($status) && in_array($status, Project::STATUS_VALUES, true)) {
+        $statusValues = Project::statusValues();
+        $statusLabels = Project::statusLabels();
+        if (is_string($status) && in_array($status, $statusValues, true)) {
             $query->where('projects.status', $status);
         }
 
@@ -94,13 +80,13 @@ class ReportController extends Controller
             ->select('status', DB::raw('COUNT(*) as projects_count'))
             ->groupBy('status')
             ->get()
-            ->filter(fn ($row) => in_array($row->status, Project::STATUS_VALUES, true) && $row->projects_count > 0)
+            ->filter(fn ($row) => in_array($row->status, $statusValues, true) && $row->projects_count > 0)
             ->map(fn ($row) => (object) [
                 'value' => $row->status,
-                'label' => self::STATUS_LABELS[$row->status] ?? $row->status,
+                'label' => $statusLabels[$row->status] ?? $row->status,
                 'projects_count' => (int) $row->projects_count,
             ])
-            ->sortBy(fn ($row) => array_search($row->value, Project::STATUS_VALUES, true))
+            ->sortBy(fn ($row) => array_search($row->value, $statusValues, true))
             ->values();
 
         $typeCounts = Project::query()
@@ -124,7 +110,9 @@ class ReportController extends Controller
             'typeCounts' => $typeCounts,
             'departments' => Department::home()->orderBy('name')->get(),
             'offices' => MajorOffice::orderBy('name')->get(),
-            'statusColors' => self::STATUS_COLORS,
+            'statusLabels' => $statusLabels,
+            'statusColors' => Project::statusColors(),
+            'statusTextColors' => Project::statusTextColors(),
             'sort' => $sort,
             'direction' => $direction,
         ]);
@@ -146,7 +134,7 @@ class ReportController extends Controller
         $dir = $direction === 'desc' ? 'desc' : 'asc';
 
         match ($sort) {
-            'status' => $this->orderByEnum($query, 'projects.status', Project::STATUS_VALUES, $dir),
+            'status' => $this->orderByEnum($query, 'projects.status', Project::statusValues(), $dir),
             'type' => $this->orderByEnum($query, 'projects.project_type', Project::TYPE_VALUES, $dir),
             'affiliation' => $this->orderByEnum($query, 'projects.uconn_affiliation', Project::AFFILIATION_VALUES, $dir),
             'department' => $query->orderBy('home_departments.name', $dir),
@@ -226,13 +214,14 @@ class ReportController extends Controller
             'launchFilter' => $launchFilter,
             'presentStatuses' => $presentStatuses,
             'maxCount' => $rows->max('visible_count') ?: 1,
-            'statusColors' => self::STATUS_COLORS,
+            'statusColors' => Project::statusColors(),
+            'statusLabels' => Project::statusLabels(),
         ]);
     }
 
     private function workloadHiddenStatuses(Request $request): array
     {
-        $validStatuses = Project::STATUS_VALUES;
+        $validStatuses = Project::statusValues();
         $defaultHidden = [Project::STATUS_COMPLETED, Project::STATUS_ARCHIVED];
 
         if ($request->has('hide')) {

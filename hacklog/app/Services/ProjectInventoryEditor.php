@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Http\Controllers\ReportController;
 use App\Models\Department;
 use App\Models\MajorOffice;
 use App\Models\Project;
@@ -48,8 +47,13 @@ class ProjectInventoryEditor
             ->all();
 
         return [
-            'statuses' => collect(ReportController::STATUS_LABELS)
-                ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
+            'statuses' => Project::statusDefinitions()
+                ->map(fn ($status) => [
+                    'value' => $status->key,
+                    'label' => $status->name,
+                    'color' => $status->color,
+                    'text_color' => $status->textColor(),
+                ])
                 ->values()
                 ->all(),
             'types' => collect(Project::TYPE_LABELS)
@@ -285,7 +289,7 @@ class ProjectInventoryEditor
     protected function rules(): array
     {
         return [
-            'status' => ['required', Rule::in(Project::STATUS_VALUES)],
+            'status' => ['required', Rule::in(Project::statusValues())],
             'name' => 'required|string|max:255',
             'project_type' => ['nullable', Rule::in(Project::TYPE_VALUES)],
             'launch_date' => 'nullable|date',

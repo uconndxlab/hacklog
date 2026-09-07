@@ -73,6 +73,9 @@
     }
 
     const STATUSES = toMap(options.statuses, 'value', 'label', '');
+    const STATUS_STYLES = Object.fromEntries((options.statuses || []).map(function (status) {
+        return [status.value, status];
+    }));
     const TYPES = toMap(options.types, 'value', 'label', '—');
     const DEPARTMENTS = toMap(options.departments, 'id', 'name', '—');
     const OFFICES = toMap(options.offices, 'id', 'name', '—');
@@ -101,6 +104,18 @@
         return function (cell) {
             return label(values, cell.getValue());
         };
+    }
+
+    function statusFormatter(cell) {
+        const status = STATUS_STYLES[cell.getValue()];
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = status ? status.label : (cell.getValue() || '');
+        if (status) {
+            badge.style.backgroundColor = status.color;
+            badge.style.color = status.text_color;
+        }
+        return badge;
     }
 
     function nameFormatter(cell) {
@@ -259,7 +274,7 @@
                 field: 'status',
                 editor: 'list',
                 editorParams: { values: STATUSES },
-                formatter: lookup(STATUSES),
+                formatter: statusFormatter,
                 frozen: true,
                 width: 130,
             },

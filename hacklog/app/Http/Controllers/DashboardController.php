@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Http\Request;
 
@@ -14,6 +15,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $today = today();
+        $activeViewStatuses = Project::activeViewStatusValues();
 
         // Get all assigned tasks with relationships
         // Clients see awaiting_feedback tasks (they need to provide feedback)
@@ -22,6 +24,9 @@ class DashboardController extends Controller
         
         $allAssignedTasks = Task::whereHas('users', function ($query) use ($user) {
             $query->where('users.id', $user->id);
+        })
+        ->whereHas('column.project', function ($query) use ($activeViewStatuses) {
+            $query->whereIn('status', $activeViewStatuses);
         })
         ->whereNotIn('status', $excludedStatuses)
         ->with(['phase.project', 'column.project'])
@@ -62,13 +67,16 @@ class DashboardController extends Controller
         $awaitingFeedbackTasks = collect();
         if ($user->isClient()) {
             $awaitingFeedbackTasks = Task::where('status', 'awaiting_feedback')
-                ->whereHas('phase.project', function($query) use ($user) {
-                    $query->whereHas('shares', function($shareQuery) use ($user) {
+                ->whereHas('phase.project', function($query) use ($user, $activeViewStatuses) {
+                    $query->whereIn('status', $activeViewStatuses)
+                    ->where(function ($query) use ($user) {
+                        $query->whereHas('shares', function($shareQuery) use ($user) {
                         $shareQuery->where('shareable_type', 'user')
                                    ->where('shareable_id', (string)$user->id);
                     })
                     ->orWhereHas('resources', function($resourceQuery) use ($user) {
                         $resourceQuery->where('user_id', $user->id);
+                    });
                     });
                 })
                 ->with(['phase.project', 'column'])
@@ -77,6 +85,9 @@ class DashboardController extends Controller
         } else {
             // Admins and team members see all awaiting_feedback tasks across the org
             $awaitingFeedbackTasks = Task::where('status', 'awaiting_feedback')
+                ->whereHas('column.project', function ($query) use ($activeViewStatuses) {
+                    $query->whereIn('status', $activeViewStatuses);
+                })
                 ->with(['phase.project', 'column', 'users'])
                 ->orderBy('updated_at', 'desc')
                 ->get();
@@ -86,8 +97,8 @@ class DashboardController extends Controller
         // Clients: Show ALL their shared projects (they only have a few)
         // Team/Admin: Show favorited projects only to reduce noise
         if ($user->isClient()) {
-            $activeProjects = \App\Models\Project::visibleTo($user)
-                ->whereIn('status', ['planning', 'active'])
+            $activeProjects = Project::visibleTo($user)
+                ->whereIn('status', $activeViewStatuses)
                 ->with(['phases' => function($q) {
                     $q->where('status', '!=', 'completed');
                 }])
@@ -122,7 +133,7 @@ class DashboardController extends Controller
                 });
         } else {
             $activeProjects = $user->favoriteProjects()
-                ->where('status', 'active')
+                ->whereIn('status', $activeViewStatuses)
                 ->with(['phases' => function($q) {
                     $q->where('status', '!=', 'completed');
                 }])
@@ -220,9 +231,9 @@ class DashboardController extends Controller
         // Prioritize high-priority tasks first
         $unassignedTasks = Task::whereDoesntHave('users')
             ->where('status', '!=', 'completed')
-            ->whereHas('phase', function($query) {
-                $query->whereHas('project', function($projectQuery) {
-                    $projectQuery->where('status', 'active')
+            ->whereHas('phase', function($query) use ($activeViewStatuses) {
+                $query->whereHas('project', function($projectQuery) use ($activeViewStatuses) {
+                    $projectQuery->whereIn('status', $activeViewStatuses)
                                  ->where('staffing_model', 'shared');
                 });
             })

@@ -91,7 +91,7 @@
                 <ul class="navbar-nav ms-auto">
                     @if(Auth::check() && !Auth::user()->isClient())
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle {{ request()->routeIs('tags.*', 'departments.*', 'major-offices.*') ? 'active' : '' }}"
+                            <a class="nav-link dropdown-toggle {{ request()->routeIs('tags.*', 'departments.*', 'major-offices.*', 'project-statuses.*') ? 'active' : '' }}"
                                href="#"
                                id="navbarConfigDropdown"
                                role="button"
@@ -108,6 +108,9 @@
                                 </li>
                                 <li>
                                     <a class="dropdown-item {{ request()->routeIs('major-offices.*') ? 'active' : '' }}" href="{{ route('major-offices.index') }}">Offices</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('project-statuses.*') ? 'active' : '' }}" href="{{ route('project-statuses.index') }}">Project Statuses</a>
                                 </li>
                             </ul>
                         </li>

@@ -46,20 +46,14 @@
             <tbody>
                 @forelse($projects as $project)
                     @php
-                        $statusOrder = array_search($project->status, \App\Models\Project::STATUS_VALUES, true);
+                        $statusOrder = array_search($project->status, array_keys($statusLabels), true);
                         $typeOrder = array_search($project->project_type, \App\Models\Project::TYPE_VALUES, true);
                         $affiliationOrder = array_search($project->uconn_affiliation, \App\Models\Project::AFFILIATION_VALUES, true);
                     @endphp
                     <tr data-sortable-row>
                         <td data-sort-col="status" data-sort="{{ $statusOrder === false ? 99 : $statusOrder }}">
-                            <span class="badge
-                                @if($project->status === 'planning') bg-info
-                                @elseif($project->status === 'active') bg-success
-                                @elseif($project->status === 'on_hold') bg-warning text-dark
-                                @elseif($project->status === 'completed') bg-primary
-                                @else bg-secondary
-                                @endif">
-                                {{ \App\Http\Controllers\ReportController::STATUS_LABELS[$project->status] ?? ucfirst(str_replace('_', ' ', $project->status)) }}
+                            <span class="badge" style="background-color: {{ $statusColors[$project->status] ?? '#6c757d' }}; color: {{ $statusTextColors[$project->status] ?? '#fff' }};">
+                                {{ $statusLabels[$project->status] ?? ucfirst(str_replace('_', ' ', $project->status)) }}
                             </span>
                         </td>
                         <td data-sort-col="name" data-sort="{{ $project->name }}">

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Column;
 use App\Models\Phase;
 use App\Models\Project;
+use App\Models\ProjectStatus;
 use App\Models\Tag;
 use App\Models\Task;
 use App\Models\User;
@@ -15,6 +16,33 @@ use Tests\TestCase;
 class TimelineFiltersTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_default_timeline_keeps_on_hold_projects_and_uses_configured_status_labels(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_TEAM,
+            'active' => true,
+        ]);
+        $project = Project::create([
+            'name' => 'Paused Timeline Project',
+            'status' => Project::STATUS_ON_HOLD,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+        ]);
+        Phase::create([
+            'project_id' => $project->id,
+            'name' => 'Paused Timeline Phase',
+            'status' => 'active',
+            'start_date' => Carbon::today()->addDay(),
+            'end_date' => Carbon::today()->addDays(5),
+        ]);
+        ProjectStatus::where('key', Project::STATUS_ON_HOLD)->update(['name' => 'Paused']);
+
+        $this->actingAs($user)
+            ->get(route('timeline.index'))
+            ->assertOk()
+            ->assertSeeText('Paused Timeline Phase')
+            ->assertSeeText('Paused');
+    }
 
     public function test_timeline_filters_by_project_status_and_staffing_model(): void
     {

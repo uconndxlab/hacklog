@@ -1,5 +1,8 @@
 @php
     $favoriteProjectIds = $favoriteProjectIds ?? [];
+    $projectStatusLabels = \App\Models\Project::statusLabels();
+    $projectStatusColors = \App\Models\Project::statusColors();
+    $projectStatusTextColors = \App\Models\Project::statusTextColors();
     
     // Split into favorites and others - preserve controller's sort order unless alphabetical
     $currentSort = request('sort', 'alphabetical');

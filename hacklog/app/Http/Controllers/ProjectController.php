@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\MajorOffice;
 use App\Models\Project;
+use App\Models\ProjectStatus;
 use App\Models\Tag;
 use App\Models\Task;
 use App\Models\User;
@@ -34,7 +35,8 @@ class ProjectController extends Controller
         // - Team/Admin: 'all' (they can see all projects and want the full list)
         $defaultScope = 'all';
         $scope = $request->input('scope', $defaultScope);
-        $status = $request->input('status', 'planning,active');
+        $status = $request->input('status');
+        $hasStatusFilter = $request->query->has('status');
         $timeFilter = $request->input('time');
         $search = $request->input('search');
         $ownerFilter = $request->input('owner'); // Admin only
@@ -91,19 +93,22 @@ class ProjectController extends Controller
                     // OR project is directly shared with this user (not via role)
                     ->orWhereHas('shares', function ($shareQuery) use ($user) {
                         $shareQuery->where('shareable_type', 'user')
-                            ->where('shareable_id', (string)$user->id);
+                            ->where('shareable_id', (string) $user->id);
                     });
             });
         }
         // 'all' scope - no filtering (but still respects visibility)
 
-        // Status filter: planning,active (default), or individual statuses
-        if ($status) {
-            $statuses = explode(',', $status);
-            $validStatuses = array_intersect($statuses, Project::STATUS_VALUES);
-            if (!empty($validStatuses)) {
-                $query->whereIn('status', $validStatuses);
-            }
+        $statusDefinitions = Project::statusDefinitions();
+        $activeViewStatuses = Project::activeViewStatusValues();
+        $allowedStatuses = $statusDefinitions->pluck('key')->all();
+
+        // Default to active-view statuses. Ignore an empty or invalid explicit filter,
+        // matching the tolerant behavior this page had before statuses were configurable.
+        $requestedStatuses = $hasStatusFilter ? explode(',', (string) $status) : $activeViewStatuses;
+        $validStatuses = array_values(array_intersect($requestedStatuses, $allowedStatuses));
+        if (! $hasStatusFilter || $validStatuses !== []) {
+            $query->whereIn('status', $validStatuses);
         }
 
         // Time-based filter: Due in 7/14/30 days, Overdue
@@ -163,8 +168,8 @@ class ProjectController extends Controller
         // Search filter: name and description
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('description', 'like', '%' . $search . '%');
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%');
             });
         }
 
@@ -226,16 +231,9 @@ class ProjectController extends Controller
 
             $projects = $userHasTasks->merge($userNoTasks);
         } elseif ($sort === 'status') {
-            $projects = $query->orderByRaw("
-                CASE
-                    WHEN status = 'planning' THEN 1
-                    WHEN status = 'active' THEN 2
-                    WHEN status = 'on_hold' THEN 3
-                    WHEN status = 'completed' THEN 4
-                    WHEN status = 'archived' THEN 5
-                    ELSE 6
-                END
-            ")->orderBy('name', 'asc')->get();
+            $projects = $query->orderBy(
+                ProjectStatus::select('position')->whereColumn('project_statuses.key', 'projects.status')
+            )->orderBy('name', 'asc')->get();
         } else {
             // Default fallback
             $projects = $query->orderBy('updated_at', 'desc')->get();
@@ -250,7 +248,13 @@ class ProjectController extends Controller
             $projectQuery->visibleTo($user);
         })->orderBy('name')->get();
 
-        return view('projects.index', compact('projects', 'favoriteProjectIds', 'tagOptions'));
+        return view('projects.index', compact(
+            'projects',
+            'favoriteProjectIds',
+            'tagOptions',
+            'statusDefinitions',
+            'activeViewStatuses'
+        ));
     }
 
     /**
@@ -258,23 +262,14 @@ class ProjectController extends Controller
      */
     public function tableView(Request $request)
     {
-        $projects = Project::with(['tags', 'columns.tasks.users', 'shares', 'department', 'nestedDepartment', 'majorOffice'])
-            ->orderByRaw("
-                CASE
-                    WHEN status = 'planning' THEN 1
-                    WHEN status = 'active' THEN 2
-                    WHEN status = 'on_hold' THEN 3
-                    WHEN status = 'completed' THEN 4
-                    WHEN status = 'archived' THEN 5
-                    ELSE 6
-                END
-            ")
+        $projects = Project::with(['tags', 'columns.tasks.users', 'shares', 'department', 'nestedDepartment', 'majorOffice', 'statusDefinition'])
+            ->orderBy(ProjectStatus::select('position')->whereColumn('project_statuses.key', 'projects.status'))
             ->orderBy('name', 'asc')
             ->get();
 
         // Resolve all user-type share targets in a single query
         $sharedUserIds = $projects->flatMap(
-            fn($p) => $p->shares->where('shareable_type', 'user')->pluck('shareable_id')
+            fn ($p) => $p->shares->where('shareable_type', 'user')->pluck('shareable_id')
         )->unique()->values()->toArray();
 
         $sharedUsers = User::whereIn('id', $sharedUserIds)->get()->keyBy('id');
@@ -305,7 +300,7 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => ['required', Rule::in(Project::STATUS_VALUES)],
+            'status' => ['required', Rule::in(Project::statusValues())],
             'staffing_model' => 'required|in:dedicated,shared',
             'slack_webhook_url' => 'nullable|url|max:2048',
             'use_default_columns' => 'boolean',
@@ -316,7 +311,7 @@ class ProjectController extends Controller
             ...$this->classificationValidationRules(),
         ]);
 
-        if ($request->has('tags_sync') && !$this->canManageProjectTags(auth()->user())) {
+        if ($request->has('tags_sync') && ! $this->canManageProjectTags(auth()->user())) {
             abort(403, 'You are not authorized to modify project tags.');
         }
 
@@ -508,7 +503,7 @@ class ProjectController extends Controller
                 // Generate initials
                 $nameParts = explode(' ', $user->name);
                 $initials = strtoupper(
-                    substr($nameParts[0], 0, 1) .
+                    substr($nameParts[0], 0, 1).
                         (isset($nameParts[1]) ? substr($nameParts[1], 0, 1) : '')
                 );
 
@@ -525,7 +520,7 @@ class ProjectController extends Controller
         })->with(['phase', 'users'])->get();
 
         $projectWorkload = \App\Services\WorkloadSummaryService::summarize($allProjectTasks);
-        $phaseWorkloads  = \App\Services\WorkloadSummaryService::summarizeByPhase($allProjectTasks);
+        $phaseWorkloads = \App\Services\WorkloadSummaryService::summarizeByPhase($allProjectTasks);
 
         return view('projects.show', compact(
             'project',
@@ -606,7 +601,7 @@ class ProjectController extends Controller
         // Load all tasks for this project (optionally filtered by phase)
         // Eager load phase, users, and creator relationships and order by position within each column
         $tasks = $this->constrainBoardTaskPayload($tasksQuery)->get()->groupBy('column_id');
-        
+
         // Get users who have tasks assigned in this project with counts
         $usersWithTasks = \App\Models\User::whereHas('tasks', function ($query) use ($project) {
             $query->whereHas('column', function ($q) use ($project) {
@@ -647,7 +642,7 @@ class ProjectController extends Controller
         $isGlobalModal = $request->query('global_modal') === '1';
 
         // For global modal, pick the first column if none specified
-        if ($isGlobalModal && !$columnId) {
+        if ($isGlobalModal && ! $columnId) {
             $columnId = $project->columns->first()?->id;
         }
 
@@ -675,12 +670,11 @@ class ProjectController extends Controller
 
         $dependencyTasks = $dependencyTasksQuery
             ->get(['id', 'column_id', 'title', 'status'])
-            ->sortBy(fn($task) => [
+            ->sortBy(fn ($task) => [
                 strtolower($task->column->project->name),
                 strtolower($task->title),
             ])
             ->values();
-
 
         return view('projects.partials.board-task-form', compact('project', 'columnId', 'phases', 'users', 'dependencyIds', 'dependencyTasks', 'dependencyProjects'));
     }
@@ -696,7 +690,7 @@ class ProjectController extends Controller
         }
 
         // Direct browser visit (not HTMX) — redirect to the board and auto-open the modal there
-        if (!request()->header('HX-Request')) {
+        if (! request()->header('HX-Request')) {
             return redirect()
                 ->route('projects.board', $project)
                 ->with('open_task_id', $task->id);
@@ -714,7 +708,7 @@ class ProjectController extends Controller
             ->get();
         $columns = $project->columns;
 
-        //retrieve the pre-requisite tasks
+        // retrieve the pre-requisite tasks
         $dependencyIds = $task->dependencies()
             ->where('tasks.status', '!=', 'completed')
             ->pluck('tasks.id')
@@ -739,13 +733,11 @@ class ProjectController extends Controller
 
         $dependencyTasks = $dependencyTasksQuery
             ->get(['id', 'column_id', 'title', 'status'])
-            ->sortBy(fn($task) => [
+            ->sortBy(fn ($task) => [
                 strtolower($task->column->project->name),
                 strtolower($task->title),
             ])
             ->values();
-
-
 
         $task->load(['users', 'comments.user', 'activities.user', 'creator', 'updater', 'attachments.user']);
 
@@ -818,7 +810,7 @@ class ProjectController extends Controller
         }
 
         // If phase_id provided, verify it belongs to this project
-        if (!empty($validated['phase_id'])) {
+        if (! empty($validated['phase_id'])) {
             $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
             if ($phase->project_id !== $project->id) {
                 abort(403, 'Phase does not belong to this project.');
@@ -846,7 +838,7 @@ class ProjectController extends Controller
         // Create the task
         $task = \App\Models\Task::create($validated);
 
-        //sync dependent tasks
+        // sync dependent tasks
         $task->dependencies()->sync($dependencyIds);
 
         // Sync assignees
@@ -855,7 +847,7 @@ class ProjectController extends Controller
         $task->users()->sync($newAssignees);
 
         // Log initial activities
-        if (!empty($newAssignees)) {
+        if (! empty($newAssignees)) {
             \App\Models\TaskActivity::log($task->id, auth()->id(), 'assignees_changed', [
                 'added' => $newAssignees,
             ]);
@@ -929,7 +921,7 @@ class ProjectController extends Controller
         ]);
 
         // If phase_id provided, verify it belongs to this project
-        if (!empty($validated['phase_id'])) {
+        if (! empty($validated['phase_id'])) {
             $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
             if ($phase->project_id !== $project->id) {
                 abort(403, 'Phase does not belong to this project.');
@@ -962,7 +954,7 @@ class ProjectController extends Controller
         $task->users()->sync($newAssignees);
 
         // Log initial activities
-        if (!empty($newAssignees)) {
+        if (! empty($newAssignees)) {
             \App\Models\TaskActivity::log($task->id, auth()->id(), 'assignees_changed', [
                 'added' => $newAssignees,
             ]);
@@ -1064,7 +1056,7 @@ class ProjectController extends Controller
         unset($validated['dependencies']);
 
         // If phase_id provided, verify it belongs to this project
-        if (!empty($validated['phase_id'])) {
+        if (! empty($validated['phase_id'])) {
             $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
             if ($phase->project_id !== $project->id) {
                 abort(403, 'Phase does not belong to this project.');
@@ -1097,7 +1089,7 @@ class ProjectController extends Controller
         }
 
         // Sync assignees only on full updates so field-only posts cannot clear them
-        if (!$fieldOnly) {
+        if (! $fieldOnly) {
             $newAssignees = array_map('intval', $validated['assignees'] ?? []);
             sort($oldAssignees);
             sort($newAssignees);
@@ -1134,7 +1126,7 @@ class ProjectController extends Controller
         }
 
         // Assignee changes (only log if there's an actual difference)
-        if (!$fieldOnly && $oldAssignees !== $newAssignees) {
+        if (! $fieldOnly && $oldAssignees !== $newAssignees) {
             \App\Models\TaskActivity::log($task->id, $userId, 'assignees_changed', [
                 'added' => array_diff($newAssignees, $oldAssignees),
                 'removed' => array_diff($oldAssignees, $newAssignees),
@@ -1176,7 +1168,7 @@ class ProjectController extends Controller
                     'allColumns' => $project->columns,
                     'isProjectBoard' => true,
                     'filterPhaseId' => $request->input('filter_phase_id'),
-                    'filterAssigned' => $request->input('filter_assigned')
+                    'filterAssigned' => $request->input('filter_assigned'),
                 ]);
             }
 
@@ -1225,17 +1217,17 @@ class ProjectController extends Controller
                     'project' => $project,
                     'allColumns' => $columns,
                     'isProjectBoard' => true,
-                    'filterPhaseId' => $filterPhaseId
+                    'filterPhaseId' => $filterPhaseId,
                 ])->render();
 
-                $html .= '<div id="board-column-' . $columnId . '-tasks" hx-swap-oob="true">';
+                $html .= '<div id="board-column-'.$columnId.'-tasks" hx-swap-oob="true">';
                 $html .= view('projects.partials.board-column-tasks', [
                     'column' => $newColumn,
                     'columnTasks' => $tasks->get($columnId, collect()),
                     'project' => $project,
                     'allColumns' => $columns,
                     'isProjectBoard' => true,
-                    'filterPhaseId' => $filterPhaseId
+                    'filterPhaseId' => $filterPhaseId,
                 ])->render();
                 $html .= '</div>';
 
@@ -1262,7 +1254,7 @@ class ProjectController extends Controller
                     'project' => $project,
                     'allColumns' => $columns,
                     'isProjectBoard' => true,
-                    'filterPhaseId' => $filterPhaseId
+                    'filterPhaseId' => $filterPhaseId,
                 ])->render();
 
                 $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
@@ -1438,7 +1430,7 @@ class ProjectController extends Controller
 
         // Check authorization: user owns comment or is admin
         $user = auth()->user();
-        if ($comment->user_id !== $user->id && !$user->isAdmin()) {
+        if ($comment->user_id !== $user->id && ! $user->isAdmin()) {
             abort(403, 'You are not authorized to delete this comment.');
         }
 
@@ -1465,7 +1457,7 @@ class ProjectController extends Controller
             abort(403, 'You are not authorized to delete this task.');
         }
 
-        if (!$user->isClient() && $task->created_by !== $user->id && !$user->isAdmin()) {
+        if (! $user->isClient() && $task->created_by !== $user->id && ! $user->isAdmin()) {
             abort(403, 'You are not authorized to delete this task.');
         }
 
@@ -1485,7 +1477,7 @@ class ProjectController extends Controller
             'columnTasks' => $tasks->get($task->column_id, collect()),
             'project' => $project,
             'allColumns' => $project->columns,
-            'isProjectBoard' => true
+            'isProjectBoard' => true,
         ])->render();
 
         $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
@@ -1520,7 +1512,7 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => ['required', Rule::in(Project::STATUS_VALUES)],
+            'status' => ['required', Rule::in(Project::statusValues())],
             'staffing_model' => 'required|in:dedicated,shared',
             'launch_date' => 'nullable|date',
             'slack_webhook_url' => 'nullable|url|max:2048',
@@ -1533,7 +1525,7 @@ class ProjectController extends Controller
             ...$this->classificationValidationRules(),
         ]);
 
-        if ($request->has('tags_sync') && !$this->canManageProjectTags(auth()->user())) {
+        if ($request->has('tags_sync') && ! $this->canManageProjectTags(auth()->user())) {
             abort(403, 'You are not authorized to modify project tags.');
         }
 
@@ -1566,14 +1558,14 @@ class ProjectController extends Controller
             ]);
         }
 
-        if ($tagChanges && (!empty($tagChanges['added']) || !empty($tagChanges['removed']))) {
+        if ($tagChanges && (! empty($tagChanges['added']) || ! empty($tagChanges['removed']))) {
             \App\Models\ProjectActivity::log($project->id, auth()->id(), 'tags_updated', [
                 'added' => $tagChanges['added'],
                 'removed' => $tagChanges['removed'],
             ]);
         }
 
-        if ($oldStatus === $validated['status'] && (!$tagChanges || (empty($tagChanges['added']) && empty($tagChanges['removed'])))) {
+        if ($oldStatus === $validated['status'] && (! $tagChanges || (empty($tagChanges['added']) && empty($tagChanges['removed'])))) {
             \App\Models\ProjectActivity::log($project->id, auth()->id(), 'updated', null);
         }
 
@@ -1638,7 +1630,7 @@ class ProjectController extends Controller
 
     protected function normalizeClassificationInput(array $validated): array
     {
-        if (!auth()->user() || auth()->user()->isClient()) {
+        if (! auth()->user() || auth()->user()->isClient()) {
             foreach ($this->classificationAttributeNames() as $attribute) {
                 unset($validated[$attribute]);
             }
@@ -1647,7 +1639,7 @@ class ProjectController extends Controller
         }
 
         foreach (['department_id', 'nested_department_id', 'major_office_id', 'project_type', 'client_pi', 'client_category', 'uconn_affiliation', 'sponsor', 'grant_value'] as $attribute) {
-            if (!array_key_exists($attribute, $validated) || $validated[$attribute] === '') {
+            if (! array_key_exists($attribute, $validated) || $validated[$attribute] === '') {
                 $validated[$attribute] = null;
             }
         }
@@ -1663,7 +1655,7 @@ class ProjectController extends Controller
 
         if ($departmentId) {
             $department = Department::find($departmentId);
-            if (!$department || !$department->isHomeDepartment()) {
+            if (! $department || ! $department->isHomeDepartment()) {
                 throw ValidationException::withMessages([
                     'department_id' => 'Home department must be a top-level department.',
                 ]);
@@ -1671,14 +1663,14 @@ class ProjectController extends Controller
         }
 
         if ($nestedId) {
-            if (!$departmentId) {
+            if (! $departmentId) {
                 throw ValidationException::withMessages([
                     'nested_department_id' => 'Choose a home department before selecting a nested department.',
                 ]);
             }
 
             $nested = Department::find($nestedId);
-            if (!$nested || (int) $nested->parent_id !== (int) $departmentId) {
+            if (! $nested || (int) $nested->parent_id !== (int) $departmentId) {
                 throw ValidationException::withMessages([
                     'nested_department_id' => 'Nested department must belong to the selected home department.',
                 ]);
@@ -1698,8 +1690,8 @@ class ProjectController extends Controller
     protected function syncProjectTagsFromRequest(Project $project, Request $request): array
     {
         $selectedTagIds = collect($request->input('tags', []))
-            ->filter(fn($id) => is_numeric($id))
-            ->map(fn($id) => (int) $id)
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
             ->values()
             ->all();
 
@@ -1720,7 +1712,7 @@ class ProjectController extends Controller
         }
 
         $newTagIds = array_values(array_unique($selectedTagIds));
-        $existingTagIds = $project->tags()->pluck('tags.id')->map(fn($id) => (int) $id)->all();
+        $existingTagIds = $project->tags()->pluck('tags.id')->map(fn ($id) => (int) $id)->all();
 
         $project->tags()->sync($newTagIds);
 
@@ -1762,7 +1754,7 @@ class ProjectController extends Controller
         // Load phases with their tasks, eager loading columns for task display
         // Include all tasks, we'll filter by due dates in the view
         $project->load(['phases' => function ($query) use ($showCompleted, $request) {
-            if (!$showCompleted) {
+            if (! $showCompleted) {
                 $query->where('status', '!=', 'completed');
             }
             $query->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
@@ -1782,7 +1774,7 @@ class ProjectController extends Controller
                         }
                     }
 
-                    if (!$showCompleted) {
+                    if (! $showCompleted) {
                         $taskQuery->where('status', '!=', 'completed');
                     }
 
@@ -1811,7 +1803,7 @@ class ProjectController extends Controller
                     });
                 }
             })
-            ->when(!$showCompleted, function ($q) {
+            ->when(! $showCompleted, function ($q) {
                 $q->where('status', '!=', 'completed');
             })
             ->orderBy('due_date', 'asc')
@@ -1834,7 +1826,7 @@ class ProjectController extends Controller
                     });
                 }
             })
-            ->when(!$showCompleted, function ($q) {
+            ->when(! $showCompleted, function ($q) {
                 $q->where('status', '!=', 'completed');
             })
             ->orderBy('created_at', 'desc')
@@ -1861,7 +1853,7 @@ class ProjectController extends Controller
                     ->orWhereNotNull('end_date');
             });
 
-        if (!$showCompleted) {
+        if (! $showCompleted) {
             $phasesQuery->where('status', '!=', 'completed');
         }
 
@@ -1909,7 +1901,7 @@ class ProjectController extends Controller
         // If no phases with dates, return early
         if ($phases->isEmpty()) {
             // Set default filter values for form population if not already set
-            if (!$filterStart && !$filterEnd) {
+            if (! $filterStart && ! $filterEnd) {
                 $today = \Carbon\Carbon::today();
                 $filterStart = $today;
                 $filterEnd = $today->copy()->addMonths(2);
@@ -1959,9 +1951,9 @@ class ProjectController extends Controller
 
             // Format label as date range
             if ($weekStart->month === $weekEnd->month) {
-                $label = $weekStart->format('M j') . '-' . $weekEnd->format('j');
+                $label = $weekStart->format('M j').'-'.$weekEnd->format('j');
             } else {
-                $label = $weekStart->format('M j') . ' - ' . $weekEnd->format('M j');
+                $label = $weekStart->format('M j').' - '.$weekEnd->format('M j');
             }
 
             $weeks[] = [
@@ -1996,7 +1988,7 @@ class ProjectController extends Controller
                 ->whereHas('column', function ($q) use ($project) {
                     $q->where('project_id', $project->id);
                 })
-                ->when(!$showCompleted, function ($q) {
+                ->when(! $showCompleted, function ($q) {
                     $q->where('status', '!=', 'completed');
                 })
                 ->get();
@@ -2018,7 +2010,7 @@ class ProjectController extends Controller
         // Add task counts to each phase
         $phases = $phases->map(function ($phase) use ($showCompleted) {
             $taskCounts = $phase->tasks()
-                ->when(!$showCompleted, function ($q) {
+                ->when(! $showCompleted, function ($q) {
                     $q->where('status', '!=', 'completed');
                 })
                 ->selectRaw('status, COUNT(*) as count')
@@ -2034,6 +2026,7 @@ class ProjectController extends Controller
             ], $taskCounts);
 
             $phase->task_counts = $taskCounts;
+
             return $phase;
         });
 
@@ -2066,6 +2059,7 @@ class ProjectController extends Controller
             if ($share->isUserShare()) {
                 $share->user = $share->getUser();
             }
+
             return $share;
         });
 
@@ -2101,19 +2095,19 @@ class ProjectController extends Controller
         // Validate shareable_id based on type
         if ($validated['shareable_type'] === 'user') {
             $user = \App\Models\User::find($validated['shareable_id']);
-            if (!$user) {
+            if (! $user) {
                 return back()->withErrors(['shareable_id' => 'User not found']);
             }
         } elseif ($validated['shareable_type'] === 'role') {
-            if (!in_array($validated['shareable_id'], ['team', 'client'])) {
+            if (! in_array($validated['shareable_id'], ['team', 'client'])) {
                 return back()->withErrors(['shareable_id' => 'Invalid role']);
             }
         }
 
         $isLeader = ($validated['shareable_type'] === 'user')
-            && !empty($validated['is_leader'])
+            && ! empty($validated['is_leader'])
             && isset($user)
-            && !$user->isClient();
+            && ! $user->isClient();
 
         // Create share (will be ignored if duplicate due to unique constraint)
         try {
@@ -2130,6 +2124,7 @@ class ProjectController extends Controller
             $message = $validated['shareable_type'] === 'user'
                 ? 'Project shared with user successfully.'
                 : 'Project shared with role successfully.';
+
             return back()->with('success', $message);
         } catch (\Illuminate\Database\QueryException $e) {
             if ($e->errorInfo[1] == 1062 || $e->errorInfo[1] == 19) { // MySQL or SQLite duplicate error
@@ -2151,12 +2146,12 @@ class ProjectController extends Controller
         ]);
 
         if ($validated['is_leader']) {
-            if (!$share->isUserShare()) {
+            if (! $share->isUserShare()) {
                 return back()->withErrors(['is_leader' => 'Only team members can be designated as project leader.']);
             }
 
             $user = $share->getUser();
-            if (!$user || $user->isClient()) {
+            if (! $user || $user->isClient()) {
                 return back()->withErrors(['is_leader' => 'Only team members can be designated as project leader.']);
             }
 
@@ -2217,7 +2212,7 @@ class ProjectController extends Controller
             });
 
         foreach ($recentAssignees as $user) {
-            if (!$sortedUsers->contains('id', $user->id)) {
+            if (! $sortedUsers->contains('id', $user->id)) {
                 $sortedUsers->push($user);
             }
         }
@@ -2232,6 +2227,7 @@ class ProjectController extends Controller
 
         return $sortedUsers->filter(); // Remove nulls (in case current user doesn't exist)
     }
+
     private function validateDependencyIds(
         array $dependencyIds,
         User $user,
@@ -2262,7 +2258,7 @@ class ProjectController extends Controller
                 $query->whereIn('project_id', $visibleProjectIds);
             })
             ->pluck('tasks.id')
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->all();
 
         if (count($allowedDependencyIds) !== count($dependencyIds)) {

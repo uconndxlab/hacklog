@@ -3,6 +3,7 @@
         $selectedProjectNames = collect($filters['project_ids'])->map(fn ($id) => $filterOptions['projects']->firstWhere('id', $id)?->name)->filter()->values();
         $selectedTagNames = collect($filters['tag_ids'])->map(fn ($id) => $filterOptions['tags']->firstWhere('id', $id)?->name)->filter()->values();
         $selectedAssigneeNames = collect($filters['assignee_ids'])->map(fn ($id) => $filterOptions['assignees']->firstWhere('id', $id)?->name)->filter()->values();
+        $projectStatusLabels = \App\Models\Project::statusLabels();
 
         $activeChips = collect();
         if ($filters['has_start'] && $filters['start']) {
@@ -15,7 +16,7 @@
             $activeChips->push('Projects: ' . $selectedProjectNames->take(2)->implode(', ') . ($selectedProjectNames->count() > 2 ? ' +' . ($selectedProjectNames->count() - 2) : ''));
         }
         if ($filters['has_project_statuses']) {
-            $activeChips->push('Project status: ' . collect($filters['project_statuses'])->map(fn ($status) => ucfirst(str_replace('_', ' ', $status)))->implode(', '));
+            $activeChips->push('Project status: ' . collect($filters['project_statuses'])->map(fn ($status) => $projectStatusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status)))->implode(', '));
         }
         if ($filters['has_phase_statuses']) {
             $activeChips->push('Phase status: ' . collect($filters['phase_statuses'])->map(fn ($status) => ucfirst(str_replace('_', ' ', $status)))->implode(', '));
@@ -84,7 +85,7 @@
                         @foreach($filterOptions['project_statuses'] as $status)
                             <div class="form-check mb-1">
                                 <input class="form-check-input" type="checkbox" id="project-status-filter-{{ $status }}" name="project_statuses[]" value="{{ $status }}" {{ in_array($status, $filters['project_statuses'], true) ? 'checked' : '' }}>
-                                <label class="form-check-label" for="project-status-filter-{{ $status }}">{{ ucfirst(str_replace('_', ' ', $status)) }}</label>
+                                <label class="form-check-label" for="project-status-filter-{{ $status }}">{{ $projectStatusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status)) }}</label>
                             </div>
                         @endforeach
                     </div>
@@ -269,7 +270,7 @@
                                                     </a>
                                                     <div>
                                                         <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.7rem; font-weight: 400;">
-                                                            {{ ucfirst(str_replace('_', ' ', $project->status)) }}
+                                                            {{ $projectStatusLabels[$project->status] ?? ucfirst(str_replace('_', ' ', $project->status)) }}
                                                         </span>
                                                     </div>
                                                     @if($projectGroup['assignees']['count'] > 0)

@@ -7,8 +7,8 @@
     };
 
     $chips = [];
-    if (request()->filled('status') && isset(\App\Http\Controllers\ReportController::STATUS_LABELS[request('status')])) {
-        $chips[] = ['label' => \App\Http\Controllers\ReportController::STATUS_LABELS[request('status')], 'url' => route('reports.index', $filterQuery(['status']))];
+    if (request()->filled('status') && isset($statusLabels[request('status')])) {
+        $chips[] = ['label' => $statusLabels[request('status')], 'url' => route('reports.index', $filterQuery(['status']))];
     }
     if (request()->filled('type') && isset(\App\Models\Project::TYPE_LABELS[request('type')])) {
         $chips[] = ['label' => \App\Models\Project::TYPE_LABELS[request('type')], 'url' => route('reports.index', $filterQuery(['type']))];
@@ -42,7 +42,7 @@
             <label for="status" class="form-label small mb-1">Status</label>
             <select id="status" name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                 <option value="">All statuses</option>
-                @foreach(\App\Http\Controllers\ReportController::STATUS_LABELS as $value => $label)
+                @foreach($statusLabels as $value => $label)
                     <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
                 @endforeach
             </select>
