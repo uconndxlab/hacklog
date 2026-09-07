@@ -138,20 +138,17 @@
     </div>
 
     <div class="col-md-4 mb-3">
-        <label class="form-label d-block">Grant</label>
-        <div class="form-check mt-2">
-            <input
-                type="checkbox"
-                class="form-check-input @error('has_grant') is-invalid @enderror"
-                id="has_grant"
-                name="has_grant"
-                value="1"
-                @checked(old('has_grant', $project?->has_grant))>
-            <label class="form-check-label" for="has_grant">Has a grant</label>
-            @error('has_grant')
-                <div class="invalid-feedback d-block">{{ $message }}</div>
-            @enderror
-        </div>
+        <label for="sponsor" class="form-label">Sponsor</label>
+        <input
+            type="text"
+            class="form-control @error('sponsor') is-invalid @enderror"
+            id="sponsor"
+            name="sponsor"
+            value="{{ old('sponsor', $project?->sponsor ?? '') }}"
+            maxlength="255">
+        @error('sponsor')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-4 mb-3">
@@ -174,16 +171,19 @@
     </div>
 
     <div class="col-md-4 mb-3">
-        <label for="sponsor" class="form-label">Sponsor</label>
-        <input
-            type="text"
-            class="form-control @error('sponsor') is-invalid @enderror"
-            id="sponsor"
-            name="sponsor"
-            value="{{ old('sponsor', $project?->sponsor ?? '') }}"
-            maxlength="255">
-        @error('sponsor')
-            <div class="invalid-feedback">{{ $message }}</div>
-        @enderror
+        <label class="form-label d-block">Grant</label>
+        <div class="form-check mt-2">
+            <input
+                type="checkbox"
+                class="form-check-input @error('has_grant') is-invalid @enderror"
+                id="has_grant"
+                name="has_grant"
+                value="1"
+                @checked(old('has_grant', $project?->has_grant))>
+            <label class="form-check-label" for="has_grant">Has a grant</label>
+            @error('has_grant')
+                <div class="invalid-feedback d-block">{{ $message }}</div>
+            @enderror
+        </div>
     </div>
 </div>
