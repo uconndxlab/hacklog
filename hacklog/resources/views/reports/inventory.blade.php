@@ -105,6 +105,8 @@
                         <td class="text-end" data-sort-col="grant_value" data-sort="{{ (float) ($project->grant_value ?? 0) }}">
                             @if($project->grant_value !== null && (float) $project->grant_value > 0)
                                 <span class="small">${{ number_format((float) $project->grant_value, 2) }}</span>
+                            @elseif($project->has_grant)
+                                <span class="small">Yes</span>
                             @else
                                 <span class="text-muted small">—</span>
                             @endif

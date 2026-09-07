@@ -1596,6 +1596,7 @@ class ProjectController extends Controller
             'client_pi',
             'client_category',
             'uconn_affiliation',
+            'has_grant',
             'grant_value',
             'sponsor',
         ];
@@ -1611,6 +1612,7 @@ class ProjectController extends Controller
             'client_pi' => 'nullable|string|max:255',
             'client_category' => ['nullable', Rule::in(Project::CLIENT_CATEGORY_VALUES)],
             'uconn_affiliation' => ['nullable', Rule::in(Project::AFFILIATION_VALUES)],
+            'has_grant' => 'nullable|boolean',
             'grant_value' => 'nullable|numeric|min:0',
             'sponsor' => 'nullable|string|max:255',
         ];
@@ -1648,6 +1650,12 @@ class ProjectController extends Controller
             if (!array_key_exists($attribute, $validated) || $validated[$attribute] === '') {
                 $validated[$attribute] = null;
             }
+        }
+
+        $validated['has_grant'] = (bool) ($validated['has_grant'] ?? false);
+
+        if ($validated['grant_value'] !== null) {
+            $validated['has_grant'] = true;
         }
 
         $departmentId = $validated['department_id'];

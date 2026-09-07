@@ -113,6 +113,8 @@
                             <td class="text-end">
                                 @if($project->grant_value !== null)
                                     <span class="small">${{ number_format((float) $project->grant_value, 2) }}</span>
+                                @elseif($project->has_grant)
+                                    <span class="small">Yes</span>
                                 @else
                                     <span class="text-muted small">—</span>
                                 @endif

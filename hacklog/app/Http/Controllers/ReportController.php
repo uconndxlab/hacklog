@@ -61,11 +61,9 @@ class ReportController extends Controller
         }
 
         if ($request->query('grant') === '1') {
-            $query->where('projects.grant_value', '>', 0);
+            $query->where('projects.has_grant', true);
         } elseif ($request->query('grant') === '0') {
-            $query->where(function ($grantQuery) {
-                $grantQuery->whereNull('projects.grant_value')->orWhere('projects.grant_value', '<=', 0);
-            });
+            $query->where('projects.has_grant', false);
         }
 
         $sort = in_array($request->query('sort'), self::SORTABLE_COLUMNS, true)
@@ -75,7 +73,7 @@ class ReportController extends Controller
 
         $summary = (clone $query)->toBase()->select([
             DB::raw('COUNT(*) as total'),
-            DB::raw('COUNT(CASE WHEN projects.grant_value > 0 THEN 1 END) as grant_count'),
+            DB::raw('COUNT(CASE WHEN projects.has_grant = 1 THEN 1 END) as grant_count'),
             DB::raw('COALESCE(SUM(projects.grant_value), 0) as grant_total'),
             DB::raw('COUNT(DISTINCT projects.department_id) as dept_count'),
             DB::raw('COUNT(DISTINCT projects.major_office_id) as office_count'),

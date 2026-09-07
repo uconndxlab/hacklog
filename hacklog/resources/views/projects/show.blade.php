@@ -24,6 +24,7 @@
                 || $project->client_pi
                 || $project->client_category
                 || $project->uconn_affiliation
+                || $project->has_grant
                 || $project->grant_value !== null
                 || $project->sponsor;
         @endphp
@@ -65,6 +66,10 @@
                         <div class="col-md-4">
                             <div class="text-muted">UConn Affiliation</div>
                             <div>{{ $project->uconnAffiliationLabel() ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted">Grant</div>
+                            <div>{{ $project->has_grant ? 'Yes' : 'No' }}</div>
                         </div>
                         <div class="col-md-4">
                             <div class="text-muted">Grant Value</div>

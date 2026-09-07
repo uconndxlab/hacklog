@@ -267,6 +267,21 @@
                 width: 150,
             },
             {
+                title: 'Has Grant',
+                field: 'has_grant',
+                editor: 'list',
+                editorParams: {
+                    values: [
+                        { label: 'Yes', value: true },
+                        { label: 'No', value: false },
+                    ],
+                },
+                formatter: function (cell) {
+                    return cell.getValue() ? 'Yes' : 'No';
+                },
+                width: 110,
+            },
+            {
                 title: 'Grant Value',
                 field: 'grant_value',
                 editor: 'number',

@@ -8,6 +8,7 @@ use App\Models\MajorOffice;
 use App\Models\Project;
 use App\Models\ProjectActivity;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -24,6 +25,7 @@ class ProjectInventoryEditor
         'client_pi',
         'client_category',
         'uconn_affiliation',
+        'has_grant',
         'grant_value',
         'sponsor',
     ];
@@ -85,6 +87,7 @@ class ProjectInventoryEditor
             'client_pi' => $project->client_pi,
             'client_category' => $project->client_category,
             'uconn_affiliation' => $project->uconn_affiliation,
+            'has_grant' => (bool) $project->has_grant,
             'grant_value' => $project->grant_value !== null ? (float) $project->grant_value : null,
             'sponsor' => $project->sponsor,
         ];
@@ -112,11 +115,15 @@ class ProjectInventoryEditor
             $payload['department_id'] = $project->department_id;
         }
 
+        if ($field === 'grant_value' && $normalized !== null) {
+            $payload['has_grant'] = true;
+        }
+
         $rules = array_intersect_key($this->rules(), $payload);
         $validated = Validator::make($payload, $rules)->validate();
         $validated = $this->assertDepartmentRelationship($validated);
 
-        $changed = array_intersect_key($validated, array_flip(self::FIELDS));
+        $changed = array_intersect_key($validated, array_flip(array_merge(self::FIELDS, ['has_grant'])));
         $project->fill($changed);
         $project->save();
 
@@ -156,6 +163,7 @@ class ProjectInventoryEditor
             'client_pi' => 'nullable|string|max:255',
             'client_category' => ['nullable', Rule::in(Project::CLIENT_CATEGORY_VALUES)],
             'uconn_affiliation' => ['nullable', Rule::in(Project::AFFILIATION_VALUES)],
+            'has_grant' => 'boolean',
             'grant_value' => 'nullable|numeric|min:0',
             'sponsor' => 'nullable|string|max:255',
         ];
@@ -163,6 +171,20 @@ class ProjectInventoryEditor
 
     protected function normalizeIncoming(string $field, mixed $value): mixed
     {
+        if ($field === 'has_grant') {
+            if (is_bool($value)) {
+                return $value;
+            }
+
+            if (is_string($value)) {
+                $value = Str::lower(trim($value));
+
+                return in_array($value, ['1', 'true', 'yes', 'y'], true);
+            }
+
+            return (bool) $value;
+        }
+
         if ($value === '' || $value === false) {
             $value = null;
         }

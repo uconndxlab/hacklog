@@ -158,6 +158,12 @@ class ProjectInventorySeeder extends Seeder
         $office = $officeName !== '' ? MajorOffice::firstOrCreate(['name' => $officeName]) : null;
 
         $launchDate = $this->parseLaunchDate($record['Launch Date'] ?? '');
+        $grantValue = $this->parseGrantValue($record[' Grant Value '] ?? $record['Grant Value'] ?? '');
+        $hasGrant = $this->parseHasGrant($record['Grant Y/N'] ?? '');
+
+        if ($grantValue !== null) {
+            $hasGrant = true;
+        }
 
         return [
             'project_type' => $this->mapProjectType($record['Project Type'] ?? ''),
@@ -167,7 +173,8 @@ class ProjectInventorySeeder extends Seeder
             'client_pi' => $this->nullableString($record['Client/PI'] ?? ''),
             'client_category' => $this->mapClientCategory($record['Client Catergory'] ?? ''),
             'uconn_affiliation' => $this->mapAffiliation($record['UConn Affiliation'] ?? ''),
-            'grant_value' => $this->parseGrantValue($record[' Grant Value '] ?? $record['Grant Value'] ?? ''),
+            'has_grant' => $hasGrant,
+            'grant_value' => $grantValue,
             'sponsor' => $this->nullableString($record['Sponsor'] ?? ''),
             'launch_date' => $launchDate,
         ];
@@ -240,6 +247,13 @@ class ProjectInventorySeeder extends Seeder
             'external' => Project::AFFILIATION_EXTERNAL,
             default => null,
         };
+    }
+
+    protected function parseHasGrant(string $raw): bool
+    {
+        $value = Str::lower(trim($raw));
+
+        return in_array($value, ['y', 'yes', 'true', '1'], true);
     }
 
     protected function parseGrantValue(string $raw): ?string

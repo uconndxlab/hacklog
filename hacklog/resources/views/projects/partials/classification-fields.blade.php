@@ -138,6 +138,23 @@
     </div>
 
     <div class="col-md-4 mb-3">
+        <label class="form-label d-block">Grant</label>
+        <div class="form-check mt-2">
+            <input
+                type="checkbox"
+                class="form-check-input @error('has_grant') is-invalid @enderror"
+                id="has_grant"
+                name="has_grant"
+                value="1"
+                @checked(old('has_grant', $project?->has_grant))>
+            <label class="form-check-label" for="has_grant">Has a grant</label>
+            @error('has_grant')
+                <div class="invalid-feedback d-block">{{ $message }}</div>
+            @enderror
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-3">
         <label for="grant_value" class="form-label">Grant Value</label>
         <div class="input-group">
             <span class="input-group-text">$</span>
@@ -149,7 +166,7 @@
                 id="grant_value"
                 name="grant_value"
                 value="{{ old('grant_value', $project?->grant_value ?? '') }}"
-                placeholder="Leave blank if none">
+                placeholder="Optional amount">
         </div>
         @error('grant_value')
             <div class="invalid-feedback d-block">{{ $message }}</div>
