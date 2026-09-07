@@ -11,7 +11,7 @@
 <div class="inventory-editor-page">
     @include('reports.partials.nav', [
         'title' => 'Inventory Editor',
-        'subtitle' => 'Spreadsheet of all relevant project fields. Click a cell to edit; changes save as you leave it.',
+        'subtitle' => 'Edit project details, assemble teams, and choose project leads from one spreadsheet.',
     ])
 
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
@@ -78,6 +78,7 @@
     const OFFICES = toMap(options.offices, 'id', 'name', '—');
     const CATEGORIES = toMap(options.categories, 'value', 'label', '—');
     const AFFILIATIONS = toMap(options.affiliations, 'value', 'label', '—');
+    const TEAM_USERS = options.teamUsers || [];
     const money = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' });
     const nestedMaps = {};
 
@@ -109,6 +110,79 @@
         return span;
     }
 
+    function initials(name) {
+        return (name || '?').trim().split(/\s+/).slice(0, 2).map(function (part) {
+            return part.charAt(0).toUpperCase();
+        }).join('');
+    }
+
+    function avatar(name, small) {
+        const element = document.createElement('span');
+        element.className = 'inventory-person-avatar' + (small ? ' inventory-person-avatar-sm' : '');
+        element.textContent = initials(name);
+        element.setAttribute('aria-hidden', 'true');
+        return element;
+    }
+
+    function teamFormatter(cell) {
+        const wrap = document.createElement('div');
+        wrap.className = 'inventory-team-cell';
+        const members = cell.getRow().getData().team || [];
+
+        if (!members.length) {
+            wrap.classList.add('inventory-people-empty');
+            wrap.textContent = '+ Assign people';
+            return wrap;
+        }
+
+        members.slice(0, 3).forEach(function (member) {
+            const chip = document.createElement('span');
+            chip.className = 'inventory-person-chip' + (member.is_leader ? ' is-leader' : '');
+            chip.appendChild(avatar(member.name, true));
+            const name = document.createElement('span');
+            name.textContent = member.name.split(/\s+/)[0];
+            chip.appendChild(name);
+            if (member.is_leader) {
+                const crown = document.createElement('span');
+                crown.className = 'inventory-lead-crown';
+                crown.textContent = '★';
+                crown.title = 'Project lead';
+                chip.appendChild(crown);
+            }
+            wrap.appendChild(chip);
+        });
+
+        if (members.length > 3) {
+            const more = document.createElement('span');
+            more.className = 'inventory-team-more';
+            more.textContent = '+' + (members.length - 3);
+            wrap.appendChild(more);
+        }
+
+        return wrap;
+    }
+
+    function leaderFormatter(cell) {
+        const leader = cell.getRow().getData().leader;
+        const wrap = document.createElement('div');
+        wrap.className = 'inventory-leader-cell' + (leader ? ' is-leader' : ' inventory-people-empty');
+
+        if (!leader) {
+            wrap.textContent = '+ Choose lead';
+            return wrap;
+        }
+
+        wrap.appendChild(avatar(leader.name, true));
+        const name = document.createElement('span');
+        name.textContent = leader.name;
+        wrap.appendChild(name);
+        const crown = document.createElement('span');
+        crown.className = 'inventory-lead-crown';
+        crown.textContent = '★';
+        wrap.appendChild(crown);
+        return wrap;
+    }
+
     const searchCache = new Map();
 
     function searchText(data) {
@@ -127,6 +201,8 @@
                 label(OFFICES, data.major_office_id),
                 label(CATEGORIES, data.client_category),
                 label(AFFILIATIONS, data.uconn_affiliation),
+                (data.team || []).map(function (member) { return member.name; }).join(' '),
+                data.leader ? data.leader.name : '',
             ].filter(Boolean).join(' ').toLowerCase();
             searchCache.set(data.id, text);
         }
@@ -299,10 +375,31 @@
                 editor: 'input',
                 minWidth: 160,
             },
+            {
+                title: 'Project Lead',
+                field: 'leader_user_id',
+                formatter: leaderFormatter,
+                cellClick: function (event, cell) { openPeopleEditor(event, cell, 'leader'); },
+                headerSort: false,
+                minWidth: 180,
+                width: 220,
+                tooltip: 'Click to choose the project lead',
+            },
+            {
+                title: 'Project Team',
+                field: 'team_user_ids',
+                formatter: teamFormatter,
+                cellClick: function (event, cell) { openPeopleEditor(event, cell, 'team'); },
+                headerSort: false,
+                minWidth: 270,
+                width: 320,
+                tooltip: 'Click to assign people and choose a project lead',
+            },
         ],
     });
 
     let syncing = false;
+    let peoplePopover = null;
 
     function syncRow(row, project) {
         const current = row.getData();
@@ -323,6 +420,226 @@
         syncing = true;
         row.update(changes);
         syncing = false;
+    }
+
+    function closePeopleEditor() {
+        if (peoplePopover) {
+            peoplePopover.remove();
+            peoplePopover = null;
+        }
+    }
+
+    function positionPeopleEditor(popover, anchor) {
+        const rect = anchor.getBoundingClientRect();
+        const gap = 6;
+        const width = Math.min(380, window.innerWidth - 24);
+        popover.style.width = width + 'px';
+        const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+        let top = rect.bottom + gap;
+        const height = Math.min(popover.offsetHeight, window.innerHeight - 24);
+
+        if (top + height > window.innerHeight - 12) {
+            top = Math.max(12, rect.top - height - gap);
+        }
+
+        popover.style.left = left + 'px';
+        popover.style.top = top + 'px';
+    }
+
+    function openPeopleEditor(event, cell, mode) {
+        event.stopPropagation();
+        closePeopleEditor();
+
+        const row = cell.getRow();
+        const data = row.getData();
+        const selected = new Set((data.team_user_ids || []).map(Number));
+        let leaderId = data.leader_user_id === null ? null : Number(data.leader_user_id);
+        const originalLeaderId = leaderId;
+        const popover = document.createElement('div');
+        peoplePopover = popover;
+        popover.className = 'inventory-people-popover';
+        popover.setAttribute('role', 'dialog');
+        popover.setAttribute('aria-label', mode === 'team' ? 'Edit project team' : 'Choose project lead');
+
+        const header = document.createElement('div');
+        header.className = 'inventory-people-header';
+        const heading = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = mode === 'team' ? 'Project team' : 'Project lead';
+        const help = document.createElement('small');
+        help.textContent = mode === 'team'
+            ? 'Select people and star one as the lead.'
+            : 'Choosing a lead also adds them to the project team.';
+        heading.appendChild(title);
+        heading.appendChild(help);
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'inventory-people-close';
+        close.setAttribute('aria-label', 'Close');
+        close.textContent = '×';
+        close.addEventListener('click', closePeopleEditor);
+        header.appendChild(heading);
+        header.appendChild(close);
+        popover.appendChild(header);
+
+        const search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'form-control form-control-sm inventory-people-search';
+        search.placeholder = 'Find a person…';
+        popover.appendChild(search);
+
+        const list = document.createElement('div');
+        list.className = 'inventory-people-list';
+        popover.appendChild(list);
+
+        let countNote = null;
+
+        function renderList() {
+            const query = search.value.trim().toLowerCase();
+            list.replaceChildren();
+            const matches = TEAM_USERS.filter(function (user) {
+                return !query || (user.name + ' ' + user.email).toLowerCase().includes(query);
+            });
+
+            matches.forEach(function (user) {
+                const id = Number(user.id);
+                const item = document.createElement('div');
+                item.className = 'inventory-person-option'
+                    + (selected.has(id) ? ' is-selected' : '')
+                    + (leaderId === id ? ' is-leader' : '');
+                const choose = document.createElement('button');
+                choose.type = 'button';
+                choose.className = 'inventory-person-choice';
+                choose.appendChild(avatar(user.name));
+                const identity = document.createElement('span');
+                identity.className = 'inventory-person-identity';
+                const personName = document.createElement('strong');
+                personName.textContent = user.name;
+                const email = document.createElement('small');
+                email.textContent = user.active ? user.email : user.email + ' · Inactive';
+                identity.appendChild(personName);
+                identity.appendChild(email);
+                choose.appendChild(identity);
+                const check = document.createElement('span');
+                check.className = 'inventory-person-check';
+                check.textContent = mode === 'leader'
+                    ? (leaderId === id ? '●' : '○')
+                    : (selected.has(id) ? '✓' : '');
+                choose.appendChild(check);
+                choose.disabled = !user.active && !selected.has(id);
+                choose.addEventListener('click', function () {
+                    if (mode === 'leader') {
+                        leaderId = id;
+                        selected.add(id);
+                    } else if (selected.has(id)) {
+                        selected.delete(id);
+                        if (leaderId === id) leaderId = null;
+                    } else {
+                        selected.add(id);
+                    }
+                    renderList();
+                });
+                item.appendChild(choose);
+
+                if (mode === 'team') {
+                    const lead = document.createElement('button');
+                    lead.type = 'button';
+                    lead.className = 'inventory-person-lead' + (leaderId === id ? ' is-leader' : '');
+                    lead.title = leaderId === id ? 'Remove project lead' : 'Make project lead';
+                    lead.setAttribute('aria-label', lead.title + ': ' + user.name);
+                    lead.textContent = '★';
+                    lead.disabled = !user.active && leaderId !== id;
+                    lead.addEventListener('click', function () {
+                        leaderId = leaderId === id ? null : id;
+                        if (leaderId !== null) selected.add(id);
+                        renderList();
+                    });
+                    item.appendChild(lead);
+                }
+                list.appendChild(item);
+            });
+
+            if (!matches.length) {
+                const empty = document.createElement('div');
+                empty.className = 'inventory-people-no-results';
+                empty.textContent = 'No people found';
+                list.appendChild(empty);
+            }
+
+            if (countNote) {
+                countNote.textContent = selected.size + ' selected';
+            }
+        }
+
+        search.addEventListener('input', renderList);
+        renderList();
+
+        const footer = document.createElement('div');
+        footer.className = 'inventory-people-footer';
+        if (mode === 'leader') {
+            const clear = document.createElement('button');
+            clear.type = 'button';
+            clear.className = 'btn btn-sm btn-link text-muted me-auto';
+            clear.textContent = 'No lead';
+            clear.addEventListener('click', function () {
+                leaderId = null;
+                renderList();
+            });
+            footer.appendChild(clear);
+        } else {
+            countNote = document.createElement('span');
+            countNote.className = 'small text-muted me-auto';
+            countNote.textContent = selected.size + ' selected';
+            footer.appendChild(countNote);
+        }
+        const cancelButton = document.createElement('button');
+        cancelButton.type = 'button';
+        cancelButton.className = 'btn btn-sm btn-outline-secondary';
+        cancelButton.textContent = 'Cancel';
+        cancelButton.addEventListener('click', closePeopleEditor);
+        const applyButton = document.createElement('button');
+        applyButton.type = 'button';
+        applyButton.className = 'btn btn-sm btn-primary';
+        applyButton.textContent = 'Apply';
+        applyButton.addEventListener('click', function () {
+            applyButton.disabled = true;
+            setStatus('Saving…');
+            let save;
+
+            if (mode === 'team') {
+                save = request(updateUrl.replace('__ID__', data.id), 'PATCH', {
+                    field: 'team_user_ids', value: Array.from(selected),
+                }).then(function (payload) {
+                    syncRow(row, payload.project);
+                    if (leaderId === originalLeaderId) {
+                        return payload;
+                    }
+                    return request(updateUrl.replace('__ID__', data.id), 'PATCH', {
+                        field: 'leader_user_id', value: leaderId,
+                    });
+                });
+            } else {
+                save = request(updateUrl.replace('__ID__', data.id), 'PATCH', {
+                    field: 'leader_user_id', value: leaderId,
+                });
+            }
+
+            save.then(function (payload) {
+                syncRow(row, payload.project);
+                searchCache.delete(data.id);
+                setStatus('Saved');
+                closePeopleEditor();
+            }).catch(function (error) {
+                applyButton.disabled = false;
+                setStatus(error.message, true);
+            });
+        });
+        footer.appendChild(cancelButton);
+        footer.appendChild(applyButton);
+        popover.appendChild(footer);
+        document.body.appendChild(popover);
+        positionPeopleEditor(popover, cell.getElement());
+        window.requestAnimationFrame(function () { search.focus(); });
     }
 
     table.on('cellEdited', function (cell) {
@@ -407,8 +724,18 @@
     });
 
     document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && peoplePopover) {
+            closePeopleEditor();
+            return;
+        }
         if (event.key === 'Escape' && document.body.classList.contains('inventory-editor-fullscreen')) {
             setFullscreen(false);
+        }
+    });
+
+    document.addEventListener('pointerdown', function (event) {
+        if (peoplePopover && !peoplePopover.contains(event.target)) {
+            closePeopleEditor();
         }
     });
 

@@ -1839,6 +1839,227 @@ body.inventory-editor-fullscreen .inventory-editor-fs-exit {
     max-height: calc(1.3em * 2);
 }
 
+.report-inventory-grid .tabulator-cell[tabulator-field="team_user_ids"],
+.report-inventory-grid .tabulator-cell[tabulator-field="leader_user_id"] {
+    cursor: pointer;
+}
+
+.inventory-team-cell,
+.inventory-leader-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.inventory-person-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.16rem 0.42rem 0.16rem 0.18rem;
+    border: 1px solid #dee2e6;
+    border-radius: 999px;
+    background: #f8f9fa;
+    color: #495057;
+    font-size: 0.78rem;
+    font-weight: 400;
+}
+
+.inventory-person-chip.is-leader {
+    border-color: rgba(100, 130, 180, 0.45);
+    background: rgba(100, 130, 180, 0.1);
+    color: #405b86;
+}
+
+.inventory-person-avatar {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: #495057;
+    color: #fff;
+    font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.inventory-person-chip.is-leader .inventory-person-avatar,
+.inventory-leader-cell.is-leader .inventory-person-avatar,
+.inventory-person-option.is-leader .inventory-person-avatar {
+    background: #6482b4;
+}
+
+.inventory-person-avatar-sm {
+    width: 1.35rem;
+    height: 1.35rem;
+    font-size: 0.56rem;
+}
+
+.inventory-lead-crown {
+    color: #6482b4;
+    font-size: 0.72rem;
+}
+
+.inventory-team-more {
+    flex: 0 0 auto;
+    color: #667085;
+    font-size: 0.76rem;
+    font-weight: 600;
+}
+
+.inventory-people-empty {
+    color: #7b8494;
+    font-size: 0.8rem;
+}
+
+.inventory-people-popover {
+    position: fixed;
+    z-index: 1300;
+    display: flex;
+    flex-direction: column;
+    max-height: min(520px, calc(100vh - 24px));
+    padding: 0.75rem;
+    border: 1px solid rgba(16, 24, 40, 0.14);
+    border-radius: 0.75rem;
+    background: #fff;
+    box-shadow: 0 18px 45px rgba(16, 24, 40, 0.2), 0 2px 8px rgba(16, 24, 40, 0.08);
+}
+
+.inventory-people-header,
+.inventory-people-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.inventory-people-header {
+    justify-content: space-between;
+    margin-bottom: 0.65rem;
+}
+
+.inventory-people-header strong,
+.inventory-people-header small,
+.inventory-person-identity strong,
+.inventory-person-identity small {
+    display: block;
+}
+
+.inventory-people-header strong {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 600;
+}
+
+.inventory-people-header small,
+.inventory-person-identity small {
+    color: #667085;
+    font-size: 0.75rem;
+    font-weight: 400;
+}
+
+.inventory-people-close {
+    border: 0;
+    background: transparent;
+    color: #667085;
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.inventory-people-search {
+    margin-bottom: 0.5rem;
+}
+
+.inventory-people-list {
+    min-height: 3rem;
+    overflow-y: auto;
+    margin: 0 -0.25rem;
+    padding: 0 0.25rem;
+}
+
+.inventory-person-option {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 0.5rem;
+}
+
+.inventory-person-option:hover,
+.inventory-person-option.is-selected {
+    background: #f5f7fb;
+}
+
+.inventory-person-choice {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    padding: 0.45rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+}
+
+.inventory-person-choice:disabled,
+.inventory-person-lead:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+}
+
+.inventory-person-identity {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.inventory-person-identity strong,
+.inventory-person-identity small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.inventory-person-check {
+    color: #6482b4;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.inventory-person-lead {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #c1c7d0;
+}
+
+.inventory-person-lead:hover,
+.inventory-person-lead.is-leader {
+    background: rgba(100, 130, 180, 0.12);
+    color: #6482b4;
+}
+
+.inventory-people-no-results {
+    padding: 1.25rem 0.5rem;
+    color: #667085;
+    text-align: center;
+}
+
+.inventory-people-footer {
+    justify-content: flex-end;
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid #e8eaee;
+}
+
 .report-inventory-grid .tabulator-tableholder {
     overflow: auto !important;
 }
@@ -1910,6 +2131,65 @@ body.theme-dark .report-inventory-grid .tabulator-cell.tabulator-editing textare
     color: #e2e6eb;
     border: none;
     caret-color: #e2e6eb;
+}
+
+body.theme-dark .inventory-person-chip {
+    border-color: rgba(255, 255, 255, 0.13);
+    background: #2a3348;
+    color: #e2e6eb;
+}
+
+body.theme-dark .inventory-person-chip.is-leader {
+    border-color: rgba(123, 163, 255, 0.45);
+    background: rgba(123, 163, 255, 0.12);
+    color: #a3c2ff;
+}
+
+body.theme-dark .inventory-person-avatar {
+    background: #495057;
+}
+
+body.theme-dark .inventory-person-chip.is-leader .inventory-person-avatar,
+body.theme-dark .inventory-leader-cell.is-leader .inventory-person-avatar,
+body.theme-dark .inventory-person-option.is-leader .inventory-person-avatar {
+    background: #7ba3ff;
+    color: #0b1020;
+}
+
+body.theme-dark .inventory-lead-crown,
+body.theme-dark .inventory-person-check,
+body.theme-dark .inventory-person-lead.is-leader {
+    color: #7ba3ff;
+}
+
+body.theme-dark .inventory-person-lead:hover,
+body.theme-dark .inventory-person-lead.is-leader {
+    background: rgba(123, 163, 255, 0.12);
+}
+
+body.theme-dark .inventory-people-popover {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: #232a3b;
+    color: #e2e6eb;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
+}
+
+body.theme-dark .inventory-person-option:hover,
+body.theme-dark .inventory-person-option.is-selected {
+    background: #2f3b55;
+}
+
+body.theme-dark .inventory-people-header small,
+body.theme-dark .inventory-person-identity small,
+body.theme-dark .inventory-people-close,
+body.theme-dark .inventory-people-empty,
+body.theme-dark .inventory-team-more,
+body.theme-dark .inventory-people-no-results {
+    color: #aab2c0;
+}
+
+body.theme-dark .inventory-people-footer {
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 body.theme-dark .tabulator-popup-container,

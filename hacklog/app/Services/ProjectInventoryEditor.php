@@ -7,6 +7,8 @@ use App\Models\Department;
 use App\Models\MajorOffice;
 use App\Models\Project;
 use App\Models\ProjectActivity;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -28,6 +30,8 @@ class ProjectInventoryEditor
         'has_grant',
         'grant_value',
         'sponsor',
+        'team_user_ids',
+        'leader_user_id',
     ];
 
     public function lookupOptions(): array
@@ -69,11 +73,36 @@ class ProjectInventoryEditor
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
                 ->values()
                 ->all(),
+            'teamUsers' => User::query()
+                ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_TEAM])
+                ->orderBy('name')
+                ->get()
+                ->map(fn (User $user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'active' => (bool) $user->active,
+                ])
+                ->values()
+                ->all(),
         ];
     }
 
     public function toRow(Project $project): array
     {
+        $project->loadMissing('shares.user');
+
+        $team = $project->shares
+            ->filter(fn ($share) => $share->isUserShare() && $share->user && ! $share->user->isClient())
+            ->sortBy(fn ($share) => [$share->is_leader ? 0 : 1, mb_strtolower($share->user->name)])
+            ->map(fn ($share) => [
+                'id' => $share->user->id,
+                'name' => $share->user->name,
+                'is_leader' => (bool) $share->is_leader,
+            ])
+            ->values();
+        $leader = $team->firstWhere('is_leader', true);
+
         return [
             'id' => $project->id,
             'status' => $project->status,
@@ -90,6 +119,10 @@ class ProjectInventoryEditor
             'has_grant' => (bool) $project->has_grant,
             'grant_value' => $project->grant_value !== null ? (float) $project->grant_value : null,
             'sponsor' => $project->sponsor,
+            'team_user_ids' => $team->pluck('id')->all(),
+            'team' => $team->all(),
+            'leader_user_id' => $leader['id'] ?? null,
+            'leader' => $leader ? ['id' => $leader['id'], 'name' => $leader['name']] : null,
         ];
     }
 
@@ -99,6 +132,14 @@ class ProjectInventoryEditor
             throw ValidationException::withMessages([
                 'field' => 'That column is not editable.',
             ]);
+        }
+
+        if ($field === 'team_user_ids') {
+            return $this->applyTeam($project, $value, $userId);
+        }
+
+        if ($field === 'leader_user_id') {
+            return $this->applyLeader($project, $value, $userId);
         }
 
         $normalized = $this->normalizeIncoming($field, $value);
@@ -132,7 +173,7 @@ class ProjectInventoryEditor
             'field' => $field,
         ]);
 
-        return $project->fresh(['department', 'nestedDepartment', 'majorOffice']);
+        return $project->fresh(['department', 'nestedDepartment', 'majorOffice', 'shares.user']);
     }
 
     public function createDraft(?int $userId): Project
@@ -147,7 +188,98 @@ class ProjectInventoryEditor
             'source' => 'inventory_editor',
         ]);
 
-        return $project->fresh(['department', 'nestedDepartment', 'majorOffice']);
+        return $project->fresh(['department', 'nestedDepartment', 'majorOffice', 'shares.user']);
+    }
+
+    protected function applyTeam(Project $project, mixed $value, ?int $userId): Project
+    {
+        $validated = Validator::make(
+            ['team_user_ids' => $value],
+            ['team_user_ids' => 'present|array', 'team_user_ids.*' => 'integer|distinct']
+        )->validate();
+        $ids = collect($validated['team_user_ids'])->map(fn ($id) => (int) $id)->values();
+        $existingIds = $project->shares()
+            ->where('shareable_type', 'user')
+            ->pluck('shareable_id')
+            ->map(fn ($id) => (int) $id);
+        $eligibleIds = User::query()
+            ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_TEAM])
+            ->whereIn('id', $ids)
+            ->where(function ($query) use ($existingIds) {
+                $query->where('active', true)
+                    ->when($existingIds->isNotEmpty(), fn ($query) => $query->orWhereIn('id', $existingIds));
+            })
+            ->pluck('id');
+
+        if ($eligibleIds->count() !== $ids->unique()->count()) {
+            throw ValidationException::withMessages([
+                'value' => 'Project team members must be active admins or team users.',
+            ]);
+        }
+
+        DB::transaction(function () use ($project, $eligibleIds, $userId): void {
+            $internalUserIds = User::query()
+                ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_TEAM])
+                ->pluck('id')
+                ->map(fn ($id) => (string) $id);
+            $currentLeaderId = $project->shares()
+                ->where('shareable_type', 'user')
+                ->where('is_leader', true)
+                ->value('shareable_id');
+
+            $project->shares()
+                ->where('shareable_type', 'user')
+                ->whereIn('shareable_id', $internalUserIds)
+                ->when($eligibleIds->isNotEmpty(), fn ($query) => $query->whereNotIn('shareable_id', $eligibleIds))
+                ->delete();
+
+            foreach ($eligibleIds as $id) {
+                $project->shares()->updateOrCreate(
+                    ['shareable_type' => 'user', 'shareable_id' => (string) $id],
+                    ['is_leader' => (string) $id === (string) $currentLeaderId]
+                );
+            }
+
+            ProjectActivity::log($project->id, $userId, 'updated', [
+                'source' => 'inventory_editor',
+                'field' => 'team_user_ids',
+            ]);
+        });
+
+        return $project->fresh(['department', 'nestedDepartment', 'majorOffice', 'shares.user']);
+    }
+
+    protected function applyLeader(Project $project, mixed $value, ?int $userId): Project
+    {
+        $leaderId = ($value === null || $value === '') ? null : (int) $value;
+
+        if ($leaderId !== null && ! User::query()
+            ->whereKey($leaderId)
+            ->where('active', true)
+            ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_TEAM])
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'value' => 'Project lead must be an active admin or team user.',
+            ]);
+        }
+
+        DB::transaction(function () use ($project, $leaderId, $userId): void {
+            $project->shares()->where('is_leader', true)->update(['is_leader' => false]);
+
+            if ($leaderId !== null) {
+                $project->shares()->updateOrCreate(
+                    ['shareable_type' => 'user', 'shareable_id' => (string) $leaderId],
+                    ['is_leader' => true]
+                );
+            }
+
+            ProjectActivity::log($project->id, $userId, 'updated', [
+                'source' => 'inventory_editor',
+                'field' => 'leader_user_id',
+            ]);
+        });
+
+        return $project->fresh(['department', 'nestedDepartment', 'majorOffice', 'shares.user']);
     }
 
     protected function rules(): array

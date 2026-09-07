@@ -15,7 +15,7 @@ class InventoryEditorController extends Controller
     public function index(): View
     {
         $projects = Project::query()
-            ->with(['department', 'nestedDepartment', 'majorOffice'])
+            ->with(['department', 'nestedDepartment', 'majorOffice', 'shares.user'])
             ->orderBy('name')
             ->get()
             ->map(fn (Project $project) => $this->editor->toRow($project))

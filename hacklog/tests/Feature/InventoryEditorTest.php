@@ -178,4 +178,104 @@ class InventoryEditorTest extends TestCase
             'status' => Project::STATUS_PLANNING,
         ]);
     }
+
+    public function test_admin_can_assign_a_project_team_from_the_editor_without_touching_client_shares(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'active' => true]);
+        $member = User::factory()->create(['role' => User::ROLE_TEAM, 'active' => true]);
+        $removedMember = User::factory()->create(['role' => User::ROLE_TEAM, 'active' => true]);
+        $client = User::factory()->create(['role' => User::ROLE_CLIENT, 'active' => true]);
+        $project = Project::create([
+            'name' => 'Staffable Project',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+        ]);
+        $project->shares()->createMany([
+            ['shareable_type' => 'user', 'shareable_id' => (string) $removedMember->id, 'is_leader' => true],
+            ['shareable_type' => 'user', 'shareable_id' => (string) $client->id],
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('reports.editor.update', $project), [
+                'field' => 'team_user_ids',
+                'value' => [$admin->id, $member->id],
+            ])
+            ->assertOk()
+            ->assertJsonCount(2, 'project.team_user_ids')
+            ->assertJsonPath('project.leader_user_id', null);
+
+        $this->assertDatabaseMissing('project_shares', [
+            'project_id' => $project->id,
+            'shareable_id' => (string) $removedMember->id,
+        ]);
+        $this->assertDatabaseHas('project_shares', [
+            'project_id' => $project->id,
+            'shareable_id' => (string) $admin->id,
+        ]);
+        $this->assertDatabaseHas('project_shares', [
+            'project_id' => $project->id,
+            'shareable_id' => (string) $member->id,
+        ]);
+        $this->assertDatabaseHas('project_shares', [
+            'project_id' => $project->id,
+            'shareable_id' => (string) $client->id,
+        ]);
+    }
+
+    public function test_admin_can_set_a_project_lead_and_the_lead_is_added_to_the_team(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'active' => true]);
+        $lead = User::factory()->create(['role' => User::ROLE_TEAM, 'active' => true]);
+        $project = Project::create([
+            'name' => 'Leadership Project',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('reports.editor.update', $project), [
+                'field' => 'leader_user_id',
+                'value' => $lead->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('project.leader_user_id', $lead->id)
+            ->assertJsonPath('project.team_user_ids.0', $lead->id);
+
+        $this->assertDatabaseHas('project_shares', [
+            'project_id' => $project->id,
+            'shareable_type' => 'user',
+            'shareable_id' => (string) $lead->id,
+            'is_leader' => true,
+        ]);
+    }
+
+    public function test_client_cannot_be_assigned_to_the_project_team_from_the_editor(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'active' => true]);
+        $client = User::factory()->create(['role' => User::ROLE_CLIENT, 'active' => true]);
+        $project = Project::create([
+            'name' => 'Internal Project',
+            'status' => Project::STATUS_ACTIVE,
+            'staffing_model' => Project::STAFFING_DEDICATED,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('reports.editor.update', $project), [
+                'field' => 'team_user_ids',
+                'value' => [$client->id],
+            ])
+            ->assertUnprocessable();
+
+        $this->actingAs($admin)
+            ->patchJson(route('reports.editor.update', $project), [
+                'field' => 'leader_user_id',
+                'value' => $client->id,
+            ])
+            ->assertUnprocessable();
+
+        $this->assertDatabaseMissing('project_shares', [
+            'project_id' => $project->id,
+            'shareable_id' => (string) $client->id,
+        ]);
+    }
 }
