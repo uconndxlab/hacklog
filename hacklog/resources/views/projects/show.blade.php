@@ -215,7 +215,7 @@
                                     <td class="ps-3">
                                         @if($pw['phase'])
                                             <a href="{{ route('projects.board', ['project' => $project, 'phase' => $pw['phase']->id]) }}"
-                                               class="text-decoration-none text-body">{{ $pw['phase']->name }}</a>
+                                               class="text-decoration-none">{{ $pw['phase']->name }}</a>
                                         @else
                                             <span class="text-muted fst-italic">No phase</span>
                                         @endif
