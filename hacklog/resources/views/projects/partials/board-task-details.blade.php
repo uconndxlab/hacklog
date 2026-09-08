@@ -95,8 +95,10 @@
         data-bs-toggle="modal" 
         data-bs-target="#taskModal"
         data-bs-dismiss="modal"
+        data-task-modal-load
         hx-get="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
-        hx-target="#taskModalContent">
+        hx-target="#taskModalContent"
+        hx-sync="#taskModal:replace">
         Edit Task
     </button>
     <button type="button" class="btn btn-secondary ms-auto" data-bs-dismiss="modal">Close</button>

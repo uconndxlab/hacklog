@@ -379,6 +379,8 @@
         <div 
             hx-get="{{ route('projects.board.tasks.edit', [$project, $targetTask]) }}" 
             hx-target="#taskModalContent"
+            data-task-modal-load
+            hx-sync="#taskModal:replace"
             hx-trigger="load"
             hx-on::after-request="
                 const modal = new bootstrap.Modal(document.getElementById('taskModal'));
@@ -391,6 +393,8 @@
         </div>
     @endif
 @endif
+
+@include('projects.partials.task-modal-loading-script')
 
 <script>
 // Board filter state captured at page render time.

@@ -228,8 +228,10 @@
                                                     <a href="{{ route('projects.board.tasks.edit', [$project, $dupTask]) }}"
                                                        data-bs-toggle="modal"
                                                        data-bs-target="#taskModal"
+                                                       data-task-modal-load
                                                        hx-get="{{ route('projects.board.tasks.edit', [$project, $dupTask]) }}"
                                                        hx-target="#taskModalContent"
+                                                       hx-sync="#taskModal:replace"
                                                        class="fst-italic">
                                                         {{ $proposal->possible_duplicate_of }}
                                                     </a>
@@ -390,6 +392,8 @@
         </div>
     </div>
 </div>
+
+@include('projects.partials.task-modal-loading-script')
 @endsection
 
 @push('scripts')

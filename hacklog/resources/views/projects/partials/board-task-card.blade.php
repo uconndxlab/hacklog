@@ -70,8 +70,10 @@
                class="text-decoration-none fw-semibold"
                data-bs-toggle="modal"
                data-bs-target="#taskModal"
+               data-task-modal-load
                hx-get="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
                hx-target="#taskModalContent"
+               hx-sync="#taskModal:replace"
                hx-push-url="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
                style="display: block;">
                 <span class="badge bg-secondary text-white me-1" style="font-size: 0.65rem; font-weight: normal;">#{{ $task->id }}</span>
