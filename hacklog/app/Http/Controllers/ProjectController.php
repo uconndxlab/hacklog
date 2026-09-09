@@ -1310,6 +1310,69 @@ class ProjectController extends Controller
         ])->withBoardDependencySummary();
     }
 
+    /** Move an ordered selection together, including on filtered boards. */
+    public function moveTasks(Request $request, Project $project)
+    {
+        abort_unless(Project::visibleTo($request->user())->whereKey($project->id)->exists(), 403);
+
+        $validated = $request->validate([
+            'task_ids' => 'required|array|min:1',
+            'task_ids.*' => 'required|integer|distinct',
+            'column_id' => 'required|integer',
+            'before_task_id' => 'nullable|integer',
+        ]);
+
+        $movedTasks = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $project, $request) {
+            $columns = $project->columns()->lockForUpdate()->get()->keyBy('id');
+            abort_unless($columns->has($validated['column_id']), 422);
+            $tasks = Task::withoutGlobalScope('ordered')->whereIn('column_id', $columns->keys())
+                ->orderByRaw('position IS NULL, position ASC')->orderBy('id')
+                ->lockForUpdate()->get()->keyBy('id')->toBase();
+            $selected = collect($validated['task_ids'])->map(function ($id) use ($tasks) {
+                abort_unless($tasks->has($id), 422);
+                return $tasks->get($id);
+            });
+            $remaining = $tasks->except($validated['task_ids']);
+            $destination = $remaining->where('column_id', $validated['column_id'])->keys()->all();
+            $before = $validated['before_task_id'] ?? null;
+            $position = $before === null ? count($destination) : array_search($before, $destination);
+            abort_if($position === false, 422);
+            array_splice($destination, $position, 0, $selected->pluck('id')->all());
+
+            $affectedColumns = $selected->pluck('column_id')->push($validated['column_id'])->unique();
+            foreach ($selected as $task) {
+                $oldColumnId = $task->column_id;
+                $task->column_id = $validated['column_id'];
+                $task->updated_by = $request->user()->id;
+                $task->save();
+                if ((int) $oldColumnId !== (int) $task->column_id) {
+                    \App\Models\TaskActivity::log($task->id, $request->user()->id, 'column_changed', [
+                        'from' => $oldColumnId,
+                        'to' => $task->column_id,
+                        'from_name' => $columns->get($oldColumnId)->name,
+                        'to_name' => $columns->get($task->column_id)->name,
+                    ]);
+                }
+            }
+            foreach ($affectedColumns as $columnId) {
+                $ids = (int) $columnId === (int) $validated['column_id']
+                    ? $destination
+                    : $remaining->where('column_id', $columnId)->keys()->all();
+                foreach ($ids as $position => $id) {
+                    \Illuminate\Support\Facades\DB::table('tasks')->where('id', $id)->update(['position' => $position]);
+                }
+            }
+
+            return $selected;
+        });
+
+        foreach ($movedTasks as $task) {
+            app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
     /**
      * Move a task to a new position and/or column via drag & drop
      */
