@@ -171,6 +171,12 @@
                 @endforeach
             </ul>
         </div>
+
+        @if(!auth()->user()->isClient() && $assignableUsers->isNotEmpty())
+            <button type="button" class="btn btn-sm btn-primary" id="board-assign-open" data-bs-toggle="modal" data-bs-target="#boardAssignModal" hidden>
+                Add assignees
+            </button>
+        @endif
     </div>
 </div>
 
@@ -282,6 +288,31 @@
         </div>
     </div>
 </div>
+
+@if(!auth()->user()->isClient() && $assignableUsers->isNotEmpty())
+<div class="modal fade" id="boardAssignModal" tabindex="-1" aria-labelledby="boardAssignModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="boardAssignModalLabel">Add assignees</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">Selected people are added to every selected task. Existing assignees are kept.</p>
+                @include('partials.user-picker', [
+                    'users' => $assignableUsers,
+                    'selectedUserIds' => [],
+                    'inputName' => 'bulk_assignees[]'
+                ])
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="board-assign-submit">Add to selected</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 {{-- Task Details Modal --}}
 <div class="modal fade" id="taskDetailsModal" tabindex="-1" aria-labelledby="taskDetailsModalLabel" aria-hidden="true">
@@ -526,6 +557,8 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         selectedIds.forEach(id => { if (!visibleIds.has(id)) selectedIds.delete(id); });
         cards.forEach(card => card.classList.toggle('task-selected', selectedIds.has(card.dataset.taskId)));
         document.getElementById('board-selection-count').textContent = selectedIds.size ? `${selectedIds.size} selected` : '';
+        const assignBtn = document.getElementById('board-assign-open');
+        if (assignBtn) assignBtn.hidden = selectedIds.size === 0;
     }
 
     function clearSelection() {
@@ -533,7 +566,74 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         syncSelection();
     }
 
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') clearSelection(); });
+    function applyCardAssignees(card, assignees) {
+        const el = card.querySelector('.task-assignees');
+        if (!el) return;
+        const names = assignees.map(a => a.name).join(', ');
+        el.dataset.assigneeIds = assignees.map(a => a.id).join(',');
+        el.textContent = names || 'Unassigned';
+        el.title = names || 'Unassigned';
+    }
+
+    document.getElementById('board-assign-submit')?.addEventListener('click', function() {
+        if (saving || selectedIds.size === 0) return;
+        const modal = document.getElementById('boardAssignModal');
+        const checked = Array.from(modal.querySelectorAll('input[name="bulk_assignees[]"]:checked'));
+        const assigneeIds = checked.map(input => Number(input.value));
+        if (assigneeIds.length === 0) return;
+
+        const cards = Array.from(board.querySelectorAll('.task-card')).filter(c => selectedIds.has(c.dataset.taskId));
+        const error = document.getElementById('board-move-error');
+        error.hidden = true;
+        saving = true;
+        const submitBtn = document.getElementById('board-assign-submit');
+        submitBtn.disabled = true;
+
+        fetch(@json(route('projects.board.tasks.assignees-batch', $project)), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                task_ids: cards.map(c => Number(c.dataset.taskId)),
+                assignee_ids: assigneeIds
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Assign failed');
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) throw new Error('Assign failed');
+            (data.tasks || []).forEach(task => {
+                const card = board.querySelector(`.task-card[data-task-id="${task.id}"]`);
+                if (card) applyCardAssignees(card, task.assignees || []);
+            });
+            checked.forEach(input => { input.checked = false; });
+            const search = modal.querySelector('.user-picker-search');
+            if (search) {
+                search.value = '';
+                search.dispatchEvent(new Event('input'));
+            }
+            bootstrap.Modal.getInstance(modal)?.hide();
+        })
+        .catch(() => {
+            error.textContent = 'Could not add assignees to the selected tasks. Please reload the board before trying again.';
+            error.hidden = false;
+        })
+        .finally(() => {
+            saving = false;
+            submitBtn.disabled = false;
+        });
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        if (document.getElementById('boardAssignModal')?.classList.contains('show')) return;
+        clearSelection();
+    });
     document.body.addEventListener('htmx:afterSettle', syncSelection);
     // Capture before HTMX and Bootstrap handle task-title links.
     document.addEventListener('click', function(e) {

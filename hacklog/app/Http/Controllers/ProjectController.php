@@ -613,7 +613,11 @@ class ProjectController extends Controller
             })->where('status', '!=', 'completed');
         }])->orderBy('name')->get();
 
-        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks'));
+        $assignableUsers = auth()->user()->isClient()
+            ? collect()
+            : $this->getSortedUsersForProject($project, auth()->user());
+
+        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks', 'assignableUsers'));
     }
 
     /**
@@ -1439,6 +1443,82 @@ class ProjectController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Add assignees to multiple board tasks (mass selection; does not remove existing)
+     */
+    public function addTasksAssignees(Request $request, Project $project)
+    {
+        abort_unless(Project::visibleTo($request->user())->whereKey($project->id)->exists(), 403);
+        abort_if($request->user()->isClient(), 403);
+
+        $validated = $request->validate([
+            'task_ids' => 'required|array|min:1',
+            'task_ids.*' => 'required|integer|distinct',
+            'assignee_ids' => 'required|array|min:1',
+            'assignee_ids.*' => 'required|integer|distinct|exists:users,id',
+        ]);
+
+        $assigneeIds = array_map('intval', $validated['assignee_ids']);
+
+        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $project, $request, $assigneeIds) {
+            $columnIds = $project->columns()->pluck('id');
+            $tasks = Task::withoutGlobalScope('ordered')
+                ->whereIn('column_id', $columnIds)
+                ->whereIn('id', $validated['task_ids'])
+                ->with('users:id,name')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            abort_unless($tasks->count() === count($validated['task_ids']), 422);
+
+            $userId = $request->user()->id;
+            $changed = collect();
+
+            foreach ($validated['task_ids'] as $id) {
+                $task = $tasks->get($id);
+                $existing = $task->users->pluck('id')->map(fn ($uid) => (int) $uid)->all();
+                $toAdd = array_values(array_diff($assigneeIds, $existing));
+                if ($toAdd === []) {
+                    continue;
+                }
+
+                $task->users()->attach($toAdd);
+                $task->updated_by = $userId;
+                $task->save();
+                \App\Models\TaskActivity::log($task->id, $userId, 'assignees_changed', [
+                    'added' => $toAdd,
+                ]);
+                $task->load('users:id,name');
+                $changed->push($task);
+            }
+
+            $payload = collect($validated['task_ids'])->map(function ($id) use ($tasks) {
+                $task = $tasks->get($id)->fresh(['users:id,name']);
+
+                return [
+                    'id' => $task->id,
+                    'assignees' => $task->users
+                        ->sortBy('name')
+                        ->values()
+                        ->map(fn ($user) => ['id' => $user->id, 'name' => $user->name])
+                        ->all(),
+                ];
+            })->all();
+
+            return ['changed' => $changed, 'tasks' => $payload];
+        });
+
+        foreach ($result['changed'] as $task) {
+            app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
+        }
+
+        return response()->json([
+            'success' => true,
+            'tasks' => $result['tasks'],
+        ]);
     }
 
     /**

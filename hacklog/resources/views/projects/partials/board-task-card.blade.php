@@ -15,13 +15,15 @@
     <div class="card-header bg-light py-1 px-2 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid rgba(0,0,0,.125);">
         {{-- Assignment Info --}}
         <div style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px;">
-            @if($task->users->isNotEmpty())
-                <small class="text-muted" style="font-size: 0.7rem;" title="{{ $task->users->pluck('name')->join(', ') }}">
-                    {{ $task->users->pluck('name')->join(', ') }}
-                </small>
-            @else
-                <small class="text-muted" style="font-size: 0.7rem;">Unassigned</small>
-            @endif
+            @php
+                $assigneeIds = $task->users->pluck('id')->all();
+                $assigneeNames = $task->users->pluck('name')->join(', ');
+            @endphp
+            <small class="text-muted task-assignees" style="font-size: 0.7rem;"
+                   data-assignee-ids="{{ implode(',', $assigneeIds) }}"
+                   title="{{ $assigneeNames !== '' ? $assigneeNames : 'Unassigned' }}">
+                {{ $assigneeNames !== '' ? $assigneeNames : 'Unassigned' }}
+            </small>
         </div>
 
         {{-- Interactive status dropdown --}}

@@ -99,6 +99,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('projects/{project}/board/tasks/{task}', [ProjectController::class, 'deleteTask'])->name('projects.board.tasks.destroy');
     Route::post('projects/{project}/board/tasks/move', [ProjectController::class, 'moveTasks'])->name('projects.board.tasks.move-batch');
     Route::post('projects/{project}/board/tasks/status', [ProjectController::class, 'updateTasksStatus'])->name('projects.board.tasks.status-batch');
+    Route::post('projects/{project}/board/tasks/assignees', [ProjectController::class, 'addTasksAssignees'])->name('projects.board.tasks.assignees-batch');
     Route::post('projects/{project}/board/tasks/{task}/move', [ProjectController::class, 'moveTask'])->name('projects.board.tasks.move');
     Route::post('projects/{project}/board/tasks/{task}/comments', [ProjectController::class, 'storeComment'])->name('projects.board.tasks.comments.store');
     Route::delete('projects/{project}/board/tasks/{task}/comments/{comment}', [ProjectController::class, 'deleteComment'])->name('projects.board.tasks.comments.destroy');
