@@ -1530,3 +1530,682 @@ body.theme-dark .timeline-filter-bar .btn-outline-secondary:hover {
     width: 100%;
     gap: 4px;
 }
+
+/* Inventory lookup tables (departments, offices) */
+#departments-table tbody:not(.is-expanded) > tr[data-nested-row],
+#departments-table tbody:not(.is-expanded) > tr[data-nested-add] {
+    display: none !important;
+}
+
+.department-nested-toggle {
+    flex-shrink: 0;
+    line-height: 31px;
+    font-variant-numeric: tabular-nums;
+}
+
+#departments-table tr[data-department-home-row] {
+    cursor: pointer;
+}
+
+.inventory-inline-name {
+    position: relative;
+    display: inline-block;
+    min-width: 12rem;
+    max-width: 28rem;
+    vertical-align: middle;
+}
+
+.inventory-inline-name [data-inline-display] {
+    display: block;
+    min-height: 31px;
+    line-height: 31px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inventory-inline-name [data-inline-input] {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    width: 100%;
+    height: 31px;
+    display: none;
+}
+
+[data-inline-edit].is-editing .inventory-inline-name [data-inline-display] {
+    visibility: hidden;
+}
+
+[data-inline-edit].is-editing .inventory-inline-name [data-inline-input] {
+    display: block;
+}
+
+.inventory-inline-toggle {
+    display: inline-grid;
+    vertical-align: middle;
+}
+
+.inventory-inline-toggle > [data-inline-start],
+.inventory-inline-toggle > [data-inline-save] {
+    grid-area: 1 / 1;
+}
+
+.inventory-inline-toggle > [data-inline-save] {
+    visibility: hidden;
+}
+
+[data-inline-edit].is-editing .inventory-inline-toggle > [data-inline-start] {
+    visibility: hidden;
+}
+
+[data-inline-edit].is-editing .inventory-inline-toggle > [data-inline-save] {
+    visibility: visible;
+}
+
+.inventory-table .col-projects {
+    width: 6.5rem;
+    white-space: nowrap;
+}
+
+.inventory-table .col-actions {
+    width: 1%;
+    white-space: nowrap;
+}
+
+#departments-table .col-actions {
+    min-width: 10rem;
+}
+
+#departments-table tr[data-nested-row] .col-actions {
+    padding-right: 1.25rem;
+}
+
+.inventory-table.table-hover > tbody > tr:hover > * {
+    --bs-table-bg-state: transparent;
+    --bs-table-hover-bg: rgba(0, 0, 0, 0.025);
+    background-color: rgba(0, 0, 0, 0.025);
+    box-shadow: none;
+}
+
+.inventory-table.table-hover > tbody > tr.table-light:hover > * {
+    --bs-table-hover-bg: rgba(0, 0, 0, 0.04);
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+html.theme-dark .inventory-table.table-hover > tbody > tr:hover > *,
+body.theme-dark .inventory-table.table-hover tbody tr:hover td {
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.04);
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+html.theme-dark .inventory-table.table-hover > tbody > tr.table-light:hover > *,
+body.theme-dark .inventory-table.table-hover tbody tr.table-light:hover td {
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.055);
+    background-color: rgba(255, 255, 255, 0.055);
+}
+
+.report-sort-link {
+    color: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.report-sort-link:hover {
+    text-decoration: underline;
+}
+
+html.theme-dark .report-sort-link,
+body.theme-dark .report-sort-link {
+    color: inherit !important;
+}
+
+.report-filter-chip,
+.report-status-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(13, 110, 253, 0.08);
+    color: inherit;
+    border: 1px solid rgba(13, 110, 253, 0.25);
+    font-weight: 500;
+    padding: 0.35rem 0.7rem;
+}
+
+.report-status-swatch {
+    display: inline-block;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.report-workload-name {
+    width: 10rem;
+    flex-shrink: 0;
+}
+
+.report-workload-track {
+    display: flex;
+    height: 1.5rem;
+    overflow: hidden;
+    border-radius: 0.25rem;
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.report-workload-segment {
+    flex-shrink: 0;
+    min-width: 4px;
+    cursor: default;
+}
+
+.report-workload-count {
+    width: 2rem;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.report-workload-tooltip {
+    display: none;
+    position: fixed;
+    z-index: 1080;
+    pointer-events: none;
+    max-width: 18rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12);
+}
+
+html.theme-dark .report-workload-track,
+body.theme-dark .report-workload-track {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+html.theme-dark .report-workload-tooltip,
+body.theme-dark .report-workload-tooltip {
+    background: #1f2535;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e2e6eb;
+}
+
+html.theme-dark .apexcharts-legend-text,
+body.theme-dark .apexcharts-legend-text {
+    color: #e2e6eb !important;
+}
+
+body.inventory-editor-body {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+body.inventory-editor-body > .navbar {
+    flex: 0 0 auto;
+    margin-bottom: 0.5rem !important;
+}
+
+body.inventory-editor-body > .container-fluid {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 0.5rem;
+}
+
+.inventory-editor-page {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.inventory-editor-page > .d-flex {
+    flex: 0 0 auto;
+    margin-bottom: 0.5rem !important;
+}
+
+#inventory-editor-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.inventory-editor-fs-exit {
+    display: none;
+}
+
+body.inventory-editor-fullscreen > .navbar,
+body.inventory-editor-fullscreen .inventory-editor-page > .d-flex {
+    display: none !important;
+}
+
+body.inventory-editor-fullscreen > .container-fluid {
+    padding: 0;
+}
+
+body.inventory-editor-fullscreen .inventory-editor-fs-exit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 2.5rem;
+    right: 1rem;
+    z-index: 1100;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+}
+
+.report-inventory-grid .tabulator {
+    font-family: inherit;
+    font-size: 0.85rem;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: transparent;
+}
+
+.report-inventory-grid .tabulator-header {
+    background: var(--bs-light, #f8f9fa);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    font-weight: 600;
+}
+
+.report-inventory-grid .tabulator-col {
+    background: transparent;
+}
+
+.report-inventory-grid .tabulator-cell {
+    padding: 0.4rem 0.55rem;
+}
+
+/* Names wrap to two lines, then ellipsis; fixed row height keeps virtual scrolling exact. */
+.report-inventory-grid .tabulator-cell[tabulator-field="name"] {
+    overflow: hidden;
+    white-space: normal;
+}
+
+.report-inventory-grid .inventory-editor-name-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+    max-height: calc(1.3em * 2);
+}
+
+.report-inventory-grid .tabulator-cell[tabulator-field="team_user_ids"],
+.report-inventory-grid .tabulator-cell[tabulator-field="leader_user_id"] {
+    cursor: pointer;
+}
+
+.inventory-team-cell,
+.inventory-leader-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.inventory-person-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.16rem 0.42rem 0.16rem 0.18rem;
+    border: 1px solid #dee2e6;
+    border-radius: 999px;
+    background: #f8f9fa;
+    color: #495057;
+    font-size: 0.78rem;
+    font-weight: 400;
+}
+
+.inventory-person-chip.is-leader {
+    border-color: rgba(100, 130, 180, 0.45);
+    background: rgba(100, 130, 180, 0.1);
+    color: #405b86;
+}
+
+.inventory-person-avatar {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: #495057;
+    color: #fff;
+    font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.inventory-person-chip.is-leader .inventory-person-avatar,
+.inventory-leader-cell.is-leader .inventory-person-avatar,
+.inventory-person-option.is-leader .inventory-person-avatar {
+    background: #6482b4;
+}
+
+.inventory-person-avatar-sm {
+    width: 1.35rem;
+    height: 1.35rem;
+    font-size: 0.56rem;
+}
+
+.inventory-lead-crown {
+    color: #6482b4;
+    font-size: 0.72rem;
+}
+
+.inventory-team-more {
+    flex: 0 0 auto;
+    color: #667085;
+    font-size: 0.76rem;
+    font-weight: 600;
+}
+
+.inventory-people-empty {
+    color: #7b8494;
+    font-size: 0.8rem;
+}
+
+.inventory-people-popover {
+    position: fixed;
+    z-index: 1300;
+    display: flex;
+    flex-direction: column;
+    max-height: min(520px, calc(100vh - 24px));
+    padding: 0.75rem;
+    border: 1px solid rgba(16, 24, 40, 0.14);
+    border-radius: 0.75rem;
+    background: #fff;
+    box-shadow: 0 18px 45px rgba(16, 24, 40, 0.2), 0 2px 8px rgba(16, 24, 40, 0.08);
+}
+
+.inventory-people-header,
+.inventory-people-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.inventory-people-header {
+    justify-content: space-between;
+    margin-bottom: 0.65rem;
+}
+
+.inventory-people-header strong,
+.inventory-people-header small,
+.inventory-person-identity strong,
+.inventory-person-identity small {
+    display: block;
+}
+
+.inventory-people-header strong {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 600;
+}
+
+.inventory-people-header small,
+.inventory-person-identity small {
+    color: #667085;
+    font-size: 0.75rem;
+    font-weight: 400;
+}
+
+.inventory-people-close {
+    border: 0;
+    background: transparent;
+    color: #667085;
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.inventory-people-search {
+    margin-bottom: 0.5rem;
+}
+
+.inventory-people-list {
+    min-height: 3rem;
+    overflow-y: auto;
+    margin: 0 -0.25rem;
+    padding: 0 0.25rem;
+}
+
+.inventory-person-option {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 0.5rem;
+}
+
+.inventory-person-option:hover,
+.inventory-person-option.is-selected {
+    background: #f5f7fb;
+}
+
+.inventory-person-choice {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    padding: 0.45rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+}
+
+.inventory-person-choice:disabled,
+.inventory-person-lead:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+}
+
+.inventory-person-identity {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.inventory-person-identity strong,
+.inventory-person-identity small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.inventory-person-check {
+    color: #6482b4;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.inventory-person-lead {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #c1c7d0;
+}
+
+.inventory-person-lead:hover,
+.inventory-person-lead.is-leader {
+    background: rgba(100, 130, 180, 0.12);
+    color: #6482b4;
+}
+
+.inventory-people-no-results {
+    padding: 1.25rem 0.5rem;
+    color: #667085;
+    text-align: center;
+}
+
+.inventory-people-footer {
+    justify-content: flex-end;
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid #e8eaee;
+}
+
+.report-inventory-grid .tabulator-tableholder {
+    overflow: auto !important;
+}
+
+body.theme-dark .report-inventory-grid .tabulator,
+body.theme-dark .report-inventory-grid .tabulator-tableholder,
+body.theme-dark .report-inventory-grid .tabulator-table {
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e2e6eb;
+    background: #1a1f2e;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-header,
+body.theme-dark .report-inventory-grid .tabulator-col,
+body.theme-dark .report-inventory-grid .tabulator-col-content,
+body.theme-dark .report-inventory-grid .tabulator-col-title {
+    background: #232a3b;
+    color: #e2e6eb;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.theme-dark .report-inventory-grid [aria-sort=none] .tabulator-arrow {
+    border-bottom-color: #9aa3b2;
+}
+
+body.theme-dark .report-inventory-grid [aria-sort=ascending] .tabulator-arrow {
+    border-bottom-color: #e2e6eb;
+}
+
+body.theme-dark .report-inventory-grid [aria-sort=descending] .tabulator-arrow {
+    border-top-color: #e2e6eb;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-row {
+    background: #1a1f2e;
+    color: #e2e6eb;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.theme-dark .report-inventory-grid .tabulator-row.tabulator-row-even {
+    background: #1e2536;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-cell,
+body.theme-dark .report-inventory-grid .tabulator-frozen {
+    background: inherit;
+    color: #e2e6eb;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.theme-dark .report-inventory-grid .tabulator-row.tabulator-selectable:hover {
+    background: #2a3348;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-placeholder,
+body.theme-dark .report-inventory-grid .tabulator-placeholder-contents {
+    color: #9aa3b2;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-cell.tabulator-editing {
+    background: #2a3342;
+    border-color: #7ba3ff;
+}
+
+body.theme-dark .report-inventory-grid .tabulator-cell.tabulator-editing input,
+body.theme-dark .report-inventory-grid .tabulator-cell.tabulator-editing select,
+body.theme-dark .report-inventory-grid .tabulator-cell.tabulator-editing textarea {
+    background: #2a3342;
+    color: #e2e6eb;
+    border: none;
+    caret-color: #e2e6eb;
+}
+
+body.theme-dark .inventory-person-chip {
+    border-color: rgba(255, 255, 255, 0.13);
+    background: #2a3348;
+    color: #e2e6eb;
+}
+
+body.theme-dark .inventory-person-chip.is-leader {
+    border-color: rgba(123, 163, 255, 0.45);
+    background: rgba(123, 163, 255, 0.12);
+    color: #a3c2ff;
+}
+
+body.theme-dark .inventory-person-avatar {
+    background: #495057;
+}
+
+body.theme-dark .inventory-person-chip.is-leader .inventory-person-avatar,
+body.theme-dark .inventory-leader-cell.is-leader .inventory-person-avatar,
+body.theme-dark .inventory-person-option.is-leader .inventory-person-avatar {
+    background: #7ba3ff;
+    color: #0b1020;
+}
+
+body.theme-dark .inventory-lead-crown,
+body.theme-dark .inventory-person-check,
+body.theme-dark .inventory-person-lead.is-leader {
+    color: #7ba3ff;
+}
+
+body.theme-dark .inventory-person-lead:hover,
+body.theme-dark .inventory-person-lead.is-leader {
+    background: rgba(123, 163, 255, 0.12);
+}
+
+body.theme-dark .inventory-people-popover {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: #232a3b;
+    color: #e2e6eb;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
+}
+
+body.theme-dark .inventory-person-option:hover,
+body.theme-dark .inventory-person-option.is-selected {
+    background: #2f3b55;
+}
+
+body.theme-dark .inventory-people-header small,
+body.theme-dark .inventory-person-identity small,
+body.theme-dark .inventory-people-close,
+body.theme-dark .inventory-people-empty,
+body.theme-dark .inventory-team-more,
+body.theme-dark .inventory-people-no-results {
+    color: #aab2c0;
+}
+
+body.theme-dark .inventory-people-footer {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.theme-dark .tabulator-popup-container,
+body.theme-dark .tabulator-edit-list {
+    background: #232a3b;
+    border-color: rgba(255, 255, 255, 0.16);
+    color: #e2e6eb;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.4);
+}
+
+body.theme-dark .tabulator-edit-list-item {
+    color: #e2e6eb;
+}
+
+body.theme-dark .tabulator-edit-list-item.active,
+body.theme-dark .tabulator-edit-list-item:hover {
+    background: #2f3b55;
+    color: #fff;
+}

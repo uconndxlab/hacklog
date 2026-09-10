@@ -14,6 +14,9 @@
         @if(Auth::user()->isClient())
             <span class="badge bg-info">Client Access</span>
         @endif
+        @if(Auth::user()->isAdmin())
+            <a href="{{ route('projects.table') }}" class="btn btn-outline-secondary btn-sm">Table View</a>
+        @endif
         <a href="{{ route('projects.create') }}" class="btn btn-primary">New Project</a>
     </div>
 </div>
@@ -104,12 +107,11 @@
                         hx-target="#projects-list"
                     hx-include="[name='search'], [name='scope'], [name='time'], [name='owner'], [name='sort'], [name='tag']"
                         hx-push-url="true">
-                    <option value="planning,active" {{ request('status', 'planning,active') === 'planning,active' ? 'selected' : '' }}>Planning + Active</option>
-                    <option value="planning" {{ request('status') === 'planning' ? 'selected' : '' }}>Planning</option>
-                    <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="on_hold" {{ request('status') === 'on_hold' ? 'selected' : '' }}>On Hold</option>
-                    <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
-                    <option value="archived" {{ request('status') === 'archived' ? 'selected' : '' }}>Archived</option>
+                    @php $activeViewStatusFilter = implode(',', $activeViewStatuses); @endphp
+                    <option value="{{ $activeViewStatusFilter }}" @selected(request('status', $activeViewStatusFilter) === $activeViewStatusFilter)>Active views</option>
+                    @foreach($statusDefinitions as $statusOption)
+                        <option value="{{ $statusOption->key }}" @selected(request('status') === $statusOption->key)>{{ $statusOption->name }}</option>
+                    @endforeach
                 </select>
             </div>
 

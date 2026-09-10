@@ -52,11 +52,9 @@
                             id="status" 
                             name="status" 
                             required>
-                            <option value="planning" {{ old('status', $project->status) === 'planning' ? 'selected' : '' }}>Planning</option>
-                            <option value="active" {{ old('status', $project->status) === 'active' ? 'selected' : '' }}>Active</option>
-                            <option value="on_hold" {{ old('status', $project->status) === 'on_hold' ? 'selected' : '' }}>On Hold</option>
-                            <option value="completed" {{ old('status', $project->status) === 'completed' ? 'selected' : '' }}>Completed</option>
-                            <option value="archived" {{ old('status', $project->status) === 'archived' ? 'selected' : '' }}>Archived</option>
+                            @foreach(\App\Models\Project::statusDefinitions() as $statusOption)
+                                <option value="{{ $statusOption->key }}" @selected(old('status', $project->status) === $statusOption->key)>{{ $statusOption->name }}</option>
+                            @endforeach
                         </select>
                         @error('status')
                             <div class="invalid-feedback">{{ $message }}</div>
@@ -77,6 +75,22 @@
                             Dedicated Team: Tasks remain within the project team. Shared: Unassigned tasks appear in the global task feed.
                         </div>
                         @error('staffing_model')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="launch_date" class="form-label">Launch Date <span class="text-muted fw-normal">(optional)</span></label>
+                        <input
+                            type="date"
+                            class="form-control @error('launch_date') is-invalid @enderror"
+                            id="launch_date"
+                            name="launch_date"
+                            value="{{ old('launch_date', $project->launch_date?->format('Y-m-d')) }}">
+                        <div class="form-text">
+                            The planned or actual launch date for this project. Displayed in the admin table view.
+                        </div>
+                        @error('launch_date')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
@@ -149,6 +163,12 @@
                             'selectId' => 'tags',
                             'newTagsId' => 'new_tags',
                         ])
+                    @endif
+
+                    @if(!auth()->user()->isClient())
+                        <hr class="my-4">
+                        <h3 class="h6 text-muted text-uppercase mb-3">Inventory classification</h3>
+                        @include('projects.partials.classification-fields')
                     @endif
 
                     <button type="submit" class="btn btn-primary">Save Changes</button>

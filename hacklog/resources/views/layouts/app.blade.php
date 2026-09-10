@@ -38,7 +38,7 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
 </head>
-<body>
+<body class="@yield('body_class')">
     <script>
         if (document.documentElement.classList.contains('theme-dark')) {
             document.body.classList.add('theme-dark');
@@ -70,11 +70,6 @@
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('about') ? 'active' : '' }}" href="{{ route('about') }}">About</a>
                     </li>
-                    @if(Auth::check() && !Auth::user()->isClient())
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('tags.*') ? 'active' : '' }}" href="{{ route('tags.index') }}">Tags</a>
-                        </li>
-                    @endif
                     @if(Auth::check() && Auth::user()->isAdmin())
 
 
@@ -87,10 +82,42 @@
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('activity-log.*') ? 'active' : '' }}" href="{{ route('activity-log.index') }}">Activity Log</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}">Reports</a>
+                        </li>
 
                     @endif
                 </ul>
                 <ul class="navbar-nav ms-auto">
+                    @if(Auth::check() && !Auth::user()->isClient())
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {{ request()->routeIs('tags.*', 'departments.*', 'major-offices.*', 'project-statuses.*', 'project-types.*') ? 'active' : '' }}"
+                               href="#"
+                               id="navbarConfigDropdown"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">
+                                Config
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarConfigDropdown">
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('tags.*') ? 'active' : '' }}" href="{{ route('tags.index') }}">Tags</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('departments.*') ? 'active' : '' }}" href="{{ route('departments.index') }}">Departments</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('major-offices.*') ? 'active' : '' }}" href="{{ route('major-offices.index') }}">Offices</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('project-statuses.*') ? 'active' : '' }}" href="{{ route('project-statuses.index') }}">Project Statuses</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('project-types.*') ? 'active' : '' }}" href="{{ route('project-types.index') }}">Project Types</a>
+                                </li>
+                            </ul>
+                        </li>
+                    @endif
                     <li class="nav-item d-flex align-items-center me-2">
                         <button id="hl-theme-toggle"
                                 type="button"
@@ -141,6 +168,7 @@
 
     {{-- Floating Action Button --}}
     @auth
+        @unless(request()->routeIs('reports.*'))
         <button type="button" 
                 id="fabButton"
                 class="btn btn-primary position-fixed bottom-0 end-0 m-4 rounded-circle d-flex align-items-center justify-content-center" 
@@ -150,6 +178,7 @@
                 <path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2z"/>
             </svg>
         </button>
+        @endunless
     @endauth
 
     {{-- Project Selection Modal --}}

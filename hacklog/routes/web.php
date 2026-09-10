@@ -4,11 +4,17 @@ use App\Http\Controllers\AboutController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\ColumnController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\InventoryEditorController;
+use App\Http\Controllers\MajorOfficeController;
 use App\Http\Controllers\PhaseController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectIntakeController;
 use App\Http\Controllers\ProjectResourceController;
+use App\Http\Controllers\ProjectStatusController;
+use App\Http\Controllers\ProjectTypeController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaskAttachmentController;
@@ -29,9 +35,9 @@ use Illuminate\Support\Facades\Route;
 $authDriver = config('hacklog_auth.driver', 'local');
 
 if ($authDriver === 'cas') {
-    require __DIR__ . '/auth_cas.php';
+    require __DIR__.'/auth_cas.php';
 } else {
-    require __DIR__ . '/auth_local.php';
+    require __DIR__.'/auth_local.php';
 }
 
 // Public home
@@ -39,6 +45,7 @@ Route::get('/', function () {
     if (Auth::check()) {
         return redirect()->route('dashboard');
     }
+
     return redirect()->route('login');
 });
 
@@ -59,13 +66,28 @@ Route::middleware('auth')->group(function () {
         Route::get('admin/projects/{project}/phases/{phase}/tasks', [TaskController::class, 'adminIndex'])->name('admin.phases.tasks.index');
         Route::delete('admin/projects/{project}/phases/{phase}/tasks/bulk', [TaskController::class, 'bulkDelete'])->name('admin.phases.tasks.bulk-delete');
         Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
+        Route::get('projects-table', [ProjectController::class, 'tableView'])->name('projects.table');
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/workload', [ReportController::class, 'workload'])->name('reports.workload');
+        Route::get('reports/editor', [InventoryEditorController::class, 'index'])->name('reports.editor');
+        Route::post('reports/inventory', [InventoryEditorController::class, 'store'])->name('reports.editor.store');
+        Route::patch('reports/inventory/{project}', [InventoryEditorController::class, 'update'])->name('reports.editor.update');
     });
 
     Route::resource('tags', TagController::class)->except(['show']);
+    Route::get('departments/nested-options', [DepartmentController::class, 'nestedOptions'])->name('departments.nested-options');
+    Route::resource('departments', DepartmentController::class)->except(['show', 'create', 'edit']);
+    Route::post('departments/{department}/nested', [DepartmentController::class, 'storeNested'])->name('departments.nested.store');
+    Route::put('departments/{department}/nested/{nested}', [DepartmentController::class, 'updateNested'])->name('departments.nested.update');
+    Route::delete('departments/{department}/nested/{nested}', [DepartmentController::class, 'destroyNested'])->name('departments.nested.destroy');
+    Route::resource('major-offices', MajorOfficeController::class)->except(['show', 'create', 'edit']);
+    Route::resource('project-statuses', ProjectStatusController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('project-types', ProjectTypeController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('projects', ProjectController::class);
     Route::post('projects/{project}/favorite', [ProjectFavoriteController::class, 'toggle'])->name('projects.favorites.toggle');
     Route::get('projects/{project}/sharing', [ProjectController::class, 'sharing'])->name('projects.sharing');
     Route::post('projects/{project}/shares', [ProjectController::class, 'shareStore'])->name('projects.shares.store');
+    Route::patch('projects/{project}/shares/{share}', [ProjectController::class, 'shareUpdate'])->name('projects.shares.update');
     Route::delete('projects/{project}/shares/{share}', [ProjectController::class, 'shareDestroy'])->name('projects.shares.destroy');
     Route::get('projects/{project}/board', [ProjectController::class, 'board'])->name('projects.board');
     Route::post('projects/{project}/board/create-default-columns', [ProjectController::class, 'createDefaultColumns'])->name('projects.board.create-default-columns');
@@ -75,6 +97,9 @@ Route::middleware('auth')->group(function () {
     Route::get('projects/{project}/board/tasks/{task}', [ProjectController::class, 'showTask'])->name('projects.board.tasks.show');
     Route::put('projects/{project}/board/tasks/{task}', [ProjectController::class, 'updateTask'])->name('projects.board.tasks.update');
     Route::delete('projects/{project}/board/tasks/{task}', [ProjectController::class, 'deleteTask'])->name('projects.board.tasks.destroy');
+    Route::post('projects/{project}/board/tasks/move', [ProjectController::class, 'moveTasks'])->name('projects.board.tasks.move-batch');
+    Route::post('projects/{project}/board/tasks/status', [ProjectController::class, 'updateTasksStatus'])->name('projects.board.tasks.status-batch');
+    Route::post('projects/{project}/board/tasks/assignees', [ProjectController::class, 'addTasksAssignees'])->name('projects.board.tasks.assignees-batch');
     Route::post('projects/{project}/board/tasks/{task}/move', [ProjectController::class, 'moveTask'])->name('projects.board.tasks.move');
     Route::post('projects/{project}/board/tasks/{task}/comments', [ProjectController::class, 'storeComment'])->name('projects.board.tasks.comments.store');
     Route::delete('projects/{project}/board/tasks/{task}/comments/{comment}', [ProjectController::class, 'deleteComment'])->name('projects.board.tasks.comments.destroy');

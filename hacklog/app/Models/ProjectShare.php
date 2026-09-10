@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * ProjectShare represents explicit visibility grants.
- * 
+ *
  * Projects can be shared with:
  * - Individual users (shareable_type='user', shareable_id=user.id)
  * - User roles (shareable_type='role', shareable_id='client'/'team')
- * 
+ *
  * Sharing grants visibility only - it does not imply edit rights.
  * Project-level roles (owner/contributor/viewer) control permissions.
  */
@@ -21,6 +21,11 @@ class ProjectShare extends Model
         'project_id',
         'shareable_type',
         'shareable_id',
+        'is_leader',
+    ];
+
+    protected $casts = [
+        'is_leader' => 'boolean',
     ];
 
     /**
@@ -29,6 +34,16 @@ class ProjectShare extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * The user attached to an individual-user share.
+     *
+     * Role shares simply resolve this relationship to null.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'shareable_id');
     }
 
     /**
@@ -55,6 +70,7 @@ class ProjectShare extends Model
         if ($this->isUserShare()) {
             return User::find($this->shareable_id);
         }
+
         return null;
     }
 
@@ -66,6 +82,7 @@ class ProjectShare extends Model
         if ($this->isRoleShare()) {
             return $this->shareable_id;
         }
+
         return null;
     }
 }

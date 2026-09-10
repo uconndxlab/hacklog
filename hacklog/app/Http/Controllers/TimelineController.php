@@ -7,9 +7,9 @@ use App\Models\Project;
 use App\Models\Tag;
 use App\Models\Task;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 
 class TimelineController extends Controller
 {
@@ -40,7 +40,7 @@ class TimelineController extends Controller
                 },
             ]);
 
-        if (!empty($filters['phase_statuses'])) {
+        if (! empty($filters['phase_statuses'])) {
             $phasesQuery->whereIn('status', $filters['phase_statuses']);
         }
 
@@ -50,7 +50,7 @@ class TimelineController extends Controller
             });
         }
 
-        if (!empty($filters['assignee_ids'])) {
+        if (! empty($filters['assignee_ids'])) {
             $phasesQuery->whereHas('tasks.users', function ($query) use ($filters) {
                 $query->whereIn('users.id', $filters['assignee_ids']);
             });
@@ -92,11 +92,11 @@ class TimelineController extends Controller
 
         [$timelineStart, $timelineEnd] = $this->resolveTimelineBounds($filters);
 
-        if (!$filters['has_start']) {
+        if (! $filters['has_start']) {
             $filters['start'] = Carbon::today()->format('Y-m-d');
         }
 
-        if (!$filters['has_end']) {
+        if (! $filters['has_end']) {
             $filters['end'] = Carbon::today()->addMonths(2)->format('Y-m-d');
         }
 
@@ -110,8 +110,8 @@ class TimelineController extends Controller
             $weekStart = $currentWeek->copy();
             $weekEnd = $currentWeek->copy()->endOfWeek();
             $label = $weekStart->month === $weekEnd->month
-                ? $weekStart->format('M j') . '-' . $weekEnd->format('j')
-                : $weekStart->format('M j') . ' - ' . $weekEnd->format('M j');
+                ? $weekStart->format('M j').'-'.$weekEnd->format('j')
+                : $weekStart->format('M j').' - '.$weekEnd->format('M j');
 
             $weeks[] = [
                 'start' => $weekStart,
@@ -204,7 +204,7 @@ class TimelineController extends Controller
                     $this->applyTaskFilters($query, $filters);
                 });
 
-            if (!empty($filters['assignee_ids'])) {
+            if (! empty($filters['assignee_ids'])) {
                 $assigneesQuery->whereIn('id', $filters['assignee_ids']);
             }
 
@@ -217,7 +217,7 @@ class TimelineController extends Controller
 
                 return [
                     'user' => $member,
-                    'initials' => strtoupper(substr($first, 0, 1) . substr($second, 0, 1)),
+                    'initials' => strtoupper(substr($first, 0, 1).substr($second, 0, 1)),
                 ];
             })->sortBy('initials')->values();
 
@@ -265,8 +265,11 @@ class TimelineController extends Controller
         $endDate = $endInput ? Carbon::parse($endInput)->endOfDay() : null;
 
         $defaultProjectStatuses = $showCompleted
-            ? Project::STATUS_VALUES
-            : [Project::STATUS_PLANNING, Project::STATUS_ACTIVE, Project::STATUS_ON_HOLD];
+            ? Project::statusValues()
+            : array_values(array_intersect(
+                [Project::STATUS_PLANNING, Project::STATUS_ACTIVE, Project::STATUS_ON_HOLD],
+                Project::statusValues()
+            ));
         $defaultPhaseStatuses = $showCompleted
             ? self::PHASE_STATUS_OPTIONS
             : ['planning', 'active', 'on_hold'];
@@ -288,7 +291,7 @@ class TimelineController extends Controller
 
             'project_statuses' => $this->normalizeStringArray(
                 $request->input('project_statuses', $defaultProjectStatuses),
-                Project::STATUS_VALUES
+                Project::statusValues()
             ),
             'phase_statuses' => $this->normalizeStringArray(
                 $request->input('phase_statuses', $defaultPhaseStatuses),
@@ -336,24 +339,24 @@ class TimelineController extends Controller
             ->values()
             ->all();
 
-        return !empty($normalized) ? $normalized : $allowedSet;
+        return ! empty($normalized) ? $normalized : $allowedSet;
     }
 
     private function applyProjectFilters(Builder $query, array $filters): void
     {
-        if (!empty($filters['project_ids'])) {
+        if (! empty($filters['project_ids'])) {
             $query->whereIn('id', $filters['project_ids']);
         }
 
-        if (!empty($filters['project_statuses'])) {
+        if (! empty($filters['project_statuses'])) {
             $query->whereIn('status', $filters['project_statuses']);
         }
 
-        if (!empty($filters['staffing_models'])) {
+        if (! empty($filters['staffing_models'])) {
             $query->whereIn('staffing_model', $filters['staffing_models']);
         }
 
-        if (!empty($filters['tag_ids'])) {
+        if (! empty($filters['tag_ids'])) {
             $query->whereHas('tags', function ($tagQuery) use ($filters) {
                 $tagQuery->whereIn('tags.id', $filters['tag_ids']);
             });
@@ -362,11 +365,11 @@ class TimelineController extends Controller
 
     private function applyTaskFilters($query, array $filters): void
     {
-        if (!empty($filters['task_statuses'])) {
+        if (! empty($filters['task_statuses'])) {
             $query->whereIn('status', $filters['task_statuses']);
         }
 
-        if (!empty($filters['assignee_ids'])) {
+        if (! empty($filters['assignee_ids'])) {
             $query->whereHas('users', function ($assigneeQuery) use ($filters) {
                 $assigneeQuery->whereIn('users.id', $filters['assignee_ids']);
             });
@@ -375,7 +378,7 @@ class TimelineController extends Controller
 
     private function applyDateFiltersToPhases(Builder $query, ?Carbon $filterStart, ?Carbon $filterEnd): void
     {
-        if (!$filterStart && !$filterEnd) {
+        if (! $filterStart && ! $filterEnd) {
             return;
         }
 
@@ -389,6 +392,7 @@ class TimelineController extends Controller
                                 ->where('end_date', '>=', $filterEnd);
                         });
                 });
+
                 return;
             }
 
@@ -417,14 +421,14 @@ class TimelineController extends Controller
             ];
         }
 
-        if ($filters['start_date'] && !$filters['end_date']) {
+        if ($filters['start_date'] && ! $filters['end_date']) {
             return [
                 $filters['start_date']->copy()->startOfWeek(),
                 $filters['start_date']->copy()->addMonths(2)->endOfWeek(),
             ];
         }
 
-        if (!$filters['start_date'] && $filters['end_date']) {
+        if (! $filters['start_date'] && $filters['end_date']) {
             return [
                 $filters['end_date']->copy()->subMonths(2)->startOfWeek(),
                 $filters['end_date']->copy()->endOfWeek(),
@@ -432,6 +436,7 @@ class TimelineController extends Controller
         }
 
         $today = Carbon::today();
+
         return [
             $today->copy()->startOfWeek(),
             $today->copy()->addMonths(2)->endOfWeek(),
@@ -466,7 +471,7 @@ class TimelineController extends Controller
             'projects' => $visibleProjects,
             'tags' => $tags,
             'assignees' => $assignees,
-            'project_statuses' => Project::STATUS_VALUES,
+            'project_statuses' => Project::statusValues(),
             'phase_statuses' => self::PHASE_STATUS_OPTIONS,
             'task_statuses' => Task::STATUSES,
             'staffing_models' => Project::STAFFING_MODELS,

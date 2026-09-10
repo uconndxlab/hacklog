@@ -26,9 +26,9 @@
     </a>
 
     {{-- Status badge --}}
-    <span class="badge rounded-pill border text-muted bg-transparent fw-normal d-none d-sm-inline"
-          style="font-size: 0.7rem;">
-        {{ ucfirst(str_replace('_', ' ', $project->status)) }}
+    <span class="badge rounded-pill fw-normal d-none d-sm-inline"
+          style="font-size: 0.7rem; background-color: {{ $projectStatusColors[$project->status] ?? '#6c757d' }}; color: {{ $projectStatusTextColors[$project->status] ?? '#fff' }};">
+        {{ $projectStatusLabels[$project->status] ?? ucfirst(str_replace('_', ' ', $project->status)) }}
     </span>
 
     @if($project->tags->isNotEmpty())

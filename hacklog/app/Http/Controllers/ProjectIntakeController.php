@@ -57,7 +57,7 @@ class ProjectIntakeController extends Controller
         $this->authorizeAccess($project);
 
         $validated = $request->validate([
-            'input_text' => 'required|string|min:10|max:38000',
+            'input_text' => 'required|string|min:10|max:5000',
         ]);
 
         $correlationId = (string) Str::uuid();

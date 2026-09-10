@@ -35,6 +35,15 @@
     z-index: 1000;
 }
 
+.task-card.task-selected {
+    outline: 3px solid #0d6efd;
+    outline-offset: -1px;
+}
+
+#board-container .task-card {
+    user-select: none;
+}
+
 .insertion-indicator {
     pointer-events: none;
 }
@@ -162,6 +171,12 @@
                 @endforeach
             </ul>
         </div>
+
+        @if(!auth()->user()->isClient() && $assignableUsers->isNotEmpty())
+            <button type="button" class="btn btn-sm btn-primary" id="board-assign-open" data-bs-toggle="modal" data-bs-target="#boardAssignModal" hidden>
+                Add assignees
+            </button>
+        @endif
     </div>
 </div>
 
@@ -227,6 +242,8 @@
         </div>
     </div>
 @else
+    <span id="board-selection-count" class="visually-hidden" role="status" aria-live="polite"></span>
+    <div id="board-move-error" class="alert alert-danger" role="alert" hidden></div>
     <div class="board-container {{ $columns->count() <= 4 ? 'board-container--fill' : '' }}" id="board-container">
         @foreach($columns as $column)
             <div class="board-column-wrapper">
@@ -271,6 +288,31 @@
         </div>
     </div>
 </div>
+
+@if(!auth()->user()->isClient() && $assignableUsers->isNotEmpty())
+<div class="modal fade" id="boardAssignModal" tabindex="-1" aria-labelledby="boardAssignModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="boardAssignModalLabel">Add assignees</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">Selected people are added to every selected task. Existing assignees are kept.</p>
+                @include('partials.user-picker', [
+                    'users' => $assignableUsers,
+                    'selectedUserIds' => [],
+                    'inputName' => 'bulk_assignees[]'
+                ])
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="board-assign-submit">Add to selected</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 {{-- Task Details Modal --}}
 <div class="modal fade" id="taskDetailsModal" tabindex="-1" aria-labelledby="taskDetailsModalLabel" aria-hidden="true">
@@ -379,6 +421,8 @@
         <div 
             hx-get="{{ route('projects.board.tasks.edit', [$project, $targetTask]) }}" 
             hx-target="#taskModalContent"
+            data-task-modal-load
+            hx-sync="#taskModal:replace"
             hx-trigger="load"
             hx-on::after-request="
                 const modal = new bootstrap.Modal(document.getElementById('taskModal'));
@@ -391,6 +435,8 @@
         </div>
     @endif
 @endif
+
+@include('projects.partials.task-modal-loading-script')
 
 <script>
 // Board filter state captured at page render time.
@@ -499,7 +545,192 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
 (function() {
     let draggedTask = null;
     let placeholder = null;
-    let originalPosition = null;
+    let draggedTasks = [];
+    let saving = false;
+    const board = document.getElementById('board-container');
+    if (!board) return;
+    const selectedIds = new Set();
+
+    function syncSelection() {
+        const cards = Array.from(board.querySelectorAll('.task-card'));
+        const visibleIds = new Set(cards.map(card => card.dataset.taskId));
+        selectedIds.forEach(id => { if (!visibleIds.has(id)) selectedIds.delete(id); });
+        cards.forEach(card => card.classList.toggle('task-selected', selectedIds.has(card.dataset.taskId)));
+        document.getElementById('board-selection-count').textContent = selectedIds.size ? `${selectedIds.size} selected` : '';
+        const assignBtn = document.getElementById('board-assign-open');
+        if (assignBtn) assignBtn.hidden = selectedIds.size === 0;
+    }
+
+    function clearSelection() {
+        selectedIds.clear();
+        syncSelection();
+    }
+
+    function applyCardAssignees(card, assignees) {
+        const el = card.querySelector('.task-assignees');
+        if (!el) return;
+        const names = assignees.map(a => a.name).join(', ');
+        el.dataset.assigneeIds = assignees.map(a => a.id).join(',');
+        el.textContent = names || 'Unassigned';
+        el.title = names || 'Unassigned';
+    }
+
+    document.getElementById('board-assign-submit')?.addEventListener('click', function() {
+        if (saving || selectedIds.size === 0) return;
+        const modal = document.getElementById('boardAssignModal');
+        const checked = Array.from(modal.querySelectorAll('input[name="bulk_assignees[]"]:checked'));
+        const assigneeIds = checked.map(input => Number(input.value));
+        if (assigneeIds.length === 0) return;
+
+        const cards = Array.from(board.querySelectorAll('.task-card')).filter(c => selectedIds.has(c.dataset.taskId));
+        const error = document.getElementById('board-move-error');
+        error.hidden = true;
+        saving = true;
+        const submitBtn = document.getElementById('board-assign-submit');
+        submitBtn.disabled = true;
+
+        fetch(@json(route('projects.board.tasks.assignees-batch', $project)), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                task_ids: cards.map(c => Number(c.dataset.taskId)),
+                assignee_ids: assigneeIds
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Assign failed');
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) throw new Error('Assign failed');
+            (data.tasks || []).forEach(task => {
+                const card = board.querySelector(`.task-card[data-task-id="${task.id}"]`);
+                if (card) applyCardAssignees(card, task.assignees || []);
+            });
+            checked.forEach(input => { input.checked = false; });
+            const search = modal.querySelector('.user-picker-search');
+            if (search) {
+                search.value = '';
+                search.dispatchEvent(new Event('input'));
+            }
+            bootstrap.Modal.getInstance(modal)?.hide();
+        })
+        .catch(() => {
+            error.textContent = 'Could not add assignees to the selected tasks. Please reload the board before trying again.';
+            error.hidden = false;
+        })
+        .finally(() => {
+            saving = false;
+            submitBtn.disabled = false;
+        });
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        if (document.getElementById('boardAssignModal')?.classList.contains('show')) return;
+        clearSelection();
+    });
+    document.body.addEventListener('htmx:afterSettle', syncSelection);
+    // Capture before HTMX and Bootstrap handle task-title links.
+    document.addEventListener('click', function(e) {
+        const card = e.target.closest('#board-container .task-card');
+        if (!card || !e.shiftKey || e.target.closest('select, input, button, textarea, label')) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (saving) return;
+        const id = card.dataset.taskId;
+        if (selectedIds.has(id)) selectedIds.delete(id);
+        else selectedIds.add(id);
+        syncSelection();
+    }, true);
+
+    const statusStyles = {
+        planned: { border: '#6c757d', badge: 'bg-secondary' },
+        active: { border: '#198754', badge: 'bg-success' },
+        awaiting_feedback: { border: '#ffc107', badge: 'bg-warning text-dark' },
+        completed: { border: '#0d6efd', badge: 'bg-primary' },
+    };
+    const statusBadgeClasses = 'bg-secondary bg-success bg-warning text-dark bg-primary';
+
+    function applyCardStatus(card, status) {
+        const style = statusStyles[status];
+        if (!style) return;
+        card.style.borderLeft = '3px solid ' + style.border;
+        const select = card.querySelector('select[name="status"]');
+        if (!select) return;
+        select.value = status;
+        select.className = select.className
+            .split(/\s+/)
+            .filter(cls => cls && !statusBadgeClasses.split(/\s+/).includes(cls))
+            .join(' ');
+        style.badge.split(/\s+/).forEach(cls => select.classList.add(cls));
+    }
+
+    document.addEventListener('focusin', function(e) {
+        const select = e.target.closest('#board-container .task-card select[name="status"]');
+        if (select) select.dataset.previousStatus = select.value;
+    });
+
+    // When multiple cards are selected, status changes apply to the whole selection.
+    document.addEventListener('change', function(e) {
+        const select = e.target.closest('#board-container .task-card select[name="status"]');
+        if (!select) return;
+        const card = select.closest('.task-card');
+        if (!card || !selectedIds.has(card.dataset.taskId) || selectedIds.size < 2) return;
+
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (saving) {
+            if (select.dataset.previousStatus) select.value = select.dataset.previousStatus;
+            return;
+        }
+
+        const status = select.value;
+        const cards = Array.from(board.querySelectorAll('.task-card')).filter(c => selectedIds.has(c.dataset.taskId));
+        const snapshots = cards.map(c => {
+            const statusSelect = c.querySelector('select[name="status"]');
+            const previous = c === card
+                ? (select.dataset.previousStatus || statusSelect?.value)
+                : statusSelect?.value;
+            return { card: c, status: previous };
+        });
+        const error = document.getElementById('board-move-error');
+        error.hidden = true;
+        saving = true;
+        cards.forEach(c => applyCardStatus(c, status));
+
+        fetch(@json(route('projects.board.tasks.status-batch', $project)), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                task_ids: cards.map(c => Number(c.dataset.taskId)),
+                status: status
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Status update failed');
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) throw new Error('Status update failed');
+        })
+        .catch(() => {
+            snapshots.forEach(({ card: c, status: previous }) => {
+                if (previous) applyCardStatus(c, previous);
+            });
+            error.textContent = 'Could not update status for the selected tasks. Please reload the board before trying again.';
+            error.hidden = false;
+        })
+        .finally(() => { saving = false; });
+    }, true);
     let lastDropColumn = null;
     let lastDropPosition = -1;
 
@@ -602,19 +833,27 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
 
     // Drag start
     document.addEventListener('dragstart', function(e) {
-        if (!e.target.classList.contains('task-card')) return;
+        const card = e.target.closest('#board-container .task-card');
+        if (!card) return;
 
-        draggedTask = e.target;
-        originalPosition = {
-            columnId: draggedTask.dataset.columnId,
-            position: parseInt(draggedTask.dataset.position)
-        };
+        draggedTask = card;
+        if (saving || !board.contains(draggedTask)) {
+            e.preventDefault();
+            draggedTask = null;
+            return;
+        }
+        if (!selectedIds.has(draggedTask.dataset.taskId)) {
+            if (!e.shiftKey) selectedIds.clear();
+            selectedIds.add(draggedTask.dataset.taskId);
+            syncSelection();
+        }
+        draggedTasks = Array.from(board.querySelectorAll('.task-selected'));
         lastDropColumn = null;
         lastDropPosition = -1;
-
-        // Reduce opacity
-        draggedTask.style.opacity = '0.5';
-        draggedTask.classList.add('dragging');
+        draggedTasks.forEach(card => {
+            card.style.opacity = '0.5';
+            card.classList.add('dragging');
+        });
 
         // Set drag data
         e.dataTransfer.effectAllowed = 'move';
@@ -676,80 +915,64 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         if (!taskContainer) return;
 
         const newColumnId = column.dataset.columnId;
-        const oldColumnId = originalPosition.columnId;
         const position = getDropPosition(taskContainer, e.clientY);
-
-        // If same column and same position, do nothing
-        if (newColumnId === oldColumnId && position === originalPosition.position) {
-            resetDragState();
-            return;
-        }
-
-        const oldContainer = document.getElementById('board-column-' + oldColumnId + '-tasks');
-
-        // Move task in DOM
         const beforeElement = cardAtPosition(taskContainer, position);
-        if (beforeElement) {
-            taskContainer.insertBefore(draggedTask, beforeElement);
-        } else {
-            taskContainer.appendChild(draggedTask);
-        }
+        const moving = [...draggedTasks];
+        const containers = new Set(moving.map(card => card.parentElement));
+        containers.add(taskContainer);
+        const snapshots = new Map([...containers].map(container => [container, Array.from(container.querySelectorAll('.task-card'))]));
+        const originalColumns = new Map(moving.map(card => [card, card.dataset.columnId]));
+        const error = document.getElementById('board-move-error');
+        error.hidden = true;
+        saving = true;
 
-        const emptyState = taskContainer.querySelector('.board-column-empty');
-        if (emptyState) {
-            emptyState.remove();
-        }
+        taskContainer.querySelector('.board-column-empty')?.remove();
+        moving.forEach(card => {
+            taskContainer.insertBefore(card, beforeElement);
+            syncMovedCardColumn(card, newColumnId);
+        });
+        resetDragState();
+        containers.forEach(container => {
+            reindexColumnPositions(container);
+            ensureEmptyState(container);
+            updateBoardColumnCount(container.closest('.board-column'));
+        });
 
-        syncMovedCardColumn(draggedTask, newColumnId);
-        draggedTask.dataset.position = position;
-        reindexColumnPositions(taskContainer);
-        if (oldContainer && oldContainer !== taskContainer) {
-            reindexColumnPositions(oldContainer);
-            ensureEmptyState(oldContainer);
-        }
-
-        if (newColumnId !== oldColumnId) {
-            updateBoardColumnCountById(oldColumnId);
-            updateBoardColumnCount(column);
-        }
-
-        // Send to server
-        const requestBody = {
-            column_id: newColumnId,
-            position: position
-        };
-        
-        // Include phase/assignee filters using the PHP-rendered variables captured at
-        // page load, not window.location.search (which may have changed if the user
-        // opened a task detail modal before dragging).
-        if (boardFilterPhase) {
-            requestBody.filter_phase_id = boardFilterPhase;
-        }
-        
-        if (boardFilterAssigned) {
-            requestBody.filter_assigned = boardFilterAssigned;
-        }
-        
-        fetch(`/projects/{{ $project->id }}/board/tasks/${draggedTask.dataset.taskId}/move`, {
+        fetch(@json(route('projects.board.tasks.move-batch', $project)), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify({
+                task_ids: moving.map(card => Number(card.dataset.taskId)),
+                column_id: Number(newColumnId),
+                before_task_id: beforeElement ? Number(beforeElement.dataset.taskId) : null
+            })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error('Move failed');
+            return response.json();
+        })
         .then(data => {
-            if (!data.success) {
-                revertTaskPosition();
-            }
+            if (!data.success) throw new Error('Move failed');
         })
         .catch(() => {
-            revertTaskPosition();
+            snapshots.forEach((cards, container) => {
+                container.querySelector('.board-column-empty')?.remove();
+                cards.forEach(card => container.appendChild(card));
+            });
+            originalColumns.forEach((columnId, card) => syncMovedCardColumn(card, columnId));
+            containers.forEach(container => {
+                reindexColumnPositions(container);
+                ensureEmptyState(container);
+                updateBoardColumnCount(container.closest('.board-column'));
+            });
+            error.textContent = 'Could not save the move. Please reload the board before trying again.';
+            error.hidden = false;
         })
-        .finally(() => {
-            resetDragState();
-        });
+        .finally(() => { saving = false; });
     });
 
     // Drag end
@@ -758,21 +981,16 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
     });
 
     function resetDragState() {
-        if (draggedTask) {
-            draggedTask.style.opacity = '';
-            draggedTask.classList.remove('dragging');
-        }
+        draggedTasks.forEach(card => {
+            card.style.opacity = '';
+            card.classList.remove('dragging');
+        });
+        draggedTasks = [];
         document.querySelectorAll('.board-column').forEach(col => col.classList.remove('drop-target'));
         hideInsertionIndicator();
         draggedTask = null;
-        originalPosition = null;
         lastDropColumn = null;
         lastDropPosition = -1;
-    }
-
-    function revertTaskPosition() {
-        // Simple revert: reload the board
-        window.location.reload();
     }
 })();
 

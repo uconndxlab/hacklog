@@ -15,13 +15,15 @@
     <div class="card-header bg-light py-1 px-2 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid rgba(0,0,0,.125);">
         {{-- Assignment Info --}}
         <div style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px;">
-            @if($task->users->isNotEmpty())
-                <small class="text-muted" style="font-size: 0.7rem;" title="{{ $task->users->pluck('name')->join(', ') }}">
-                    {{ $task->users->pluck('name')->join(', ') }}
-                </small>
-            @else
-                <small class="text-muted" style="font-size: 0.7rem;">Unassigned</small>
-            @endif
+            @php
+                $assigneeIds = $task->users->pluck('id')->all();
+                $assigneeNames = $task->users->pluck('name')->join(', ');
+            @endphp
+            <small class="text-muted task-assignees" style="font-size: 0.7rem;"
+                   data-assignee-ids="{{ implode(',', $assigneeIds) }}"
+                   title="{{ $assigneeNames !== '' ? $assigneeNames : 'Unassigned' }}">
+                {{ $assigneeNames !== '' ? $assigneeNames : 'Unassigned' }}
+            </small>
         </div>
 
         {{-- Interactive status dropdown --}}
@@ -70,8 +72,10 @@
                class="text-decoration-none fw-semibold"
                data-bs-toggle="modal"
                data-bs-target="#taskModal"
+               data-task-modal-load
                hx-get="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
                hx-target="#taskModalContent"
+               hx-sync="#taskModal:replace"
                hx-push-url="{{ route('projects.board.tasks.edit', [$project, $task]) }}"
                style="display: block;">
                 <span class="badge bg-secondary text-white me-1" style="font-size: 0.65rem; font-weight: normal;">#{{ $task->id }}</span>

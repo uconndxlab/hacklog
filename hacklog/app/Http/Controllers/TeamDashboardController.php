@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +53,9 @@ class TeamDashboardController extends Controller
     {
         // Get all tasks assigned to this user
         $allUserTasks = $user->tasks()
+            ->whereHas('column.project', function ($query) {
+                $query->whereIn('status', Project::activeViewStatusValues());
+            })
             ->with(['phase', 'column'])
             ->get();
 

@@ -38,6 +38,7 @@
                             id="input_text"
                             name="input_text"
                             rows="10"
+                            maxlength="5000"
                             placeholder="Paste meeting notes, email, Slack conversation, or project-related text here..."
                             required>{{ old('input_text') }}</textarea>
                         @error('input_text')
@@ -166,6 +167,7 @@
                                 id="input_text"
                                 name="input_text"
                                 rows="{{ isset($proposals) ? 5 : 10 }}"
+                                maxlength="5000"
                                 placeholder="Paste meeting notes, email, Slack conversation, or project-related text here..."
                                 required>{{ old('input_text', $inputText ?? '') }}</textarea>
                             @error('input_text')
@@ -468,4 +470,3 @@
 @endpush
 @endif
 @endisset
-

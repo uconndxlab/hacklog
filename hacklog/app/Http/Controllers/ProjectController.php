@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
+use App\Models\MajorOffice;
 use App\Models\Project;
+use App\Models\ProjectStatus;
 use App\Models\Tag;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\ProjectSlackNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProjectController extends Controller
 {
@@ -31,7 +35,8 @@ class ProjectController extends Controller
         // - Team/Admin: 'all' (they can see all projects and want the full list)
         $defaultScope = 'all';
         $scope = $request->input('scope', $defaultScope);
-        $status = $request->input('status', 'planning,active');
+        $status = $request->input('status');
+        $hasStatusFilter = $request->query->has('status');
         $timeFilter = $request->input('time');
         $search = $request->input('search');
         $ownerFilter = $request->input('owner'); // Admin only
@@ -88,19 +93,22 @@ class ProjectController extends Controller
                     // OR project is directly shared with this user (not via role)
                     ->orWhereHas('shares', function ($shareQuery) use ($user) {
                         $shareQuery->where('shareable_type', 'user')
-                            ->where('shareable_id', (string)$user->id);
+                            ->where('shareable_id', (string) $user->id);
                     });
             });
         }
         // 'all' scope - no filtering (but still respects visibility)
 
-        // Status filter: planning,active (default), or individual statuses
-        if ($status) {
-            $statuses = explode(',', $status);
-            $validStatuses = array_intersect($statuses, Project::STATUS_VALUES);
-            if (!empty($validStatuses)) {
-                $query->whereIn('status', $validStatuses);
-            }
+        $statusDefinitions = Project::statusDefinitions();
+        $activeViewStatuses = Project::activeViewStatusValues();
+        $allowedStatuses = $statusDefinitions->pluck('key')->all();
+
+        // Default to active-view statuses. Ignore an empty or invalid explicit filter,
+        // matching the tolerant behavior this page had before statuses were configurable.
+        $requestedStatuses = $hasStatusFilter ? explode(',', (string) $status) : $activeViewStatuses;
+        $validStatuses = array_values(array_intersect($requestedStatuses, $allowedStatuses));
+        if (! $hasStatusFilter || $validStatuses !== []) {
+            $query->whereIn('status', $validStatuses);
         }
 
         // Time-based filter: Due in 7/14/30 days, Overdue
@@ -160,8 +168,8 @@ class ProjectController extends Controller
         // Search filter: name and description
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('description', 'like', '%' . $search . '%');
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%');
             });
         }
 
@@ -223,16 +231,9 @@ class ProjectController extends Controller
 
             $projects = $userHasTasks->merge($userNoTasks);
         } elseif ($sort === 'status') {
-            $projects = $query->orderByRaw("
-                CASE
-                    WHEN status = 'planning' THEN 1
-                    WHEN status = 'active' THEN 2
-                    WHEN status = 'on_hold' THEN 3
-                    WHEN status = 'completed' THEN 4
-                    WHEN status = 'archived' THEN 5
-                    ELSE 6
-                END
-            ")->orderBy('name', 'asc')->get();
+            $projects = $query->orderBy(
+                ProjectStatus::select('position')->whereColumn('project_statuses.key', 'projects.status')
+            )->orderBy('name', 'asc')->get();
         } else {
             // Default fallback
             $projects = $query->orderBy('updated_at', 'desc')->get();
@@ -247,7 +248,33 @@ class ProjectController extends Controller
             $projectQuery->visibleTo($user);
         })->orderBy('name')->get();
 
-        return view('projects.index', compact('projects', 'favoriteProjectIds', 'tagOptions'));
+        return view('projects.index', compact(
+            'projects',
+            'favoriteProjectIds',
+            'tagOptions',
+            'statusDefinitions',
+            'activeViewStatuses'
+        ));
+    }
+
+    /**
+     * Admin-only table view: all projects with status, team, tags, and launch date.
+     */
+    public function tableView(Request $request)
+    {
+        $projects = Project::with(['tags', 'columns.tasks.users', 'shares', 'department', 'nestedDepartment', 'majorOffice', 'statusDefinition', 'typeDefinition'])
+            ->orderBy(ProjectStatus::select('position')->whereColumn('project_statuses.key', 'projects.status'))
+            ->orderBy('name', 'asc')
+            ->get();
+
+        // Resolve all user-type share targets in a single query
+        $sharedUserIds = $projects->flatMap(
+            fn ($p) => $p->shares->where('shareable_type', 'user')->pluck('shareable_id')
+        )->unique()->values()->toArray();
+
+        $sharedUsers = User::whereIn('id', $sharedUserIds)->get()->keyBy('id');
+
+        return view('projects.table', compact('projects', 'sharedUsers'));
     }
 
     /**
@@ -259,7 +286,10 @@ class ProjectController extends Controller
             ? collect()
             : Tag::orderBy('name')->get();
 
-        return view('projects.create', compact('availableTags'));
+        return view('projects.create', array_merge(
+            compact('availableTags'),
+            $this->classificationFormData()
+        ));
     }
 
     /**
@@ -270,7 +300,7 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => ['required', Rule::in(Project::STATUS_VALUES)],
+            'status' => ['required', Rule::in(Project::statusValues())],
             'staffing_model' => 'required|in:dedicated,shared',
             'slack_webhook_url' => 'nullable|url|max:2048',
             'use_default_columns' => 'boolean',
@@ -278,14 +308,20 @@ class ProjectController extends Controller
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
             'new_tags' => 'nullable|string|max:1000',
+            ...$this->classificationValidationRules(),
         ]);
 
-        if ($request->has('tags_sync') && !$this->canManageProjectTags(auth()->user())) {
+        if ($request->has('tags_sync') && ! $this->canManageProjectTags(auth()->user())) {
             abort(403, 'You are not authorized to modify project tags.');
         }
 
+        $validated = $this->normalizeClassificationInput($validated);
+
         $projectData = collect($validated)
-            ->only(['name', 'description', 'status', 'staffing_model', 'slack_webhook_url'])
+            ->only(array_merge(
+                ['name', 'description', 'status', 'staffing_model', 'slack_webhook_url'],
+                $this->classificationAttributeNames()
+            ))
             ->all();
 
         $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
@@ -340,7 +376,7 @@ class ProjectController extends Controller
             $query->where('status', '!=', 'completed')
                 ->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
                 ->orderBy('start_date', 'asc');
-        }, 'columns', 'tags']);
+        }, 'columns', 'tags', 'department', 'nestedDepartment', 'majorOffice']);
 
         // Get upcoming tasks (next 5, ordered by due date)
         $upcomingTasks = \App\Models\Task::whereHas('column', function ($query) use ($project) {
@@ -467,7 +503,7 @@ class ProjectController extends Controller
                 // Generate initials
                 $nameParts = explode(' ', $user->name);
                 $initials = strtoupper(
-                    substr($nameParts[0], 0, 1) .
+                    substr($nameParts[0], 0, 1).
                         (isset($nameParts[1]) ? substr($nameParts[1], 0, 1) : '')
                 );
 
@@ -484,7 +520,7 @@ class ProjectController extends Controller
         })->with(['phase', 'users'])->get();
 
         $projectWorkload = \App\Services\WorkloadSummaryService::summarize($allProjectTasks);
-        $phaseWorkloads  = \App\Services\WorkloadSummaryService::summarizeByPhase($allProjectTasks);
+        $phaseWorkloads = \App\Services\WorkloadSummaryService::summarizeByPhase($allProjectTasks);
 
         return view('projects.show', compact(
             'project',
@@ -565,7 +601,7 @@ class ProjectController extends Controller
         // Load all tasks for this project (optionally filtered by phase)
         // Eager load phase, users, and creator relationships and order by position within each column
         $tasks = $this->constrainBoardTaskPayload($tasksQuery)->get()->groupBy('column_id');
-        
+
         // Get users who have tasks assigned in this project with counts
         $usersWithTasks = \App\Models\User::whereHas('tasks', function ($query) use ($project) {
             $query->whereHas('column', function ($q) use ($project) {
@@ -577,7 +613,11 @@ class ProjectController extends Controller
             })->where('status', '!=', 'completed');
         }])->orderBy('name')->get();
 
-        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks'));
+        $assignableUsers = auth()->user()->isClient()
+            ? collect()
+            : $this->getSortedUsersForProject($project, auth()->user());
+
+        return view('projects.board', compact('project', 'columns', 'tasks', 'phases', 'phaseSynopsis', 'usersWithTasks', 'assignableUsers'));
     }
 
     /**
@@ -606,7 +646,7 @@ class ProjectController extends Controller
         $isGlobalModal = $request->query('global_modal') === '1';
 
         // For global modal, pick the first column if none specified
-        if ($isGlobalModal && !$columnId) {
+        if ($isGlobalModal && ! $columnId) {
             $columnId = $project->columns->first()?->id;
         }
 
@@ -634,12 +674,11 @@ class ProjectController extends Controller
 
         $dependencyTasks = $dependencyTasksQuery
             ->get(['id', 'column_id', 'title', 'status'])
-            ->sortBy(fn($task) => [
+            ->sortBy(fn ($task) => [
                 strtolower($task->column->project->name),
                 strtolower($task->title),
             ])
             ->values();
-
 
         return view('projects.partials.board-task-form', compact('project', 'columnId', 'phases', 'users', 'dependencyIds', 'dependencyTasks', 'dependencyProjects'));
     }
@@ -655,7 +694,7 @@ class ProjectController extends Controller
         }
 
         // Direct browser visit (not HTMX) — redirect to the board and auto-open the modal there
-        if (!request()->header('HX-Request')) {
+        if (! request()->header('HX-Request')) {
             return redirect()
                 ->route('projects.board', $project)
                 ->with('open_task_id', $task->id);
@@ -673,7 +712,7 @@ class ProjectController extends Controller
             ->get();
         $columns = $project->columns;
 
-        //retrieve the pre-requisite tasks
+        // retrieve the pre-requisite tasks
         $dependencyIds = $task->dependencies()
             ->where('tasks.status', '!=', 'completed')
             ->pluck('tasks.id')
@@ -698,13 +737,11 @@ class ProjectController extends Controller
 
         $dependencyTasks = $dependencyTasksQuery
             ->get(['id', 'column_id', 'title', 'status'])
-            ->sortBy(fn($task) => [
+            ->sortBy(fn ($task) => [
                 strtolower($task->column->project->name),
                 strtolower($task->title),
             ])
             ->values();
-
-
 
         $task->load(['users', 'comments.user', 'activities.user', 'creator', 'updater', 'attachments.user']);
 
@@ -777,7 +814,7 @@ class ProjectController extends Controller
         }
 
         // If phase_id provided, verify it belongs to this project
-        if (!empty($validated['phase_id'])) {
+        if (! empty($validated['phase_id'])) {
             $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
             if ($phase->project_id !== $project->id) {
                 abort(403, 'Phase does not belong to this project.');
@@ -805,7 +842,7 @@ class ProjectController extends Controller
         // Create the task
         $task = \App\Models\Task::create($validated);
 
-        //sync dependent tasks
+        // sync dependent tasks
         $task->dependencies()->sync($dependencyIds);
 
         // Sync assignees
@@ -814,7 +851,7 @@ class ProjectController extends Controller
         $task->users()->sync($newAssignees);
 
         // Log initial activities
-        if (!empty($newAssignees)) {
+        if (! empty($newAssignees)) {
             \App\Models\TaskActivity::log($task->id, auth()->id(), 'assignees_changed', [
                 'added' => $newAssignees,
             ]);
@@ -888,7 +925,7 @@ class ProjectController extends Controller
         ]);
 
         // If phase_id provided, verify it belongs to this project
-        if (!empty($validated['phase_id'])) {
+        if (! empty($validated['phase_id'])) {
             $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
             if ($phase->project_id !== $project->id) {
                 abort(403, 'Phase does not belong to this project.');
@@ -921,7 +958,7 @@ class ProjectController extends Controller
         $task->users()->sync($newAssignees);
 
         // Log initial activities
-        if (!empty($newAssignees)) {
+        if (! empty($newAssignees)) {
             \App\Models\TaskActivity::log($task->id, auth()->id(), 'assignees_changed', [
                 'added' => $newAssignees,
             ]);
@@ -1023,7 +1060,7 @@ class ProjectController extends Controller
         unset($validated['dependencies']);
 
         // If phase_id provided, verify it belongs to this project
-        if (!empty($validated['phase_id'])) {
+        if (! empty($validated['phase_id'])) {
             $phase = \App\Models\Phase::findOrFail($validated['phase_id']);
             if ($phase->project_id !== $project->id) {
                 abort(403, 'Phase does not belong to this project.');
@@ -1056,7 +1093,7 @@ class ProjectController extends Controller
         }
 
         // Sync assignees only on full updates so field-only posts cannot clear them
-        if (!$fieldOnly) {
+        if (! $fieldOnly) {
             $newAssignees = array_map('intval', $validated['assignees'] ?? []);
             sort($oldAssignees);
             sort($newAssignees);
@@ -1093,7 +1130,7 @@ class ProjectController extends Controller
         }
 
         // Assignee changes (only log if there's an actual difference)
-        if (!$fieldOnly && $oldAssignees !== $newAssignees) {
+        if (! $fieldOnly && $oldAssignees !== $newAssignees) {
             \App\Models\TaskActivity::log($task->id, $userId, 'assignees_changed', [
                 'added' => array_diff($newAssignees, $oldAssignees),
                 'removed' => array_diff($oldAssignees, $newAssignees),
@@ -1135,7 +1172,7 @@ class ProjectController extends Controller
                     'allColumns' => $project->columns,
                     'isProjectBoard' => true,
                     'filterPhaseId' => $request->input('filter_phase_id'),
-                    'filterAssigned' => $request->input('filter_assigned')
+                    'filterAssigned' => $request->input('filter_assigned'),
                 ]);
             }
 
@@ -1184,17 +1221,17 @@ class ProjectController extends Controller
                     'project' => $project,
                     'allColumns' => $columns,
                     'isProjectBoard' => true,
-                    'filterPhaseId' => $filterPhaseId
+                    'filterPhaseId' => $filterPhaseId,
                 ])->render();
 
-                $html .= '<div id="board-column-' . $columnId . '-tasks" hx-swap-oob="true">';
+                $html .= '<div id="board-column-'.$columnId.'-tasks" hx-swap-oob="true">';
                 $html .= view('projects.partials.board-column-tasks', [
                     'column' => $newColumn,
                     'columnTasks' => $tasks->get($columnId, collect()),
                     'project' => $project,
                     'allColumns' => $columns,
                     'isProjectBoard' => true,
-                    'filterPhaseId' => $filterPhaseId
+                    'filterPhaseId' => $filterPhaseId,
                 ])->render();
                 $html .= '</div>';
 
@@ -1221,7 +1258,7 @@ class ProjectController extends Controller
                     'project' => $project,
                     'allColumns' => $columns,
                     'isProjectBoard' => true,
-                    'filterPhaseId' => $filterPhaseId
+                    'filterPhaseId' => $filterPhaseId,
                 ])->render();
 
                 $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
@@ -1275,6 +1312,213 @@ class ProjectController extends Controller
             'users:id,name',
             'creator:id,name',
         ])->withBoardDependencySummary();
+    }
+
+    /** Move an ordered selection together, including on filtered boards. */
+    public function moveTasks(Request $request, Project $project)
+    {
+        abort_unless(Project::visibleTo($request->user())->whereKey($project->id)->exists(), 403);
+
+        $validated = $request->validate([
+            'task_ids' => 'required|array|min:1',
+            'task_ids.*' => 'required|integer|distinct',
+            'column_id' => 'required|integer',
+            'before_task_id' => 'nullable|integer',
+        ]);
+
+        $movedTasks = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $project, $request) {
+            $columns = $project->columns()->lockForUpdate()->get()->keyBy('id');
+            abort_unless($columns->has($validated['column_id']), 422);
+            $tasks = Task::withoutGlobalScope('ordered')->whereIn('column_id', $columns->keys())
+                ->orderByRaw('position IS NULL, position ASC')->orderBy('id')
+                ->lockForUpdate()->get()->keyBy('id')->toBase();
+            $selected = collect($validated['task_ids'])->map(function ($id) use ($tasks) {
+                abort_unless($tasks->has($id), 422);
+                return $tasks->get($id);
+            });
+            $remaining = $tasks->except($validated['task_ids']);
+            $destination = $remaining->where('column_id', $validated['column_id'])->keys()->all();
+            $before = $validated['before_task_id'] ?? null;
+            $position = $before === null ? count($destination) : array_search($before, $destination);
+            abort_if($position === false, 422);
+            array_splice($destination, $position, 0, $selected->pluck('id')->all());
+
+            $affectedColumns = $selected->pluck('column_id')->push($validated['column_id'])->unique();
+            foreach ($selected as $task) {
+                $oldColumnId = $task->column_id;
+                $task->column_id = $validated['column_id'];
+                $task->updated_by = $request->user()->id;
+                $task->save();
+                if ((int) $oldColumnId !== (int) $task->column_id) {
+                    \App\Models\TaskActivity::log($task->id, $request->user()->id, 'column_changed', [
+                        'from' => $oldColumnId,
+                        'to' => $task->column_id,
+                        'from_name' => $columns->get($oldColumnId)->name,
+                        'to_name' => $columns->get($task->column_id)->name,
+                    ]);
+                }
+            }
+            foreach ($affectedColumns as $columnId) {
+                $ids = (int) $columnId === (int) $validated['column_id']
+                    ? $destination
+                    : $remaining->where('column_id', $columnId)->keys()->all();
+                foreach ($ids as $position => $id) {
+                    \Illuminate\Support\Facades\DB::table('tasks')->where('id', $id)->update(['position' => $position]);
+                }
+            }
+
+            return $selected;
+        });
+
+        foreach ($movedTasks as $task) {
+            app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Update status for multiple board tasks (mass selection)
+     */
+    public function updateTasksStatus(Request $request, Project $project)
+    {
+        abort_unless(Project::visibleTo($request->user())->whereKey($project->id)->exists(), 403);
+
+        $validated = $request->validate([
+            'task_ids' => 'required|array|min:1',
+            'task_ids.*' => 'required|integer|distinct',
+            'status' => ['required', Rule::in(Task::STATUSES)],
+        ]);
+
+        $updatedTasks = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $project, $request) {
+            $columnIds = $project->columns()->pluck('id');
+            $tasks = Task::withoutGlobalScope('ordered')
+                ->whereIn('column_id', $columnIds)
+                ->whereIn('id', $validated['task_ids'])
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            abort_unless($tasks->count() === count($validated['task_ids']), 422);
+
+            $userId = $request->user()->id;
+            $status = $validated['status'];
+            $changed = collect();
+
+            foreach ($validated['task_ids'] as $id) {
+                $task = $tasks->get($id);
+                $oldStatus = $task->status;
+                if ($oldStatus === $status) {
+                    continue;
+                }
+
+                $task->status = $status;
+                $task->updated_by = $userId;
+                if ($status === 'completed' && $oldStatus !== 'completed') {
+                    $task->completed_at = now();
+                } elseif ($status !== 'completed' && $oldStatus === 'completed') {
+                    $task->completed_at = null;
+                }
+                $task->save();
+
+                if ($status === 'completed') {
+                    \App\Models\TaskActivity::log($task->id, $userId, 'completed', null);
+                } elseif ($oldStatus === 'completed') {
+                    \App\Models\TaskActivity::log($task->id, $userId, 'reopened', null);
+                } else {
+                    \App\Models\TaskActivity::log($task->id, $userId, 'status_changed', [
+                        'from' => $oldStatus,
+                        'to' => $status,
+                    ]);
+                }
+
+                $changed->push($task);
+            }
+
+            return $changed;
+        });
+
+        foreach ($updatedTasks as $task) {
+            app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Add assignees to multiple board tasks (mass selection; does not remove existing)
+     */
+    public function addTasksAssignees(Request $request, Project $project)
+    {
+        abort_unless(Project::visibleTo($request->user())->whereKey($project->id)->exists(), 403);
+        abort_if($request->user()->isClient(), 403);
+
+        $validated = $request->validate([
+            'task_ids' => 'required|array|min:1',
+            'task_ids.*' => 'required|integer|distinct',
+            'assignee_ids' => 'required|array|min:1',
+            'assignee_ids.*' => 'required|integer|distinct|exists:users,id',
+        ]);
+
+        $assigneeIds = array_map('intval', $validated['assignee_ids']);
+
+        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $project, $request, $assigneeIds) {
+            $columnIds = $project->columns()->pluck('id');
+            $tasks = Task::withoutGlobalScope('ordered')
+                ->whereIn('column_id', $columnIds)
+                ->whereIn('id', $validated['task_ids'])
+                ->with('users:id,name')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            abort_unless($tasks->count() === count($validated['task_ids']), 422);
+
+            $userId = $request->user()->id;
+            $changed = collect();
+
+            foreach ($validated['task_ids'] as $id) {
+                $task = $tasks->get($id);
+                $existing = $task->users->pluck('id')->map(fn ($uid) => (int) $uid)->all();
+                $toAdd = array_values(array_diff($assigneeIds, $existing));
+                if ($toAdd === []) {
+                    continue;
+                }
+
+                $task->users()->attach($toAdd);
+                $task->updated_by = $userId;
+                $task->save();
+                \App\Models\TaskActivity::log($task->id, $userId, 'assignees_changed', [
+                    'added' => $toAdd,
+                ]);
+                $task->load('users:id,name');
+                $changed->push($task);
+            }
+
+            $payload = collect($validated['task_ids'])->map(function ($id) use ($tasks) {
+                $task = $tasks->get($id)->fresh(['users:id,name']);
+
+                return [
+                    'id' => $task->id,
+                    'assignees' => $task->users
+                        ->sortBy('name')
+                        ->values()
+                        ->map(fn ($user) => ['id' => $user->id, 'name' => $user->name])
+                        ->all(),
+                ];
+            })->all();
+
+            return ['changed' => $changed, 'tasks' => $payload];
+        });
+
+        foreach ($result['changed'] as $task) {
+            app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
+        }
+
+        return response()->json([
+            'success' => true,
+            'tasks' => $result['tasks'],
+        ]);
     }
 
     /**
@@ -1397,7 +1641,7 @@ class ProjectController extends Controller
 
         // Check authorization: user owns comment or is admin
         $user = auth()->user();
-        if ($comment->user_id !== $user->id && !$user->isAdmin()) {
+        if ($comment->user_id !== $user->id && ! $user->isAdmin()) {
             abort(403, 'You are not authorized to delete this comment.');
         }
 
@@ -1424,7 +1668,7 @@ class ProjectController extends Controller
             abort(403, 'You are not authorized to delete this task.');
         }
 
-        if (!$user->isClient() && $task->created_by !== $user->id && !$user->isAdmin()) {
+        if (! $user->isClient() && $task->created_by !== $user->id && ! $user->isAdmin()) {
             abort(403, 'You are not authorized to delete this task.');
         }
 
@@ -1444,7 +1688,7 @@ class ProjectController extends Controller
             'columnTasks' => $tasks->get($task->column_id, collect()),
             'project' => $project,
             'allColumns' => $project->columns,
-            'isProjectBoard' => true
+            'isProjectBoard' => true,
         ])->render();
 
         $html .= '<script>bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();</script>';
@@ -1462,10 +1706,13 @@ class ProjectController extends Controller
             abort(403, 'Clients cannot access project settings.');
         }
 
-        $project->load('tags');
+        $project->load('tags', 'department', 'nestedDepartment', 'majorOffice');
         $availableTags = Tag::orderBy('name')->get();
 
-        return view('projects.edit', compact('project', 'availableTags'));
+        return view('projects.edit', array_merge(
+            compact('project', 'availableTags'),
+            $this->classificationFormData($project)
+        ));
     }
 
     /**
@@ -1476,8 +1723,9 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => ['required', Rule::in(Project::STATUS_VALUES)],
+            'status' => ['required', Rule::in(Project::statusValues())],
             'staffing_model' => 'required|in:dedicated,shared',
+            'launch_date' => 'nullable|date',
             'slack_webhook_url' => 'nullable|url|max:2048',
             'slack_channel_id' => 'nullable|string|max:30',
             'slack_bot_enabled' => 'nullable|boolean',
@@ -1485,15 +1733,21 @@ class ProjectController extends Controller
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
             'new_tags' => 'nullable|string|max:1000',
+            ...$this->classificationValidationRules(),
         ]);
 
-        if ($request->has('tags_sync') && !$this->canManageProjectTags(auth()->user())) {
+        if ($request->has('tags_sync') && ! $this->canManageProjectTags(auth()->user())) {
             abort(403, 'You are not authorized to modify project tags.');
         }
 
+        $validated = $this->normalizeClassificationInput($validated);
+
         $oldStatus = $project->status;
         $projectData = collect($validated)
-            ->only(['name', 'description', 'status', 'staffing_model', 'slack_webhook_url', 'slack_channel_id'])
+            ->only(array_merge(
+                ['name', 'description', 'status', 'staffing_model', 'launch_date', 'slack_webhook_url', 'slack_channel_id'],
+                $this->classificationAttributeNames()
+            ))
             ->all();
 
         $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
@@ -1515,14 +1769,14 @@ class ProjectController extends Controller
             ]);
         }
 
-        if ($tagChanges && (!empty($tagChanges['added']) || !empty($tagChanges['removed']))) {
+        if ($tagChanges && (! empty($tagChanges['added']) || ! empty($tagChanges['removed']))) {
             \App\Models\ProjectActivity::log($project->id, auth()->id(), 'tags_updated', [
                 'added' => $tagChanges['added'],
                 'removed' => $tagChanges['removed'],
             ]);
         }
 
-        if ($oldStatus === $validated['status'] && (!$tagChanges || (empty($tagChanges['added']) && empty($tagChanges['removed'])))) {
+        if ($oldStatus === $validated['status'] && (! $tagChanges || (empty($tagChanges['added']) && empty($tagChanges['removed'])))) {
             \App\Models\ProjectActivity::log($project->id, auth()->id(), 'updated', null);
         }
 
@@ -1535,6 +1789,108 @@ class ProjectController extends Controller
         return (bool) $user && ($user->isAdmin() || $user->isTeam());
     }
 
+    protected function classificationAttributeNames(): array
+    {
+        return [
+            'project_type',
+            'department_id',
+            'nested_department_id',
+            'major_office_id',
+            'client_pi',
+            'client_category',
+            'uconn_affiliation',
+            'has_grant',
+            'grant_value',
+            'sponsor',
+        ];
+    }
+
+    protected function classificationValidationRules(): array
+    {
+        return [
+            'project_type' => ['nullable', Rule::in(Project::typeValues())],
+            'department_id' => 'nullable|integer|exists:departments,id',
+            'nested_department_id' => 'nullable|integer|exists:departments,id',
+            'major_office_id' => 'nullable|integer|exists:major_offices,id',
+            'client_pi' => 'nullable|string|max:255',
+            'client_category' => ['nullable', Rule::in(Project::CLIENT_CATEGORY_VALUES)],
+            'uconn_affiliation' => ['nullable', Rule::in(Project::AFFILIATION_VALUES)],
+            'has_grant' => 'nullable|boolean',
+            'grant_value' => 'nullable|numeric|min:0',
+            'sponsor' => 'nullable|string|max:255',
+        ];
+    }
+
+    protected function classificationFormData(?Project $project = null): array
+    {
+        $selectedDepartmentId = old('department_id', $project?->department_id);
+
+        $nestedDepartments = collect();
+        if ($selectedDepartmentId) {
+            $nestedDepartments = Department::where('parent_id', $selectedDepartmentId)
+                ->orderBy('name')
+                ->get();
+        }
+
+        return [
+            'homeDepartments' => Department::home()->orderBy('name')->get(),
+            'nestedDepartments' => $nestedDepartments,
+            'majorOffices' => MajorOffice::orderBy('name')->get(),
+        ];
+    }
+
+    protected function normalizeClassificationInput(array $validated): array
+    {
+        if (! auth()->user() || auth()->user()->isClient()) {
+            foreach ($this->classificationAttributeNames() as $attribute) {
+                unset($validated[$attribute]);
+            }
+
+            return $validated;
+        }
+
+        foreach (['department_id', 'nested_department_id', 'major_office_id', 'project_type', 'client_pi', 'client_category', 'uconn_affiliation', 'sponsor', 'grant_value'] as $attribute) {
+            if (! array_key_exists($attribute, $validated) || $validated[$attribute] === '') {
+                $validated[$attribute] = null;
+            }
+        }
+
+        $validated['has_grant'] = (bool) ($validated['has_grant'] ?? false);
+
+        if ($validated['grant_value'] !== null) {
+            $validated['has_grant'] = true;
+        }
+
+        $departmentId = $validated['department_id'];
+        $nestedId = $validated['nested_department_id'];
+
+        if ($departmentId) {
+            $department = Department::find($departmentId);
+            if (! $department || ! $department->isHomeDepartment()) {
+                throw ValidationException::withMessages([
+                    'department_id' => 'Home department must be a top-level department.',
+                ]);
+            }
+        }
+
+        if ($nestedId) {
+            if (! $departmentId) {
+                throw ValidationException::withMessages([
+                    'nested_department_id' => 'Choose a home department before selecting a nested department.',
+                ]);
+            }
+
+            $nested = Department::find($nestedId);
+            if (! $nested || (int) $nested->parent_id !== (int) $departmentId) {
+                throw ValidationException::withMessages([
+                    'nested_department_id' => 'Nested department must belong to the selected home department.',
+                ]);
+            }
+        }
+
+        return $validated;
+    }
+
     protected function normalizeSlackWebhookUrl(?string $url): ?string
     {
         $normalized = trim((string) $url);
@@ -1545,8 +1901,8 @@ class ProjectController extends Controller
     protected function syncProjectTagsFromRequest(Project $project, Request $request): array
     {
         $selectedTagIds = collect($request->input('tags', []))
-            ->filter(fn($id) => is_numeric($id))
-            ->map(fn($id) => (int) $id)
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
             ->values()
             ->all();
 
@@ -1567,7 +1923,7 @@ class ProjectController extends Controller
         }
 
         $newTagIds = array_values(array_unique($selectedTagIds));
-        $existingTagIds = $project->tags()->pluck('tags.id')->map(fn($id) => (int) $id)->all();
+        $existingTagIds = $project->tags()->pluck('tags.id')->map(fn ($id) => (int) $id)->all();
 
         $project->tags()->sync($newTagIds);
 
@@ -1609,7 +1965,7 @@ class ProjectController extends Controller
         // Load phases with their tasks, eager loading columns for task display
         // Include all tasks, we'll filter by due dates in the view
         $project->load(['phases' => function ($query) use ($showCompleted, $request) {
-            if (!$showCompleted) {
+            if (! $showCompleted) {
                 $query->where('status', '!=', 'completed');
             }
             $query->orderByRaw('CASE WHEN status = "completed" THEN 1 ELSE 0 END')
@@ -1629,7 +1985,7 @@ class ProjectController extends Controller
                         }
                     }
 
-                    if (!$showCompleted) {
+                    if (! $showCompleted) {
                         $taskQuery->where('status', '!=', 'completed');
                     }
 
@@ -1658,7 +2014,7 @@ class ProjectController extends Controller
                     });
                 }
             })
-            ->when(!$showCompleted, function ($q) {
+            ->when(! $showCompleted, function ($q) {
                 $q->where('status', '!=', 'completed');
             })
             ->orderBy('due_date', 'asc')
@@ -1681,7 +2037,7 @@ class ProjectController extends Controller
                     });
                 }
             })
-            ->when(!$showCompleted, function ($q) {
+            ->when(! $showCompleted, function ($q) {
                 $q->where('status', '!=', 'completed');
             })
             ->orderBy('created_at', 'desc')
@@ -1708,7 +2064,7 @@ class ProjectController extends Controller
                     ->orWhereNotNull('end_date');
             });
 
-        if (!$showCompleted) {
+        if (! $showCompleted) {
             $phasesQuery->where('status', '!=', 'completed');
         }
 
@@ -1756,7 +2112,7 @@ class ProjectController extends Controller
         // If no phases with dates, return early
         if ($phases->isEmpty()) {
             // Set default filter values for form population if not already set
-            if (!$filterStart && !$filterEnd) {
+            if (! $filterStart && ! $filterEnd) {
                 $today = \Carbon\Carbon::today();
                 $filterStart = $today;
                 $filterEnd = $today->copy()->addMonths(2);
@@ -1806,9 +2162,9 @@ class ProjectController extends Controller
 
             // Format label as date range
             if ($weekStart->month === $weekEnd->month) {
-                $label = $weekStart->format('M j') . '-' . $weekEnd->format('j');
+                $label = $weekStart->format('M j').'-'.$weekEnd->format('j');
             } else {
-                $label = $weekStart->format('M j') . ' - ' . $weekEnd->format('M j');
+                $label = $weekStart->format('M j').' - '.$weekEnd->format('M j');
             }
 
             $weeks[] = [
@@ -1843,7 +2199,7 @@ class ProjectController extends Controller
                 ->whereHas('column', function ($q) use ($project) {
                     $q->where('project_id', $project->id);
                 })
-                ->when(!$showCompleted, function ($q) {
+                ->when(! $showCompleted, function ($q) {
                     $q->where('status', '!=', 'completed');
                 })
                 ->get();
@@ -1865,7 +2221,7 @@ class ProjectController extends Controller
         // Add task counts to each phase
         $phases = $phases->map(function ($phase) use ($showCompleted) {
             $taskCounts = $phase->tasks()
-                ->when(!$showCompleted, function ($q) {
+                ->when(! $showCompleted, function ($q) {
                     $q->where('status', '!=', 'completed');
                 })
                 ->selectRaw('status, COUNT(*) as count')
@@ -1881,6 +2237,7 @@ class ProjectController extends Controller
             ], $taskCounts);
 
             $phase->task_counts = $taskCounts;
+
             return $phase;
         });
 
@@ -1913,6 +2270,7 @@ class ProjectController extends Controller
             if ($share->isUserShare()) {
                 $share->user = $share->getUser();
             }
+
             return $share;
         });
 
@@ -1942,26 +2300,42 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'shareable_type' => 'required|in:user,role',
             'shareable_id' => 'required|string',
+            'is_leader' => 'sometimes|boolean',
         ]);
 
         // Validate shareable_id based on type
         if ($validated['shareable_type'] === 'user') {
             $user = \App\Models\User::find($validated['shareable_id']);
-            if (!$user) {
+            if (! $user) {
                 return back()->withErrors(['shareable_id' => 'User not found']);
             }
         } elseif ($validated['shareable_type'] === 'role') {
-            if (!in_array($validated['shareable_id'], ['team', 'client'])) {
+            if (! in_array($validated['shareable_id'], ['team', 'client'])) {
                 return back()->withErrors(['shareable_id' => 'Invalid role']);
             }
         }
 
+        $isLeader = ($validated['shareable_type'] === 'user')
+            && ! empty($validated['is_leader'])
+            && isset($user)
+            && ! $user->isClient();
+
         // Create share (will be ignored if duplicate due to unique constraint)
         try {
-            $project->shares()->create($validated);
+            if ($isLeader) {
+                $project->shares()->where('is_leader', true)->update(['is_leader' => false]);
+            }
+
+            $project->shares()->create([
+                'shareable_type' => $validated['shareable_type'],
+                'shareable_id' => $validated['shareable_id'],
+                'is_leader' => $isLeader,
+            ]);
+
             $message = $validated['shareable_type'] === 'user'
                 ? 'Project shared with user successfully.'
                 : 'Project shared with role successfully.';
+
             return back()->with('success', $message);
         } catch (\Illuminate\Database\QueryException $e) {
             if ($e->errorInfo[1] == 1062 || $e->errorInfo[1] == 19) { // MySQL or SQLite duplicate error
@@ -1969,6 +2343,39 @@ class ProjectController extends Controller
             }
             throw $e;
         }
+    }
+
+    /**
+     * Update a project share (e.g. project leader designation).
+     */
+    public function shareUpdate(Request $request, Project $project, $shareId)
+    {
+        $share = $project->shares()->findOrFail($shareId);
+
+        $validated = $request->validate([
+            'is_leader' => 'required|boolean',
+        ]);
+
+        if ($validated['is_leader']) {
+            if (! $share->isUserShare()) {
+                return back()->withErrors(['is_leader' => 'Only team members can be designated as project leader.']);
+            }
+
+            $user = $share->getUser();
+            if (! $user || $user->isClient()) {
+                return back()->withErrors(['is_leader' => 'Only team members can be designated as project leader.']);
+            }
+
+            $project->shares()->where('is_leader', true)->update(['is_leader' => false]);
+        }
+
+        $share->update(['is_leader' => $validated['is_leader']]);
+
+        $message = $validated['is_leader']
+            ? 'Project leader updated.'
+            : 'Project leader designation removed.';
+
+        return back()->with('success', $message);
     }
 
     /**
@@ -2016,7 +2423,7 @@ class ProjectController extends Controller
             });
 
         foreach ($recentAssignees as $user) {
-            if (!$sortedUsers->contains('id', $user->id)) {
+            if (! $sortedUsers->contains('id', $user->id)) {
                 $sortedUsers->push($user);
             }
         }
@@ -2031,6 +2438,7 @@ class ProjectController extends Controller
 
         return $sortedUsers->filter(); // Remove nulls (in case current user doesn't exist)
     }
+
     private function validateDependencyIds(
         array $dependencyIds,
         User $user,
@@ -2061,7 +2469,7 @@ class ProjectController extends Controller
                 $query->whereIn('project_id', $visibleProjectIds);
             })
             ->pluck('tasks.id')
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->all();
 
         if (count($allowedDependencyIds) !== count($dependencyIds)) {

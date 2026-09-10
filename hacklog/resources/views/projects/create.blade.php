@@ -46,11 +46,9 @@
                     id="status" 
                     name="status" 
                     required>
-                    <option value="planning" {{ old('status') === 'planning' ? 'selected' : '' }}>Planning</option>
-                    <option value="active" {{ old('status', 'active') === 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="on_hold" {{ old('status') === 'on_hold' ? 'selected' : '' }}>On Hold</option>
-                    <option value="completed" {{ old('status') === 'completed' ? 'selected' : '' }}>Completed</option>
-                    <option value="archived" {{ old('status') === 'archived' ? 'selected' : '' }}>Archived</option>
+                    @foreach(\App\Models\Project::statusDefinitions() as $statusOption)
+                        <option value="{{ $statusOption->key }}" @selected(old('status', \App\Models\Project::STATUS_ACTIVE) === $statusOption->key)>{{ $statusOption->name }}</option>
+                    @endforeach
                 </select>
                 @error('status')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -104,6 +102,12 @@
                     'selectId' => 'tags',
                     'newTagsId' => 'new_tags',
                 ])
+            @endif
+
+            @if(!auth()->user()->isClient())
+                <hr class="my-4">
+                <h3 class="h6 text-muted text-uppercase mb-3">Inventory classification</h3>
+                @include('projects.partials.classification-fields')
             @endif
 
             <div class="mb-3">
