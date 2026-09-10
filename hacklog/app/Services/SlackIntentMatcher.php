@@ -36,6 +36,7 @@ class SlackIntentMatcher
             'add this as tasks',
             'add this to hacklog',
             'turn this into tasks',
+            'turn these into tasks',
             'turn this into a task',
             'turn this thread',        // covers "turn this thread into tasks/a task"
             'turn this into',          // covers any "turn this into …" variant

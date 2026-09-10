@@ -259,7 +259,7 @@ class ProcessSlackEventJob implements ShouldQueue
             . "• *tasks due this week* — what's coming up\n"
             . "• *overdue tasks* — what's past due\n"
             . "• *open tasks* — everything still in progress\n"
-            . "• *turn this into tasks* — (reply in a thread) analyze the thread and propose Hacklog tasks";
+            . "• *turn this into tasks* / *turn these into tasks* — (reply in a thread) analyze the thread and propose Hacklog tasks";
     }
 
     // -------------------------------------------------------------------------
@@ -308,8 +308,9 @@ class ProcessSlackEventJob implements ShouldQueue
             // Remove capture command keywords to isolate any trailing content
             $commandPhrases = [
                 'add this as a task', 'add this to hacklog', 'turn this into tasks',
-                'turn this into a task', 'capture this', 'send this to hacklog',
-                'log this', 'make this a task', 'create tasks from this', 'put this in hacklog',
+                'turn these into tasks', 'turn this into a task', 'capture this',
+                'send this to hacklog', 'log this', 'make this a task',
+                'create tasks from this', 'put this in hacklog',
             ];
             foreach ($commandPhrases as $phrase) {
                 $stripped = str_ireplace($phrase, '', $stripped);
