@@ -547,6 +547,90 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         else selectedIds.add(id);
         syncSelection();
     }, true);
+
+    const statusStyles = {
+        planned: { border: '#6c757d', badge: 'bg-secondary' },
+        active: { border: '#198754', badge: 'bg-success' },
+        awaiting_feedback: { border: '#ffc107', badge: 'bg-warning text-dark' },
+        completed: { border: '#0d6efd', badge: 'bg-primary' },
+    };
+    const statusBadgeClasses = 'bg-secondary bg-success bg-warning text-dark bg-primary';
+
+    function applyCardStatus(card, status) {
+        const style = statusStyles[status];
+        if (!style) return;
+        card.style.borderLeft = '3px solid ' + style.border;
+        const select = card.querySelector('select[name="status"]');
+        if (!select) return;
+        select.value = status;
+        select.className = select.className
+            .split(/\s+/)
+            .filter(cls => cls && !statusBadgeClasses.split(/\s+/).includes(cls))
+            .join(' ');
+        style.badge.split(/\s+/).forEach(cls => select.classList.add(cls));
+    }
+
+    document.addEventListener('focusin', function(e) {
+        const select = e.target.closest('#board-container .task-card select[name="status"]');
+        if (select) select.dataset.previousStatus = select.value;
+    });
+
+    // When multiple cards are selected, status changes apply to the whole selection.
+    document.addEventListener('change', function(e) {
+        const select = e.target.closest('#board-container .task-card select[name="status"]');
+        if (!select) return;
+        const card = select.closest('.task-card');
+        if (!card || !selectedIds.has(card.dataset.taskId) || selectedIds.size < 2) return;
+
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (saving) {
+            if (select.dataset.previousStatus) select.value = select.dataset.previousStatus;
+            return;
+        }
+
+        const status = select.value;
+        const cards = Array.from(board.querySelectorAll('.task-card')).filter(c => selectedIds.has(c.dataset.taskId));
+        const snapshots = cards.map(c => {
+            const statusSelect = c.querySelector('select[name="status"]');
+            const previous = c === card
+                ? (select.dataset.previousStatus || statusSelect?.value)
+                : statusSelect?.value;
+            return { card: c, status: previous };
+        });
+        const error = document.getElementById('board-move-error');
+        error.hidden = true;
+        saving = true;
+        cards.forEach(c => applyCardStatus(c, status));
+
+        fetch(@json(route('projects.board.tasks.status-batch', $project)), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                task_ids: cards.map(c => Number(c.dataset.taskId)),
+                status: status
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Status update failed');
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) throw new Error('Status update failed');
+        })
+        .catch(() => {
+            snapshots.forEach(({ card: c, status: previous }) => {
+                if (previous) applyCardStatus(c, previous);
+            });
+            error.textContent = 'Could not update status for the selected tasks. Please reload the board before trying again.';
+            error.hidden = false;
+        })
+        .finally(() => { saving = false; });
+    }, true);
     let lastDropColumn = null;
     let lastDropPosition = -1;
 

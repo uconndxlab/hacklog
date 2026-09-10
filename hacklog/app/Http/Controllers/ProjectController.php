@@ -1374,6 +1374,74 @@ class ProjectController extends Controller
     }
 
     /**
+     * Update status for multiple board tasks (mass selection)
+     */
+    public function updateTasksStatus(Request $request, Project $project)
+    {
+        abort_unless(Project::visibleTo($request->user())->whereKey($project->id)->exists(), 403);
+
+        $validated = $request->validate([
+            'task_ids' => 'required|array|min:1',
+            'task_ids.*' => 'required|integer|distinct',
+            'status' => ['required', Rule::in(Task::STATUSES)],
+        ]);
+
+        $updatedTasks = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $project, $request) {
+            $columnIds = $project->columns()->pluck('id');
+            $tasks = Task::withoutGlobalScope('ordered')
+                ->whereIn('column_id', $columnIds)
+                ->whereIn('id', $validated['task_ids'])
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            abort_unless($tasks->count() === count($validated['task_ids']), 422);
+
+            $userId = $request->user()->id;
+            $status = $validated['status'];
+            $changed = collect();
+
+            foreach ($validated['task_ids'] as $id) {
+                $task = $tasks->get($id);
+                $oldStatus = $task->status;
+                if ($oldStatus === $status) {
+                    continue;
+                }
+
+                $task->status = $status;
+                $task->updated_by = $userId;
+                if ($status === 'completed' && $oldStatus !== 'completed') {
+                    $task->completed_at = now();
+                } elseif ($status !== 'completed' && $oldStatus === 'completed') {
+                    $task->completed_at = null;
+                }
+                $task->save();
+
+                if ($status === 'completed') {
+                    \App\Models\TaskActivity::log($task->id, $userId, 'completed', null);
+                } elseif ($oldStatus === 'completed') {
+                    \App\Models\TaskActivity::log($task->id, $userId, 'reopened', null);
+                } else {
+                    \App\Models\TaskActivity::log($task->id, $userId, 'status_changed', [
+                        'from' => $oldStatus,
+                        'to' => $status,
+                    ]);
+                }
+
+                $changed->push($task);
+            }
+
+            return $changed;
+        });
+
+        foreach ($updatedTasks as $task) {
+            app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * Move a task to a new position and/or column via drag & drop
      */
     public function moveTask(Request $request, Project $project, \App\Models\Task $task)
