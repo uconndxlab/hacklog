@@ -26,6 +26,7 @@
                         <th>Office</th>
                         <th>Affiliation</th>
                         <th class="text-end">Grant</th>
+                        <th class="text-end">Billed</th>
                         <th style="width: 180px;">
                             Team
                             <span class="text-muted fw-normal" style="font-size:0.75rem;">explicit</span>
@@ -109,6 +110,13 @@
                                     <span class="small">${{ number_format((float) $project->grant_value, 2) }}</span>
                                 @elseif($project->has_grant)
                                     <span class="small">Yes</span>
+                                @else
+                                    <span class="text-muted small">—</span>
+                                @endif
+                            </td>
+                            <td class="text-end">
+                                @if($project->honeycrisp_project_id && $project->honeycrisp_billed_total_cents !== null)
+                                    <span class="small">${{ number_format($project->honeycrisp_billed_total_cents / 100, 2) }}</span>
                                 @else
                                     <span class="text-muted small">—</span>
                                 @endif

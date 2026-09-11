@@ -15,6 +15,15 @@
                 @endif
             </div>
             <div class="col-6">
+                <div class="text-muted small">Honeycrisp Billed</div>
+                @if($summary->billed_total_cents > 0)
+                    <div class="fs-3 fw-bold lh-sm">${{ number_format($summary->billed_total_cents / 100, 2) }}</div>
+                @else
+                    <div class="fs-3 fw-bold lh-sm text-muted">—</div>
+                @endif
+                <div class="text-muted" style="font-size: 0.75rem;">{{ number_format($summary->honeycrisp_linked_count) }} linked</div>
+            </div>
+            <div class="col-6">
                 <div class="text-muted small">Grant Funded</div>
                 <div class="fs-3 fw-bold lh-sm">{{ number_format($summary->grant_count) }}</div>
                 <div class="text-muted" style="font-size: 0.75rem;">{{ number_format($summary->total - $summary->grant_count) }} without</div>

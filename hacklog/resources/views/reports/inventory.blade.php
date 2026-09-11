@@ -8,6 +8,15 @@
     'subtitle' => $projects->count().' project'.($projects->count() === 1 ? '' : 's').' found',
 ])
 
+<div class="d-flex flex-wrap justify-content-end gap-2 mb-3">
+    <form method="POST" action="{{ route('reports.honeycrisp-billed.refresh') }}">
+        @csrf
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+            Refresh Honeycrisp billed totals
+        </button>
+    </form>
+</div>
+
 @include('reports.partials.charts')
 @include('reports.partials.filters')
 
@@ -41,6 +50,7 @@
                     {!! $sortLink('office', 'Office', 'text') !!}
                     {!! $sortLink('affiliation', 'Affiliation', 'number') !!}
                     {!! $sortLink('grant_value', 'Grant', 'number', 'text-end') !!}
+                    {!! $sortLink('honeycrisp_billed_total_cents', 'Billed', 'number', 'text-end') !!}
                 </tr>
             </thead>
             <tbody>
@@ -105,10 +115,19 @@
                                 <span class="text-muted small">—</span>
                             @endif
                         </td>
+                        <td class="text-end" data-sort-col="honeycrisp_billed_total_cents" data-sort="{{ (int) ($project->honeycrisp_billed_total_cents ?? 0) }}">
+                            @if($project->honeycrisp_project_id && $project->honeycrisp_billed_total_cents !== null)
+                                <span class="small">${{ number_format($project->honeycrisp_billed_total_cents / 100, 2) }}</span>
+                            @elseif($project->honeycrisp_project_id)
+                                <span class="text-muted small">—</span>
+                            @else
+                                <span class="text-muted small">—</span>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="text-muted text-center py-4">No projects match these filters.</td>
+                        <td colspan="9" class="text-muted text-center py-4">No projects match these filters.</td>
                     </tr>
                 @endforelse
             </tbody>

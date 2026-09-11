@@ -6,13 +6,15 @@ use App\Models\Department;
 use App\Models\MajorOffice;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\HoneycrispBilledTotalsSyncer;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ReportController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, HoneycrispBilledTotalsSyncer $billedTotals): View
     {
         $query = Project::query();
 
@@ -59,14 +61,6 @@ class ReportController extends Controller
             : 'name';
         $direction = $request->query('direction') === 'desc' ? 'desc' : 'asc';
 
-        $summary = (clone $query)->toBase()->select([
-            DB::raw('COUNT(*) as total'),
-            DB::raw('COUNT(CASE WHEN projects.has_grant = 1 THEN 1 END) as grant_count'),
-            DB::raw('COALESCE(SUM(projects.grant_value), 0) as grant_total'),
-            DB::raw('COUNT(DISTINCT projects.department_id) as dept_count'),
-            DB::raw('COUNT(DISTINCT projects.major_office_id) as office_count'),
-        ])->first();
-
         $listQuery = (clone $query)
             ->with(['department', 'nestedDepartment', 'majorOffice', 'typeDefinition'])
             ->leftJoin('departments as home_departments', 'projects.department_id', '=', 'home_departments.id')
@@ -77,6 +71,17 @@ class ReportController extends Controller
         $this->applyInventorySort($listQuery, $sort, $direction);
 
         $projects = $listQuery->get();
+        $billedTotals->refreshStale($projects);
+
+        $summary = (clone $query)->toBase()->select([
+            DB::raw('COUNT(*) as total'),
+            DB::raw('COUNT(CASE WHEN projects.has_grant = 1 THEN 1 END) as grant_count'),
+            DB::raw('COALESCE(SUM(projects.grant_value), 0) as grant_total'),
+            DB::raw('COALESCE(SUM(projects.honeycrisp_billed_total_cents), 0) as billed_total_cents'),
+            DB::raw('COUNT(CASE WHEN projects.honeycrisp_project_id IS NOT NULL THEN 1 END) as honeycrisp_linked_count'),
+            DB::raw('COUNT(DISTINCT projects.department_id) as dept_count'),
+            DB::raw('COUNT(DISTINCT projects.major_office_id) as office_count'),
+        ])->first();
 
         $statusCounts = Project::query()
             ->select('status', DB::raw('COUNT(*) as projects_count'))
@@ -122,6 +127,15 @@ class ReportController extends Controller
         ]);
     }
 
+    public function refreshHoneycrispBilled(HoneycrispBilledTotalsSyncer $billedTotals): RedirectResponse
+    {
+        $count = $billedTotals->refreshStale(null, true);
+
+        return redirect()
+            ->route('reports.index')
+            ->with('success', "Refetched Honeycrisp billed totals for {$count} project(s).");
+    }
+
     private const SORTABLE_COLUMNS = [
         'status',
         'name',
@@ -131,6 +145,7 @@ class ReportController extends Controller
         'office',
         'affiliation',
         'grant_value',
+        'honeycrisp_billed_total_cents',
     ];
 
     private function applyInventorySort($query, string $sort, string $direction): void
@@ -145,6 +160,7 @@ class ReportController extends Controller
             'nested_department' => $query->orderBy('nested_departments.name', $dir),
             'office' => $query->orderBy('major_offices.name', $dir),
             'grant_value' => $query->orderByRaw('COALESCE(projects.grant_value, 0) '.$dir),
+            'honeycrisp_billed_total_cents' => $query->orderByRaw('COALESCE(projects.honeycrisp_billed_total_cents, 0) '.$dir),
             default => $query->orderBy('projects.name', $dir),
         };
 

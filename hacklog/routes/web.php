@@ -68,6 +68,7 @@ Route::middleware('auth')->group(function () {
         Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
         Route::get('projects-table', [ProjectController::class, 'tableView'])->name('projects.table');
         Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::post('reports/honeycrisp-billed/refresh', [ReportController::class, 'refreshHoneycrispBilled'])->name('reports.honeycrisp-billed.refresh');
         Route::get('reports/workload', [ReportController::class, 'workload'])->name('reports.workload');
         Route::get('reports/editor', [InventoryEditorController::class, 'index'])->name('reports.editor');
         Route::post('reports/inventory', [InventoryEditorController::class, 'store'])->name('reports.editor.store');

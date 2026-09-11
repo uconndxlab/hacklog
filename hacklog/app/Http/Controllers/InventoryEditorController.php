@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Services\HoneycrispBilledTotalsSyncer;
 use App\Services\ProjectInventoryEditor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,19 +11,26 @@ use Illuminate\View\View;
 
 class InventoryEditorController extends Controller
 {
-    public function __construct(protected ProjectInventoryEditor $editor) {}
+    public function __construct(
+        protected ProjectInventoryEditor $editor,
+        protected HoneycrispBilledTotalsSyncer $billedTotals,
+    ) {}
 
     public function index(): View
     {
         $projects = Project::query()
             ->with(['department', 'nestedDepartment', 'majorOffice', 'shares.user'])
             ->orderBy('name')
-            ->get()
+            ->get();
+
+        $this->billedTotals->refreshStale($projects);
+
+        $rows = $projects
             ->map(fn (Project $project) => $this->editor->toRow($project))
             ->values();
 
         return view('reports.editor', [
-            'rows' => $projects,
+            'rows' => $rows,
             'options' => $this->editor->lookupOptions(),
         ]);
     }

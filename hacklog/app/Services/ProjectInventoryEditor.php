@@ -123,6 +123,11 @@ class ProjectInventoryEditor
             'has_grant' => (bool) $project->has_grant,
             'grant_value' => $project->grant_value !== null ? (float) $project->grant_value : null,
             'sponsor' => $project->sponsor,
+            'honeycrisp_project_id' => $project->honeycrisp_project_id,
+            'honeycrisp_project_name' => $project->honeycrisp_project_name,
+            'honeycrisp_billed_total' => $project->honeycrisp_billed_total_cents !== null
+                ? round($project->honeycrisp_billed_total_cents / 100, 2)
+                : null,
             'team_user_ids' => $team->pluck('id')->all(),
             'team' => $team->all(),
             'leader_user_id' => $leader['id'] ?? null,

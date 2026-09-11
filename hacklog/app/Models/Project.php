@@ -121,6 +121,8 @@ class Project extends Model
         'slack_bot_enabled',
         'honeycrisp_project_id',
         'honeycrisp_project_name',
+        'honeycrisp_billed_total_cents',
+        'honeycrisp_billed_fetched_at',
     ];
 
     protected $casts = [
@@ -137,6 +139,8 @@ class Project extends Model
         'slack_bot_enabled' => 'boolean',
         'honeycrisp_project_id' => 'integer',
         'honeycrisp_project_name' => 'string',
+        'honeycrisp_billed_total_cents' => 'integer',
+        'honeycrisp_billed_fetched_at' => 'datetime',
     ];
 
     protected $attributes = [

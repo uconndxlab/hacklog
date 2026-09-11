@@ -90,25 +90,27 @@
                 @enderror
             </div>
 
-            <div class="mb-3">
-                <label for="honeycrisp_project_id" class="form-label">Honeycrisp Project <span class="text-muted fw-normal">(optional)</span></label>
-                <select
-                    class="form-select @error('honeycrisp_project_id') is-invalid @enderror"
-                    id="honeycrisp_project_id"
-                    name="honeycrisp_project_id">
-                    <option value="">— None —</option>
-                    @foreach(($honeycrispProjects ?? []) as $honeycrispProject)
-                        <option
-                            value="{{ $honeycrispProject['id'] }}"
-                            {{ (string) old('honeycrisp_project_id') === (string) $honeycrispProject['id'] ? 'selected' : '' }}>
-                            {{ $honeycrispProject['name'] }}
-                        </option>
-                    @endforeach
-                </select>
-                @error('honeycrisp_project_id')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-            </div>
+            @if(auth()->user()->isAdmin())
+                <div class="mb-3">
+                    <label for="honeycrisp_project_id" class="form-label">Honeycrisp Project <span class="text-muted fw-normal">(optional)</span></label>
+                    <select
+                        class="form-select @error('honeycrisp_project_id') is-invalid @enderror"
+                        id="honeycrisp_project_id"
+                        name="honeycrisp_project_id">
+                        <option value="">— None —</option>
+                        @foreach(($honeycrispProjects ?? []) as $honeycrispProject)
+                            <option
+                                value="{{ $honeycrispProject['id'] }}"
+                                {{ (string) old('honeycrisp_project_id') === (string) $honeycrispProject['id'] ? 'selected' : '' }}>
+                                {{ $honeycrispProject['name'] }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('honeycrisp_project_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            @endif
 
             @if(!auth()->user()->isClient())
                 @php

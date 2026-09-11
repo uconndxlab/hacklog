@@ -209,6 +209,8 @@
                 data.sponsor,
                 data.launch_date,
                 data.grant_value,
+                data.honeycrisp_project_name,
+                data.honeycrisp_billed_total,
                 label(STATUSES, data.status),
                 label(TYPES, data.project_type),
                 label(DEPARTMENTS, data.department_id),
@@ -383,6 +385,29 @@
                     return value === null || value === undefined || value === '' ? '' : money.format(value);
                 },
                 width: 130,
+            },
+            {
+                title: 'Honeycrisp Project',
+                field: 'honeycrisp_project_name',
+                headerSort: true,
+                minWidth: 160,
+                formatter: function (cell) {
+                    const value = cell.getValue();
+
+                    return value ? value : '—';
+                },
+            },
+            {
+                title: 'Billed',
+                field: 'honeycrisp_billed_total',
+                hozAlign: 'right',
+                headerSort: true,
+                width: 120,
+                formatter: function (cell) {
+                    const value = cell.getValue();
+
+                    return value === null || value === undefined || value === '' ? '—' : money.format(value);
+                },
             },
             {
                 title: 'Sponsor',

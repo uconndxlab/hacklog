@@ -38,4 +38,15 @@ return [
     |--------------------------------------------------------------------------
     */
     'timeout_seconds' => (int) env('HONEYCRISP_TIMEOUT_SECONDS', 10),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Billed Total Cache TTL
+    |--------------------------------------------------------------------------
+    |
+    | How long (seconds) a cached Honeycrisp billed total is considered fresh
+    | before the next report/table load re-fetches it. Set to 0 to always refresh.
+    |
+    */
+    'billed_cache_seconds' => (int) env('HONEYCRISP_BILLED_CACHE_SECONDS', 3600),
 ];

@@ -9,6 +9,7 @@ use App\Models\ProjectStatus;
 use App\Models\Tag;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\HoneycrispBilledTotalsSyncer;
 use App\Services\HoneycrispClient;
 use App\Services\ProjectSlackNotificationService;
 use Illuminate\Http\Request;
@@ -261,12 +262,14 @@ class ProjectController extends Controller
     /**
      * Admin-only table view: all projects with status, team, tags, and launch date.
      */
-    public function tableView(Request $request)
+    public function tableView(Request $request, HoneycrispBilledTotalsSyncer $billedTotals)
     {
         $projects = Project::with(['tags', 'columns.tasks.users', 'shares', 'department', 'nestedDepartment', 'majorOffice', 'statusDefinition', 'typeDefinition'])
             ->orderBy(ProjectStatus::select('position')->whereColumn('project_statuses.key', 'projects.status'))
             ->orderBy('name', 'asc')
             ->get();
+
+        $billedTotals->refreshStale($projects);
 
         // Resolve all user-type share targets in a single query
         $sharedUserIds = $projects->flatMap(
@@ -286,7 +289,9 @@ class ProjectController extends Controller
         $availableTags = auth()->user()->isClient()
             ? collect()
             : Tag::orderBy('name')->get();
-        $honeycrispProjects = $honeycrisp->listFacilityProjects();
+        $honeycrispProjects = auth()->user()->isAdmin()
+            ? $honeycrisp->listFacilityProjects()
+            : [];
 
         return view('projects.create', array_merge(
             compact('availableTags', 'honeycrispProjects'),
@@ -328,10 +333,16 @@ class ProjectController extends Controller
             ->all();
 
         $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
-        $projectData = array_merge(
-            $projectData,
-            $this->resolveHoneycrispProjectAssignment($validated['honeycrisp_project_id'] ?? null)
-        );
+        if (auth()->user()->isAdmin()) {
+            $honeycrispId = $validated['honeycrisp_project_id'] ?? null;
+            $facilityProjects = ($honeycrispId === null || $honeycrispId === '')
+                ? []
+                : app(HoneycrispClient::class)->listFacilityProjects();
+            $projectData = array_merge(
+                $projectData,
+                $this->resolveHoneycrispProjectAssignment($honeycrispId, null, $facilityProjects)
+            );
+        }
 
         $project = Project::create($projectData);
 
@@ -1715,7 +1726,9 @@ class ProjectController extends Controller
 
         $project->load('tags', 'department', 'nestedDepartment', 'majorOffice');
         $availableTags = Tag::orderBy('name')->get();
-        $honeycrispProjects = $honeycrisp->listFacilityProjects();
+        $honeycrispProjects = auth()->user()->isAdmin()
+            ? $honeycrisp->listFacilityProjects()
+            : [];
 
         return view('projects.edit', array_merge(
             compact('project', 'availableTags', 'honeycrispProjects'),
@@ -1762,10 +1775,20 @@ class ProjectController extends Controller
         $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
         $projectData['slack_channel_id'] = trim((string) ($validated['slack_channel_id'] ?? '')) ?: null;
         $projectData['slack_bot_enabled'] = (bool) ($validated['slack_bot_enabled'] ?? false);
-        $projectData = array_merge(
-            $projectData,
-            $this->resolveHoneycrispProjectAssignment($validated['honeycrisp_project_id'] ?? null, $project)
-        );
+        if (auth()->user()->isAdmin()) {
+            $honeycrispId = $validated['honeycrisp_project_id'] ?? null;
+            $unchanged = $honeycrispId !== null
+                && $honeycrispId !== ''
+                && $project->honeycrisp_project_id !== null
+                && (int) $project->honeycrisp_project_id === (int) $honeycrispId;
+            $facilityProjects = ($unchanged || $honeycrispId === null || $honeycrispId === '')
+                ? []
+                : app(HoneycrispClient::class)->listFacilityProjects();
+            $projectData = array_merge(
+                $projectData,
+                $this->resolveHoneycrispProjectAssignment($honeycrispId, $project, $facilityProjects)
+            );
+        }
 
         $project->update($projectData);
 
@@ -1912,14 +1935,25 @@ class ProjectController extends Controller
     }
 
     /**
-     * @return array{honeycrisp_project_id: int|null, honeycrisp_project_name: string|null}
+     * @param  list<array{id: int|string, name: string}>|null  $facilityProjects
+     * @return array{
+     *     honeycrisp_project_id: int|null,
+     *     honeycrisp_project_name: string|null,
+     *     honeycrisp_billed_total_cents: int|null,
+     *     honeycrisp_billed_fetched_at: \Illuminate\Support\Carbon|null
+     * }
      */
-    protected function resolveHoneycrispProjectAssignment(mixed $projectId, ?Project $existing = null): array
-    {
+    protected function resolveHoneycrispProjectAssignment(
+        mixed $projectId,
+        ?Project $existing = null,
+        ?array $facilityProjects = null
+    ): array {
         if ($projectId === null || $projectId === '') {
             return [
                 'honeycrisp_project_id' => null,
                 'honeycrisp_project_name' => null,
+                'honeycrisp_billed_total_cents' => null,
+                'honeycrisp_billed_fetched_at' => null,
             ];
         }
 
@@ -1933,10 +1967,12 @@ class ProjectController extends Controller
             return [
                 'honeycrisp_project_id' => $projectId,
                 'honeycrisp_project_name' => $existing->honeycrisp_project_name,
+                'honeycrisp_billed_total_cents' => $existing->honeycrisp_billed_total_cents,
+                'honeycrisp_billed_fetched_at' => $existing->honeycrisp_billed_fetched_at,
             ];
         }
 
-        $match = collect(app(HoneycrispClient::class)->listFacilityProjects())
+        $match = collect($facilityProjects ?? app(HoneycrispClient::class)->listFacilityProjects())
             ->first(fn (array $project) => (int) $project['id'] === $projectId);
 
         if (! $match) {
@@ -1948,6 +1984,8 @@ class ProjectController extends Controller
         return [
             'honeycrisp_project_id' => $projectId,
             'honeycrisp_project_name' => $match['name'],
+            'honeycrisp_billed_total_cents' => null,
+            'honeycrisp_billed_fetched_at' => null,
         ];
     }
 
