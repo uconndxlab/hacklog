@@ -119,6 +119,8 @@ class Project extends Model
         'slack_webhook_url',
         'slack_channel_id',
         'slack_bot_enabled',
+        'honeycrisp_project_id',
+        'honeycrisp_project_name',
     ];
 
     protected $casts = [
@@ -133,6 +135,8 @@ class Project extends Model
         'slack_webhook_url' => 'string',
         'slack_channel_id' => 'string',
         'slack_bot_enabled' => 'boolean',
+        'honeycrisp_project_id' => 'integer',
+        'honeycrisp_project_name' => 'string',
     ];
 
     protected $attributes = [

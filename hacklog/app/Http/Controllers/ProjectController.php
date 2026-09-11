@@ -9,6 +9,7 @@ use App\Models\ProjectStatus;
 use App\Models\Tag;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\HoneycrispClient;
 use App\Services\ProjectSlackNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -280,14 +281,15 @@ class ProjectController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(HoneycrispClient $honeycrisp)
     {
         $availableTags = auth()->user()->isClient()
             ? collect()
             : Tag::orderBy('name')->get();
+        $honeycrispProjects = $honeycrisp->listFacilityProjects();
 
         return view('projects.create', array_merge(
-            compact('availableTags'),
+            compact('availableTags', 'honeycrispProjects'),
             $this->classificationFormData()
         ));
     }
@@ -303,6 +305,7 @@ class ProjectController extends Controller
             'status' => ['required', Rule::in(Project::statusValues())],
             'staffing_model' => 'required|in:dedicated,shared',
             'slack_webhook_url' => 'nullable|url|max:2048',
+            'honeycrisp_project_id' => 'nullable|integer',
             'use_default_columns' => 'boolean',
             'tags_sync' => 'nullable|boolean',
             'tags' => 'nullable|array',
@@ -325,6 +328,10 @@ class ProjectController extends Controller
             ->all();
 
         $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
+        $projectData = array_merge(
+            $projectData,
+            $this->resolveHoneycrispProjectAssignment($validated['honeycrisp_project_id'] ?? null)
+        );
 
         $project = Project::create($projectData);
 
@@ -1699,7 +1706,7 @@ class ProjectController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Project $project)
+    public function edit(Project $project, HoneycrispClient $honeycrisp)
     {
         // Clients cannot access settings
         if (auth()->user()->isClient()) {
@@ -1708,9 +1715,10 @@ class ProjectController extends Controller
 
         $project->load('tags', 'department', 'nestedDepartment', 'majorOffice');
         $availableTags = Tag::orderBy('name')->get();
+        $honeycrispProjects = $honeycrisp->listFacilityProjects();
 
         return view('projects.edit', array_merge(
-            compact('project', 'availableTags'),
+            compact('project', 'availableTags', 'honeycrispProjects'),
             $this->classificationFormData($project)
         ));
     }
@@ -1729,6 +1737,7 @@ class ProjectController extends Controller
             'slack_webhook_url' => 'nullable|url|max:2048',
             'slack_channel_id' => 'nullable|string|max:30',
             'slack_bot_enabled' => 'nullable|boolean',
+            'honeycrisp_project_id' => 'nullable|integer',
             'tags_sync' => 'nullable|boolean',
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
@@ -1753,6 +1762,10 @@ class ProjectController extends Controller
         $projectData['slack_webhook_url'] = $this->normalizeSlackWebhookUrl($validated['slack_webhook_url'] ?? null);
         $projectData['slack_channel_id'] = trim((string) ($validated['slack_channel_id'] ?? '')) ?: null;
         $projectData['slack_bot_enabled'] = (bool) ($validated['slack_bot_enabled'] ?? false);
+        $projectData = array_merge(
+            $projectData,
+            $this->resolveHoneycrispProjectAssignment($validated['honeycrisp_project_id'] ?? null, $project)
+        );
 
         $project->update($projectData);
 
@@ -1896,6 +1909,46 @@ class ProjectController extends Controller
         $normalized = trim((string) $url);
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    /**
+     * @return array{honeycrisp_project_id: int|null, honeycrisp_project_name: string|null}
+     */
+    protected function resolveHoneycrispProjectAssignment(mixed $projectId, ?Project $existing = null): array
+    {
+        if ($projectId === null || $projectId === '') {
+            return [
+                'honeycrisp_project_id' => null,
+                'honeycrisp_project_name' => null,
+            ];
+        }
+
+        $projectId = (int) $projectId;
+
+        if (
+            $existing
+            && $existing->honeycrisp_project_id !== null
+            && (int) $existing->honeycrisp_project_id === $projectId
+        ) {
+            return [
+                'honeycrisp_project_id' => $projectId,
+                'honeycrisp_project_name' => $existing->honeycrisp_project_name,
+            ];
+        }
+
+        $match = collect(app(HoneycrispClient::class)->listFacilityProjects())
+            ->first(fn (array $project) => (int) $project['id'] === $projectId);
+
+        if (! $match) {
+            throw ValidationException::withMessages([
+                'honeycrisp_project_id' => 'The selected Honeycrisp project is invalid or unavailable.',
+            ]);
+        }
+
+        return [
+            'honeycrisp_project_id' => $projectId,
+            'honeycrisp_project_name' => $match['name'],
+        ];
     }
 
     protected function syncProjectTagsFromRequest(Project $project, Request $request): array
