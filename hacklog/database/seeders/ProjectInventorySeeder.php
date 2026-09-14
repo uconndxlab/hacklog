@@ -5,12 +5,30 @@ namespace Database\Seeders;
 use App\Models\Department;
 use App\Models\MajorOffice;
 use App\Models\Project;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class ProjectInventorySeeder extends Seeder
 {
+    /** Spreadsheet labels from the i3 Primary column. */
+    protected array $primaryNetids = [
+        'BK' => 'bak11004',
+        'Brian' => 'bpd01001',
+        'Brian Daley' => 'bpd01001',
+        'Brooke' => 'bef10003',
+        'Dan' => 'das10009',
+        'Jeff' => 'jdw01001',
+        'Joel' => 'jrs06005',
+        'Maggie' => 'mmd21011',
+        'Natalie' => 'nml17005',
+        'Phoebe' => 'phl19002',
+        'Sara' => 'sas16119',
+        'Sue' => 'sls02010',
+    ];
+
     /**
      * CSV names that already exist in Hacklog under a different title.
      * Keys are original spreadsheet names; values are current project names.
@@ -80,6 +98,12 @@ class ProjectInventorySeeder extends Seeder
             $existingByName[$this->normalizeName($project->name)] = $project;
         }
 
+        $primaryUsers = User::query()
+            ->whereIn('netid', array_unique(array_values($this->primaryNetids)))
+            ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_TEAM])
+            ->get()
+            ->keyBy('netid');
+
         $updated = 0;
         $created = 0;
         $skipped = 0;
@@ -100,7 +124,7 @@ class ProjectInventorySeeder extends Seeder
 
             if (isset($existingByName[$normalized])) {
                 $project = $existingByName[$normalized];
-                // Inventory fields only — never touch status, staffing model, or team shares.
+                // Inventory fields only — never touch status, staffing model, or full team roster.
                 $project->fill(array_filter(
                     $classification,
                     fn ($value) => $value !== null
@@ -115,6 +139,8 @@ class ProjectInventorySeeder extends Seeder
                 $existingByName[$normalized] = $project;
                 $created++;
             }
+
+            $this->syncProjectLead($project, $record, $primaryUsers);
         }
 
         fclose($handle);
@@ -144,6 +170,31 @@ class ProjectInventorySeeder extends Seeder
         $name = str_replace(['&', '’', "'"], ['and', '', ''], $name);
 
         return trim(preg_replace('/[^a-z0-9]+/', ' ', $name) ?? '');
+    }
+
+    /**
+     * Set project lead from i3 Primary only — does not remove other team members.
+     *
+     * @param  Collection<string, User>  $primaryUsers
+     */
+    protected function syncProjectLead(Project $project, array $record, Collection $primaryUsers): void
+    {
+        $primaryLabel = trim((string) ($record['i3 Primary'] ?? ''));
+        $primaryNetid = $this->primaryNetids[$primaryLabel] ?? null;
+        $primaryUserId = $primaryNetid !== null
+            ? $primaryUsers->get($primaryNetid)?->id
+            : null;
+
+        if ($primaryUserId === null) {
+            return;
+        }
+
+        $project->shares()->where('is_leader', true)->update(['is_leader' => false]);
+
+        $project->shares()->updateOrCreate(
+            ['shareable_type' => 'user', 'shareable_id' => (string) $primaryUserId],
+            ['is_leader' => true]
+        );
     }
 
     protected function classificationFromRecord(array $record): array
