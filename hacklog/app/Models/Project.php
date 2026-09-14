@@ -100,6 +100,20 @@ class Project extends Model
         self::AFFILIATION_EXTERNAL => 'External',
     ];
 
+    const LANE_INTERNAL = 'internal';
+
+    const LANE_CORE = 'core';
+
+    const LANE_VALUES = [
+        self::LANE_INTERNAL,
+        self::LANE_CORE,
+    ];
+
+    const LANE_LABELS = [
+        self::LANE_INTERNAL => 'Internal',
+        self::LANE_CORE => 'Core',
+    ];
+
     protected $fillable = [
         'name',
         'description',
@@ -112,6 +126,7 @@ class Project extends Model
         'client_pi',
         'client_category',
         'uconn_affiliation',
+        'lane',
         'has_grant',
         'grant_value',
         'sponsor',
@@ -127,6 +142,7 @@ class Project extends Model
         'project_type' => 'string',
         'client_category' => 'string',
         'uconn_affiliation' => 'string',
+        'lane' => 'string',
         'has_grant' => 'boolean',
         'grant_value' => 'decimal:2',
         'launch_date' => 'date',
@@ -310,6 +326,11 @@ class Project extends Model
     public function uconnAffiliationLabel(): ?string
     {
         return self::AFFILIATION_LABELS[$this->uconn_affiliation] ?? null;
+    }
+
+    public function laneLabel(): ?string
+    {
+        return self::LANE_LABELS[$this->lane] ?? null;
     }
 
     public function scopeWithTag(Builder $query, int $tagId): Builder

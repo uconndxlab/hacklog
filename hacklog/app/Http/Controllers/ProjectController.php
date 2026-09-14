@@ -1799,6 +1799,7 @@ class ProjectController extends Controller
             'client_pi',
             'client_category',
             'uconn_affiliation',
+            'lane',
             'has_grant',
             'grant_value',
             'sponsor',
@@ -1815,6 +1816,7 @@ class ProjectController extends Controller
             'client_pi' => 'nullable|string|max:255',
             'client_category' => ['nullable', Rule::in(Project::CLIENT_CATEGORY_VALUES)],
             'uconn_affiliation' => ['nullable', Rule::in(Project::AFFILIATION_VALUES)],
+            'lane' => ['nullable', Rule::in(Project::LANE_VALUES)],
             'has_grant' => 'nullable|boolean',
             'grant_value' => 'nullable|numeric|min:0',
             'sponsor' => 'nullable|string|max:255',
@@ -1849,7 +1851,7 @@ class ProjectController extends Controller
             return $validated;
         }
 
-        foreach (['department_id', 'nested_department_id', 'major_office_id', 'project_type', 'client_pi', 'client_category', 'uconn_affiliation', 'sponsor', 'grant_value'] as $attribute) {
+        foreach (['department_id', 'nested_department_id', 'major_office_id', 'project_type', 'client_pi', 'client_category', 'uconn_affiliation', 'lane', 'sponsor', 'grant_value'] as $attribute) {
             if (! array_key_exists($attribute, $validated) || $validated[$attribute] === '') {
                 $validated[$attribute] = null;
             }

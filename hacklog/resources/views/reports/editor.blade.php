@@ -81,6 +81,7 @@
     const OFFICES = toMap(options.offices, 'id', 'name', '—');
     const CATEGORIES = toMap(options.categories, 'value', 'label', '—');
     const AFFILIATIONS = toMap(options.affiliations, 'value', 'label', '—');
+    const LANES = toMap(options.lanes, 'value', 'label', '—');
     const TEAM_USERS = options.teamUsers || [];
     const money = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' });
     const nestedMaps = {};
@@ -216,6 +217,7 @@
                 label(OFFICES, data.major_office_id),
                 label(CATEGORIES, data.client_category),
                 label(AFFILIATIONS, data.uconn_affiliation),
+                label(LANES, data.lane),
                 (data.team || []).map(function (member) { return member.name; }).join(' '),
                 data.leader ? data.leader.name : '',
             ].filter(Boolean).join(' ').toLowerCase();
@@ -356,6 +358,14 @@
                 editorParams: { values: AFFILIATIONS },
                 formatter: lookup(AFFILIATIONS),
                 width: 150,
+            },
+            {
+                title: 'Lane',
+                field: 'lane',
+                editor: 'list',
+                editorParams: { values: LANES },
+                formatter: lookup(LANES),
+                width: 120,
             },
             {
                 title: 'Has Grant',

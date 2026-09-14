@@ -138,6 +138,22 @@
     </div>
 
     <div class="col-md-4 mb-3">
+        <label for="lane" class="form-label">Lane</label>
+        <select
+            class="form-select @error('lane') is-invalid @enderror"
+            id="lane"
+            name="lane">
+            <option value="">Select lane…</option>
+            @foreach(\App\Models\Project::LANE_LABELS as $value => $label)
+                <option value="{{ $value }}" @selected(old('lane', $project?->lane) === $value)>{{ $label }}</option>
+            @endforeach
+        </select>
+        @error('lane')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
+    </div>
+
+    <div class="col-md-4 mb-3">
         <label for="sponsor" class="form-label">Sponsor</label>
         <input
             type="text"

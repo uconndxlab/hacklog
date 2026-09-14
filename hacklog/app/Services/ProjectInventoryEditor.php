@@ -24,14 +24,15 @@ class ProjectInventoryEditor
         'nested_department_id',
         'major_office_id',
         'client_pi',
-        'client_category',
-        'uconn_affiliation',
-        'has_grant',
-        'grant_value',
-        'sponsor',
-        'team_user_ids',
-        'leader_user_id',
-    ];
+            'client_category',
+            'uconn_affiliation',
+            'lane',
+            'has_grant',
+            'grant_value',
+            'sponsor',
+            'team_user_ids',
+            'leader_user_id',
+        ];
 
     public function lookupOptions(): array
     {
@@ -74,6 +75,10 @@ class ProjectInventoryEditor
                 ->values()
                 ->all(),
             'affiliations' => collect(Project::AFFILIATION_LABELS)
+                ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
+                ->values()
+                ->all(),
+            'lanes' => collect(Project::LANE_LABELS)
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
                 ->values()
                 ->all(),
@@ -120,6 +125,7 @@ class ProjectInventoryEditor
             'client_pi' => $project->client_pi,
             'client_category' => $project->client_category,
             'uconn_affiliation' => $project->uconn_affiliation,
+            'lane' => $project->lane,
             'has_grant' => (bool) $project->has_grant,
             'grant_value' => $project->grant_value !== null ? (float) $project->grant_value : null,
             'sponsor' => $project->sponsor,
@@ -299,6 +305,7 @@ class ProjectInventoryEditor
             'client_pi' => 'nullable|string|max:255',
             'client_category' => ['nullable', Rule::in(Project::CLIENT_CATEGORY_VALUES)],
             'uconn_affiliation' => ['nullable', Rule::in(Project::AFFILIATION_VALUES)],
+            'lane' => ['nullable', Rule::in(Project::LANE_VALUES)],
             'has_grant' => 'boolean',
             'grant_value' => 'nullable|numeric|min:0',
             'sponsor' => 'nullable|string|max:255',

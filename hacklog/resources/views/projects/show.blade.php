@@ -24,6 +24,7 @@
                 || $project->client_pi
                 || $project->client_category
                 || $project->uconn_affiliation
+                || $project->lane
                 || $project->has_grant
                 || $project->grant_value !== null
                 || $project->sponsor;
@@ -66,6 +67,10 @@
                         <div class="col-md-4">
                             <div class="text-muted">UConn Affiliation</div>
                             <div>{{ $project->uconnAffiliationLabel() ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted">Lane</div>
+                            <div>{{ $project->laneLabel() ?: '—' }}</div>
                         </div>
                         <div class="col-md-4">
                             <div class="text-muted">Grant</div>
