@@ -199,6 +199,12 @@
         return wrap;
     }
 
+    function leaderSorter(a, b, aRow, bRow) {
+        const an = ((aRow.getData().leader && aRow.getData().leader.name) || '').toLowerCase();
+        const bn = ((bRow.getData().leader && bRow.getData().leader.name) || '').toLowerCase();
+        return an.localeCompare(bn);
+    }
+
     const searchCache = new Map();
 
     function searchText(data) {
@@ -404,8 +410,8 @@
                 title: 'Project Lead',
                 field: 'leader_user_id',
                 formatter: leaderFormatter,
+                sorter: leaderSorter,
                 cellClick: function (event, cell) { openPeopleEditor(event, cell, 'leader'); },
-                headerSort: false,
                 minWidth: 180,
                 width: 220,
                 tooltip: 'Click to choose the project lead',
