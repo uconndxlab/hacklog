@@ -205,6 +205,229 @@
         return an.localeCompare(bn);
     }
 
+    function filterActive(value) {
+        if (Array.isArray(value)) {
+            return value.length > 0;
+        }
+        return value !== null && value !== undefined && String(value).trim() !== '';
+    }
+
+    function containsFilter(headerValue, rowValue) {
+        if (!filterActive(headerValue)) {
+            return true;
+        }
+        return String(rowValue == null ? '' : rowValue).toLowerCase().indexOf(String(headerValue).toLowerCase()) !== -1;
+    }
+
+    function equalsFilter(headerValue, rowValue) {
+        if (!filterActive(headerValue)) {
+            return true;
+        }
+        const values = Array.isArray(headerValue) ? headerValue : [headerValue];
+        return values.map(String).indexOf(String(rowValue == null ? '' : rowValue)) !== -1;
+    }
+
+    function leaderFilter(headerValue, rowValue, rowData) {
+        if (!filterActive(headerValue)) {
+            return true;
+        }
+        const name = (rowData.leader && rowData.leader.name) || '';
+        return name.toLowerCase().indexOf(String(headerValue).toLowerCase()) !== -1;
+    }
+
+    function teamFilter(headerValue, rowValue, rowData) {
+        if (!filterActive(headerValue)) {
+            return true;
+        }
+        const names = (rowData.team || []).map(function (member) { return member.name; }).join(' ');
+        return names.toLowerCase().indexOf(String(headerValue).toLowerCase()) !== -1;
+    }
+
+    function grantFilter(headerValue, rowValue) {
+        if (!filterActive(headerValue)) {
+            return true;
+        }
+        const values = Array.isArray(headerValue) ? headerValue : [headerValue];
+        return values.map(String).indexOf(String(!!rowValue)) !== -1;
+    }
+
+    function emptyHeaderFilter() {
+        return document.createElement('div');
+    }
+
+    const FILTER_ICON = '<svg class="inventory-col-filter-icon" width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .4.8L10 7.5V13a.5.5 0 0 1-.75.43l-2.5-1.5A.5.5 0 0 1 6.5 11.5V7.5L1.6 1.8A.5.5 0 0 1 1.5 1.5z"/></svg>';
+
+    function mapEntries(map) {
+        return Object.keys(map).filter(function (key) {
+            return key !== '';
+        }).map(function (key) {
+            return { value: String(key), label: map[key] };
+        });
+    }
+
+    function textFilterPopup(e, column, onRendered) {
+        const wrap = document.createElement('div');
+        wrap.className = 'inventory-excel-filter';
+
+        const input = document.createElement('input');
+        input.type = 'search';
+        input.className = 'inventory-excel-filter-search';
+        input.placeholder = 'Contains…';
+        input.value = column.getHeaderFilterValue() || '';
+        input.addEventListener('input', function () {
+            column.setHeaderFilterValue(input.value);
+            markFilterIcons();
+        });
+
+        const clear = document.createElement('button');
+        clear.type = 'button';
+        clear.className = 'inventory-excel-filter-clear';
+        clear.textContent = 'Clear filter';
+        clear.addEventListener('click', function () {
+            input.value = '';
+            column.setHeaderFilterValue('');
+            markFilterIcons();
+        });
+
+        wrap.appendChild(input);
+        wrap.appendChild(clear);
+
+        onRendered(function () {
+            input.focus();
+            input.select();
+        });
+
+        return wrap;
+    }
+
+    function listFilterPopup(map) {
+        const entries = mapEntries(map);
+
+        return function (e, column, onRendered) {
+            const wrap = document.createElement('div');
+            wrap.className = 'inventory-excel-filter';
+
+            const current = column.getHeaderFilterValue();
+            const selected = new Set(
+                filterActive(current)
+                    ? (Array.isArray(current) ? current : [current]).map(String)
+                    : entries.map(function (entry) { return entry.value; })
+            );
+
+            const search = document.createElement('input');
+            search.type = 'search';
+            search.className = 'inventory-excel-filter-search';
+            search.placeholder = 'Search values…';
+
+            const selectAllLabel = document.createElement('label');
+            selectAllLabel.className = 'inventory-excel-filter-option is-all';
+            const selectAll = document.createElement('input');
+            selectAll.type = 'checkbox';
+            selectAllLabel.appendChild(selectAll);
+            selectAllLabel.appendChild(document.createTextNode('Select All'));
+
+            const list = document.createElement('div');
+            list.className = 'inventory-excel-filter-list';
+
+            function apply() {
+                const allOn = entries.every(function (entry) {
+                    return selected.has(entry.value);
+                });
+                column.setHeaderFilterValue(allOn || selected.size === 0 ? [] : Array.from(selected));
+                markFilterIcons();
+            }
+
+            function syncSelectAll() {
+                selectAll.checked = entries.length > 0 && entries.every(function (entry) {
+                    return selected.has(entry.value);
+                });
+                selectAll.indeterminate = !selectAll.checked && entries.some(function (entry) {
+                    return selected.has(entry.value);
+                });
+            }
+
+            function renderOptions() {
+                const query = search.value.trim().toLowerCase();
+                list.replaceChildren();
+                entries.forEach(function (entry) {
+                    if (query && String(entry.label).toLowerCase().indexOf(query) === -1) {
+                        return;
+                    }
+                    const row = document.createElement('label');
+                    row.className = 'inventory-excel-filter-option';
+                    const box = document.createElement('input');
+                    box.type = 'checkbox';
+                    box.checked = selected.has(entry.value);
+                    box.addEventListener('change', function () {
+                        if (box.checked) {
+                            selected.add(entry.value);
+                        } else {
+                            selected.delete(entry.value);
+                        }
+                        syncSelectAll();
+                        apply();
+                    });
+                    row.appendChild(box);
+                    row.appendChild(document.createTextNode(entry.label));
+                    list.appendChild(row);
+                });
+            }
+
+            selectAll.addEventListener('change', function () {
+                selected.clear();
+                if (selectAll.checked) {
+                    entries.forEach(function (entry) {
+                        selected.add(entry.value);
+                    });
+                }
+                renderOptions();
+                apply();
+            });
+
+            search.addEventListener('input', renderOptions);
+
+            const clear = document.createElement('button');
+            clear.type = 'button';
+            clear.className = 'inventory-excel-filter-clear';
+            clear.textContent = 'Clear filter';
+            clear.addEventListener('click', function () {
+                selected.clear();
+                entries.forEach(function (entry) {
+                    selected.add(entry.value);
+                });
+                search.value = '';
+                syncSelectAll();
+                renderOptions();
+                apply();
+            });
+
+            wrap.appendChild(search);
+            wrap.appendChild(selectAllLabel);
+            wrap.appendChild(list);
+            wrap.appendChild(clear);
+            syncSelectAll();
+            renderOptions();
+
+            onRendered(function () {
+                search.focus();
+            });
+
+            return wrap;
+        };
+    }
+
+    const NESTED_ALL = (function () {
+        const map = { '': '—' };
+        Object.keys(options.nestedByHome || {}).forEach(function (homeId) {
+            (options.nestedByHome[homeId] || []).forEach(function (item) {
+                map[item.id] = item.name;
+            });
+        });
+        return map;
+    })();
+
+    const GRANT_OPTIONS = { true: 'Yes', false: 'No' };
+
     const searchCache = new Map();
 
     function searchText(data) {
@@ -275,7 +498,11 @@
         renderVerticalBuffer: 300,
         placeholder: 'No projects yet.',
         clipboard: true,
-        columnDefaults: { editorEmptyValue: null },
+        columnDefaults: {
+            editorEmptyValue: null,
+            headerFilter: emptyHeaderFilter,
+            headerPopupIcon: FILTER_ICON,
+        },
         columns: [
             {
                 title: 'Status',
@@ -283,6 +510,8 @@
                 editor: 'list',
                 editorParams: { values: STATUSES },
                 formatter: statusFormatter,
+                headerPopup: listFilterPopup(STATUSES),
+                headerFilterFunc: equalsFilter,
                 frozen: true,
                 width: 130,
             },
@@ -291,6 +520,8 @@
                 field: 'name',
                 editor: 'input',
                 formatter: nameFormatter,
+                headerPopup: textFilterPopup,
+                headerFilterFunc: containsFilter,
                 frozen: true,
                 tooltip: true,
                 minWidth: 140,
@@ -302,6 +533,8 @@
                 editor: 'list',
                 editorParams: { values: TYPES },
                 formatter: lookup(TYPES),
+                headerPopup: listFilterPopup(TYPES),
+                headerFilterFunc: equalsFilter,
                 width: 150,
             },
             {
@@ -309,6 +542,8 @@
                 field: 'launch_date',
                 editor: 'date',
                 editorParams: { format: 'yyyy-MM-dd' },
+                headerPopup: textFilterPopup,
+                headerFilterFunc: containsFilter,
                 width: 140,
             },
             {
@@ -317,6 +552,8 @@
                 editor: 'list',
                 editorParams: { values: DEPARTMENTS, autocomplete: true, filter: true },
                 formatter: lookup(DEPARTMENTS),
+                headerPopup: listFilterPopup(DEPARTMENTS),
+                headerFilterFunc: equalsFilter,
                 minWidth: 180,
             },
             {
@@ -333,6 +570,8 @@
                 formatter: function (cell) {
                     return label(nestedFor(cell.getRow().getData().department_id), cell.getValue());
                 },
+                headerPopup: listFilterPopup(NESTED_ALL),
+                headerFilterFunc: equalsFilter,
                 minWidth: 180,
             },
             {
@@ -341,12 +580,16 @@
                 editor: 'list',
                 editorParams: { values: OFFICES, autocomplete: true, filter: true },
                 formatter: lookup(OFFICES),
+                headerPopup: listFilterPopup(OFFICES),
+                headerFilterFunc: equalsFilter,
                 minWidth: 220,
             },
             {
                 title: 'Client/PI',
                 field: 'client_pi',
                 editor: 'input',
+                headerPopup: textFilterPopup,
+                headerFilterFunc: containsFilter,
                 minWidth: 150,
             },
             {
@@ -355,6 +598,8 @@
                 editor: 'list',
                 editorParams: { values: CATEGORIES },
                 formatter: lookup(CATEGORIES),
+                headerPopup: listFilterPopup(CATEGORIES),
+                headerFilterFunc: equalsFilter,
                 minWidth: 220,
             },
             {
@@ -363,6 +608,8 @@
                 editor: 'list',
                 editorParams: { values: AFFILIATIONS },
                 formatter: lookup(AFFILIATIONS),
+                headerPopup: listFilterPopup(AFFILIATIONS),
+                headerFilterFunc: equalsFilter,
                 width: 150,
             },
             {
@@ -371,6 +618,8 @@
                 editor: 'list',
                 editorParams: { values: LANES },
                 formatter: lookup(LANES),
+                headerPopup: listFilterPopup(LANES),
+                headerFilterFunc: equalsFilter,
                 width: 120,
             },
             {
@@ -386,6 +635,8 @@
                 formatter: function (cell) {
                     return cell.getValue() ? 'Yes' : 'No';
                 },
+                headerPopup: listFilterPopup(GRANT_OPTIONS),
+                headerFilterFunc: grantFilter,
                 width: 110,
             },
             {
@@ -398,12 +649,16 @@
 
                     return value === null || value === undefined || value === '' ? '' : money.format(value);
                 },
+                headerPopup: textFilterPopup,
+                headerFilterFunc: containsFilter,
                 width: 130,
             },
             {
                 title: 'Sponsor',
                 field: 'sponsor',
                 editor: 'input',
+                headerPopup: textFilterPopup,
+                headerFilterFunc: containsFilter,
                 minWidth: 160,
             },
             {
@@ -411,6 +666,8 @@
                 field: 'leader_user_id',
                 formatter: leaderFormatter,
                 sorter: leaderSorter,
+                headerPopup: textFilterPopup,
+                headerFilterFunc: leaderFilter,
                 cellClick: function (event, cell) { openPeopleEditor(event, cell, 'leader'); },
                 minWidth: 180,
                 width: 220,
@@ -420,6 +677,8 @@
                 title: 'Project Team',
                 field: 'team_user_ids',
                 formatter: teamFormatter,
+                headerPopup: textFilterPopup,
+                headerFilterFunc: teamFilter,
                 cellClick: function (event, cell) { openPeopleEditor(event, cell, 'team'); },
                 headerSort: false,
                 minWidth: 270,
@@ -428,6 +687,16 @@
             },
         ],
     });
+
+    function markFilterIcons() {
+        table.getColumns().forEach(function (col) {
+            const el = col.getElement();
+            if (!el) {
+                return;
+            }
+            el.classList.toggle('has-column-filter', filterActive(col.getHeaderFilterValue()));
+        });
+    }
 
     let syncing = false;
     let peoplePopover = null;
@@ -702,6 +971,21 @@
     });
 
     let searchTimer = null;
+
+    function refreshCount() {
+        if (statusEl.classList.contains('text-danger')) {
+            return;
+        }
+        const visible = table.getDataCount('active');
+        const total = table.getDataCount();
+        statusEl.textContent = visible === total
+            ? (total + ' project' + (total === 1 ? '' : 's'))
+            : (visible + ' of ' + total + ' projects');
+        statusEl.classList.add('text-muted');
+        markFilterIcons();
+    }
+
+    table.on('dataFiltered', refreshCount);
 
     searchEl.addEventListener('input', function () {
         window.clearTimeout(searchTimer);
