@@ -18,7 +18,7 @@ use Subfission\Cas\Facades\Cas;
  * 2. CAS authenticates and returns NetID 
  * 3. Check if local user exists and is active
  * 4. If authorized, log user in via Laravel Auth
- * 5. Redirect to dashboard
+ * 5. Redirect to intended URL (or dashboard)
  */
 class AuthController extends Controller
 {
@@ -97,8 +97,7 @@ class AuthController extends Controller
 
         Log::info('Successful masquerade login', ['netid' => $netid, 'user_id' => $user->id]);
 
-        // Redirect to dashboard
-        return redirect()->route('dashboard');
+        return redirect()->intended(route('dashboard'));
     }
 
     /**
@@ -154,8 +153,7 @@ class AuthController extends Controller
 
         Log::info('Successful CAS login', ['netid' => $netid, 'user_id' => $user->id]);
 
-        // Redirect to dashboard
-        return redirect()->route('dashboard');
+        return redirect()->intended(route('dashboard'));
     }
 
     /**
