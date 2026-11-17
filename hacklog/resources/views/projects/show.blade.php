@@ -430,6 +430,8 @@
                                                             reopened task
                                                         @elseif($activity->action === 'phase_changed')
                                                             moved task to phase: {{ $activity->metadata['to_name'] ?? 'unknown' }}
+                                                        @elseif($activity->action === 'project_merged')
+                                                            moved task from {{ $activity->metadata['from_project_name'] ?? 'another project' }}
                                                         @elseif($activity->action === 'assignees_changed')
                                                             updated task assignment
                                                         @elseif($activity->action === 'due_date_changed')
@@ -465,6 +467,8 @@
                                                             <span class="badge bg-secondary">{{ $activity->metadata['from'] ?? 'unknown' }}</span>
                                                             to
                                                             <span class="badge bg-primary">{{ $activity->metadata['to'] ?? 'unknown' }}</span>
+                                                        @elseif($activity->action === 'tasks_merged')
+                                                            moved {{ $activity->metadata['task_count'] ?? 0 }} tasks from {{ $activity->metadata['from_project_name'] ?? 'another project' }}
                                                         @else
                                                             {{ $activity->action }}
                                                         @endif

@@ -84,6 +84,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('project-statuses', ProjectStatusController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('project-types', ProjectTypeController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('projects', ProjectController::class);
+    Route::get('projects/{project}/merge', [ProjectController::class, 'merge'])->name('projects.merge');
+    Route::get('projects/{project}/merge-targets/{target}/phases', [ProjectController::class, 'mergeTargetPhases'])->name('projects.merge-target-phases');
+    Route::post('projects/{project}/merge', [ProjectController::class, 'mergeStore'])->name('projects.merge.store');
     Route::post('projects/{project}/favorite', [ProjectFavoriteController::class, 'toggle'])->name('projects.favorites.toggle');
     Route::get('projects/{project}/sharing', [ProjectController::class, 'sharing'])->name('projects.sharing');
     Route::post('projects/{project}/shares', [ProjectController::class, 'shareStore'])->name('projects.shares.store');

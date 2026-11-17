@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\MajorOffice;
 use App\Models\Project;
+use App\Models\ProjectActivity;
 use App\Models\ProjectStatus;
 use App\Models\Tag;
 use App\Models\Task;
+use App\Models\TaskActivity;
 use App\Models\User;
 use App\Services\ProjectSlackNotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -1713,6 +1716,143 @@ class ProjectController extends Controller
             compact('project', 'availableTags'),
             $this->classificationFormData($project)
         ));
+    }
+
+    /** Show the task merge form for a project. */
+    public function merge(Project $project)
+    {
+        if (auth()->user()->isClient()) {
+            abort(403, 'Clients cannot merge project tasks.');
+        }
+
+        $targets = Project::visibleTo(auth()->user())
+            ->where('projects.id', '!=', $project->id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $taskCount = Task::where(function ($query) use ($project) {
+            $query->whereHas('column', fn ($columns) => $columns->where('project_id', $project->id))
+                ->orWhereHas('phase', fn ($phases) => $phases->where('project_id', $project->id));
+        })->count();
+
+        return view('projects.merge', compact('project', 'targets', 'taskCount'));
+    }
+
+    /** Return the destination project's phases for the merge form. */
+    public function mergeTargetPhases(Project $project, Project $target)
+    {
+        if (auth()->user()->isClient()) {
+            abort(403);
+        }
+        abort_if($project->is($target), 422, 'Choose a different destination project.');
+
+        $target = Project::visibleTo(auth()->user())->findOrFail($target->id);
+        $phases = $target->phases()->orderBy('name')->get(['id', 'name']);
+
+        return response()->json($phases);
+    }
+
+    /** Move the source project's tasks into a destination project. */
+    public function mergeStore(Request $request, Project $project)
+    {
+        if (auth()->user()->isClient()) {
+            abort(403, 'Clients cannot merge project tasks.');
+        }
+
+        $validated = $request->validate([
+            'target_project_id' => ['required', 'integer', 'exists:projects,id'],
+            'target_phase_id' => ['nullable', 'integer', 'exists:phases,id'],
+            'delete_source_project' => ['nullable', 'boolean'],
+        ]);
+        $deleteSourceProject = $request->boolean('delete_source_project');
+
+        $target = Project::visibleTo(auth()->user())->findOrFail($validated['target_project_id']);
+        if ($project->is($target)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'target_project_id' => 'Choose a different destination project.',
+            ]);
+        }
+
+        $phase = null;
+        if (! empty($validated['target_phase_id'])) {
+            $phase = $target->phases()->find($validated['target_phase_id']);
+            if (! $phase) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'target_phase_id' => 'Choose a phase that belongs to the destination project.',
+                ]);
+            }
+        }
+
+        $destinationColumns = $target->columns()->orderBy('position')->get();
+        $tasks = Task::where(function ($query) use ($project) {
+            $query->whereHas('column', fn ($columns) => $columns->where('project_id', $project->id))
+                ->orWhereHas('phase', fn ($phases) => $phases->where('project_id', $project->id));
+        })
+            ->with('column')
+            ->orderBy('column_id')
+            ->orderByRaw('position IS NULL, position ASC')
+            ->get();
+
+        if ($tasks->isEmpty() && ! $deleteSourceProject) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'target_project_id' => 'No tasks were found for this project. Nothing was moved. Check that you selected the project that owns the tasks.',
+            ]);
+        }
+
+        if ($tasks->isNotEmpty() && $destinationColumns->isEmpty()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'target_project_id' => 'The destination project needs at least one board column before tasks can be moved.',
+            ]);
+        }
+
+        $columnsByName = $destinationColumns->keyBy(fn ($column) => mb_strtolower(trim($column->name)));
+        $fallbackColumn = $destinationColumns->firstWhere('is_default', true) ?? $destinationColumns->first();
+        $nextPositions = [];
+        foreach ($destinationColumns as $column) {
+            $nextPositions[$column->id] = ((int) $column->tasks()->max('position')) + 1;
+        }
+
+        DB::transaction(function () use ($tasks, $columnsByName, $fallbackColumn, &$nextPositions, $phase, $project, $target, $request, $deleteSourceProject) {
+            foreach ($tasks as $task) {
+                $column = $columnsByName->get(mb_strtolower(trim($task->column->name))) ?? $fallbackColumn;
+                $oldPhase = $task->phase;
+                $task->column_id = $column->id;
+                $task->phase_id = $phase?->id;
+                $task->position = $nextPositions[$column->id]++;
+                $task->updated_by = $request->user()->id;
+                $task->save();
+
+                TaskActivity::log($task->id, $request->user()->id, 'project_merged', [
+                    'from_project_id' => $project->id,
+                    'from_project_name' => $project->name,
+                    'to_project_id' => $target->id,
+                    'to_project_name' => $target->name,
+                    'from_phase_id' => $oldPhase?->id,
+                    'from_phase_name' => $oldPhase?->name,
+                    'to_phase_id' => $phase?->id,
+                    'to_phase_name' => $phase?->name,
+                ]);
+            }
+
+            ProjectActivity::log($target->id, $request->user()->id, 'tasks_merged', [
+                'from_project_id' => $project->id,
+                'from_project_name' => $project->name,
+                'task_count' => $tasks->count(),
+                'target_phase_id' => $phase?->id,
+                'target_phase_name' => $phase?->name,
+                'source_project_deleted' => $deleteSourceProject,
+            ]);
+
+            if ($deleteSourceProject) {
+                $project->delete();
+            }
+        });
+
+        $message = $tasks->count().' task(s) moved from "'.$project->name.'" into "'.$target->name.'".';
+        $message .= $deleteSourceProject
+            ? ' The source project and its remaining associated data were deleted.'
+            : ' The source project and its other information were kept.';
+
+        return redirect()->route('projects.show', $target)->with('success', $message);
     }
 
     /**

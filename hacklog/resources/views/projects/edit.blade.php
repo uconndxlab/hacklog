@@ -201,6 +201,17 @@
             </div>
         </div>
 
+        {{-- Move Tasks Section --}}
+        <div class="card border-primary mb-4">
+            <div class="card-header bg-light">
+                <h2 class="h5 mb-0">Move tasks to another project</h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Move all tasks from this project into a destination project's board and optionally assign them to one of its phases.</p>
+                <a href="{{ route('projects.merge', $project) }}" class="btn btn-outline-primary">Move Project Tasks</a>
+            </div>
+        </div>
+
         {{-- Danger Zone Section --}}
         <div class="card border-danger">
             <div class="card-header bg-danger text-white">
