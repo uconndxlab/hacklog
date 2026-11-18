@@ -104,14 +104,18 @@ class Project extends Model
 
     const LANE_CORE = 'core';
 
+    const LANE_PROGRAMMING = 'programming';
+
     const LANE_VALUES = [
         self::LANE_INTERNAL,
         self::LANE_CORE,
+        self::LANE_PROGRAMMING,
     ];
 
     const LANE_LABELS = [
         self::LANE_INTERNAL => 'Internal',
         self::LANE_CORE => 'Core',
+        self::LANE_PROGRAMMING => 'Programming',
     ];
 
     protected $fillable = [

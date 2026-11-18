@@ -309,6 +309,7 @@ class ProjectInventorySeeder extends Seeder
         return match ($value) {
             'internal' => Project::LANE_INTERNAL,
             'core' => Project::LANE_CORE,
+            'programming' => Project::LANE_PROGRAMMING,
             default => null,
         };
     }
