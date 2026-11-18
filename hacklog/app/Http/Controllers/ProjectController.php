@@ -286,15 +286,31 @@ class ProjectController extends Controller
     public function kanban(Request $request)
     {
         $statuses = ProjectStatus::query()->ordered()->get();
-        $projects = Project::visibleTo($request->user())
-            ->with(['tags', 'department', 'nestedDepartment', 'majorOffice', 'statusDefinition'])
+        $query = Project::visibleTo($request->user())
+            ->with(['tags', 'department', 'nestedDepartment', 'majorOffice', 'statusDefinition', 'shares.user']);
+        if ($request->filled('lead')) {
+            $query->whereHas('shares', fn ($shares) => $shares->where('shareable_type', 'user')->where('is_leader', true)->where('shareable_id', $request->query('lead')));
+        }
+        if ($request->filled('lane') && in_array($request->query('lane'), Project::LANE_VALUES, true)) {
+            $query->where('lane', $request->query('lane'));
+        }
+        if ($request->filled('department')) {
+            $departmentId = $request->query('department');
+            $query->where(fn ($projects) => $projects->where('department_id', $departmentId)->orWhere('nested_department_id', $departmentId));
+        }
+        $projects = $query
             ->orderBy('name')
             ->get()
             ->groupBy('status');
 
+        $projectLeads = \App\Models\User::query()->whereHas('projectShares', fn ($shares) => $shares->where('is_leader', true))->orderBy('name')->get();
+        $departments = Department::orderBy('name')->get();
+
         return view('projects.kanban', [
             'statuses' => $statuses,
             'projectsByStatus' => $projects,
+            'projectLeads' => $projectLeads,
+            'departments' => $departments,
             'canMoveProjects' => $request->user()->isAdmin() || $request->user()->isTeam(),
         ]);
     }

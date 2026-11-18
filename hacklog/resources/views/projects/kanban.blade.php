@@ -11,6 +11,40 @@
     <a href="{{ route('projects.index') }}" class="btn btn-outline-secondary">List view</a>
 </div>
 
+<form method="GET" action="{{ route('projects.kanban') }}" class="d-flex flex-wrap gap-2 align-items-end mb-4">
+    <div>
+        <label for="kanban-lead" class="form-label small mb-1">Project lead</label>
+        <select id="kanban-lead" name="lead" class="form-select form-select-sm">
+            <option value="">All leads</option>
+            @foreach($projectLeads as $lead)
+                <option value="{{ $lead->id }}" @selected(request('lead') == $lead->id)>{{ $lead->name }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div>
+        <label for="kanban-lane" class="form-label small mb-1">Lane</label>
+        <select id="kanban-lane" name="lane" class="form-select form-select-sm">
+            <option value="">All lanes</option>
+            @foreach(\App\Models\Project::LANE_LABELS as $value => $label)
+                <option value="{{ $value }}" @selected(request('lane') === $value)>{{ $label }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div>
+        <label for="kanban-department" class="form-label small mb-1">Department</label>
+        <select id="kanban-department" name="department" class="form-select form-select-sm">
+            <option value="">All departments</option>
+            @foreach($departments as $department)
+                <option value="{{ $department->id }}" @selected(request('department') == $department->id)>{{ $department->parent_id ? '— ' : '' }}{{ $department->name }}</option>
+            @endforeach
+        </select>
+    </div>
+    <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+    @if(request()->hasAny(['lead', 'lane', 'department']))
+        <a href="{{ route('projects.kanban') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    @endif
+</form>
+
 <div class="board-container" id="project-kanban" aria-label="Projects by status">
     @foreach($statuses as $status)
         @php($cards = $projectsByStatus->get($status->key, collect()))
@@ -31,6 +65,9 @@
                                     @if($project->department)
                                         <div>{{ $project->department->name }}@if($project->nestedDepartment) / {{ $project->nestedDepartment->name }}@endif</div>
                                     @endif
+                                    @if($project->laneLabel())<div>Lane: {{ $project->laneLabel() }}</div>@endif
+                                    @php($lead = $project->shares->first(fn ($share) => $share->is_leader && $share->shareable_type === 'user')?->user)
+                                    @if($lead)<div>Lead: {{ $lead->name }}</div>@endif
                                     @if($project->projectTypeLabel())<div>{{ $project->projectTypeLabel() }}</div>@endif
                                     @if($project->launch_date)<div>Launch {{ $project->launch_date->format('M j, Y') }}</div>@endif
                                 </div>
