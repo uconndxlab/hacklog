@@ -281,6 +281,40 @@ class ProjectController extends Controller
     }
 
     /**
+     * Show all projects as cards grouped by their shared project status.
+     */
+    public function kanban(Request $request)
+    {
+        $statuses = ProjectStatus::query()->ordered()->get();
+        $projects = Project::visibleTo($request->user())
+            ->with(['tags', 'department', 'nestedDepartment', 'majorOffice', 'statusDefinition'])
+            ->orderBy('name')
+            ->get()
+            ->groupBy('status');
+
+        return view('projects.kanban', [
+            'statuses' => $statuses,
+            'projectsByStatus' => $projects,
+            'canMoveProjects' => $request->user()->isAdmin() || $request->user()->isTeam(),
+        ]);
+    }
+
+    /** Move a project between the shared status columns on the portfolio board. */
+    public function moveProjectStatus(Request $request, Project $project)
+    {
+        abort_unless($request->user()->isAdmin() || $request->user()->isTeam(), 403);
+        abort_unless(Project::visibleTo($request->user())->whereKey($project->id)->exists(), 404);
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(ProjectStatus::query()->pluck('key')->all())],
+        ]);
+
+        $project->update(['status' => $validated['status']]);
+
+        return response()->json(['success' => true, 'status' => $project->statusLabel()]);
+    }
+
+    /**
      * Show the form for creating a new resource.
      */
     public function create()

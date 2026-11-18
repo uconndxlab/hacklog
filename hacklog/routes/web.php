@@ -83,6 +83,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('major-offices', MajorOfficeController::class)->except(['show', 'create', 'edit']);
     Route::resource('project-statuses', ProjectStatusController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('project-types', ProjectTypeController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::get('projects/kanban', [ProjectController::class, 'kanban'])->name('projects.kanban');
+    Route::patch('projects/{project}/status', [ProjectController::class, 'moveProjectStatus'])->name('projects.status.move');
     Route::resource('projects', ProjectController::class);
     Route::get('projects/{project}/merge', [ProjectController::class, 'merge'])->name('projects.merge');
     Route::get('projects/{project}/merge-targets/{target}/phases', [ProjectController::class, 'mergeTargetPhases'])->name('projects.merge-target-phases');

@@ -11,6 +11,7 @@
         @endif
     </div>
     <div class="d-flex align-items-center gap-2">
+        <a href="{{ route('projects.kanban') }}" class="btn btn-outline-primary btn-sm">Board View</a>
         @if(Auth::user()->isClient())
             <span class="badge bg-info">Client Access</span>
         @endif
