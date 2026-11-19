@@ -1424,7 +1424,9 @@ class ProjectController extends Controller
                 $oldColumnId = $task->column_id;
                 $task->column_id = $validated['column_id'];
                 $task->updated_by = $request->user()->id;
-                if ($destinationStatus !== null && $task->status !== $destinationStatus) {
+                if ((int) $oldColumnId !== (int) $validated['column_id']
+                    && $destinationStatus !== null
+                    && $task->status !== $destinationStatus) {
                     $oldStatus = $task->status;
                     $task->status = $destinationStatus;
                     $task->completed_at = $destinationStatus === 'completed' ? now() : null;
@@ -1649,7 +1651,9 @@ class ProjectController extends Controller
             'completed' => 'completed',
         ];
         $newStatus = $statusByColumn[strtolower(trim($column->name))] ?? null;
-        if ($newStatus !== null && $task->status !== $newStatus) {
+        if ((int) $oldColumnId !== (int) $validated['column_id']
+            && $newStatus !== null
+            && $task->status !== $newStatus) {
             $oldStatus = $task->status;
             $task->status = $newStatus;
             $task->completed_at = $newStatus === 'completed' ? now() : null;

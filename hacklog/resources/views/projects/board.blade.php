@@ -857,7 +857,6 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         const originalColumns = new Map(moving.map(card => [card, card.dataset.columnId]));
         const error = document.getElementById('board-move-error');
         error.hidden = true;
-        saving = true;
 
         taskContainer.querySelector('.board-column-empty')?.remove();
         moving.forEach(card => {
@@ -865,6 +864,15 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
             syncMovedCardColumn(card, newColumnId);
         });
         resetDragState();
+
+        const orderChanged = [...snapshots].some(([container, cards]) => {
+            const nextCards = Array.from(container.querySelectorAll('.task-card'));
+            return cards.length !== nextCards.length || cards.some((card, index) => card !== nextCards[index]);
+        });
+        const columnChanged = [...originalColumns.values()].some(columnId => columnId !== newColumnId);
+        if (!orderChanged && !columnChanged) return;
+
+        saving = true;
         containers.forEach(container => {
             reindexColumnPositions(container);
             ensureEmptyState(container);
