@@ -119,7 +119,8 @@ class GenerateDemo extends Command
             ['name' => 'Backlog', 'position' => 1],
             ['name' => 'To Do', 'position' => 2],
             ['name' => 'In Progress', 'position' => 3],
-            ['name' => 'Done', 'position' => 4],
+            ['name' => 'On hold', 'position' => 4],
+            ['name' => 'Done', 'position' => 5],
         ];
 
         foreach ($defaultColumns as $columnData) {

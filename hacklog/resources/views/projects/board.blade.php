@@ -171,7 +171,7 @@
             <a href="{{ route('projects.columns.create', $project) }}" class="btn btn-outline-secondary">Create custom column</a>
         </div>
         <div class="mt-2 text-muted small">
-            Default columns: Backlog → In Progress → Ready for Testing → Completed
+            Default columns: Backlog → In Progress → On hold → Ready for Testing → Completed
         </div>
     </div>
 @else

@@ -123,7 +123,7 @@
                         Use default columns
                     </label>
                     <div class="form-text">
-                        Creates standard columns: Backlog, In Progress, Ready for Testing, Completed
+                        Creates standard columns: Backlog, In Progress, On hold, Ready for Testing, Completed
                     </div>
                 </div>
             </div>

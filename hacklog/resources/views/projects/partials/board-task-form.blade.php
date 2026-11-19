@@ -37,6 +37,8 @@
             $columnName = strtolower($column->name);
             if (str_contains($columnName, 'progress') || str_contains($columnName, 'doing')) {
                 $defaultStatus = 'active';
+            } elseif (str_contains($columnName, 'hold')) {
+                $defaultStatus = 'awaiting_feedback';
             } elseif (str_contains($columnName, 'done') || str_contains($columnName, 'complete')) {
                 $defaultStatus = 'completed';
             }

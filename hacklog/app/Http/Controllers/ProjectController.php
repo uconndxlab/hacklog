@@ -410,8 +410,9 @@ class ProjectController extends Controller
         $defaultColumns = [
             ['name' => 'Backlog', 'position' => 1],
             ['name' => 'In Progress', 'position' => 2],
-            ['name' => 'Ready for Testing', 'position' => 3],
-            ['name' => 'Completed', 'position' => 4],
+            ['name' => 'On hold', 'position' => 3],
+            ['name' => 'Ready for Testing', 'position' => 4],
+            ['name' => 'Completed', 'position' => 5],
         ];
 
         foreach ($defaultColumns as $columnData) {
