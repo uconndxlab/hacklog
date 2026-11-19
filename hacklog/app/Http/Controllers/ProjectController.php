@@ -325,7 +325,15 @@ class ProjectController extends Controller
             'status' => ['required', Rule::in(ProjectStatus::query()->pluck('key')->all())],
         ]);
 
+        $oldStatus = $project->status;
         $project->update(['status' => $validated['status']]);
+
+        if ($oldStatus !== $validated['status']) {
+            \App\Models\ProjectActivity::log($project->id, $request->user()->id, 'status_changed', [
+                'from' => $oldStatus,
+                'to' => $validated['status'],
+            ]);
+        }
 
         return response()->json(['success' => true, 'status' => $project->statusLabel()]);
     }
@@ -576,8 +584,13 @@ class ProjectController extends Controller
         $projectWorkload = \App\Services\WorkloadSummaryService::summarize($allProjectTasks);
         $phaseWorkloads = \App\Services\WorkloadSummaryService::summarizeByPhase($allProjectTasks);
 
+        $statusDefinitions = Project::statusDefinitions();
+        $canMoveProjects = auth()->user()->isAdmin() || auth()->user()->isTeam();
+
         return view('projects.show', compact(
             'project',
+            'statusDefinitions',
+            'canMoveProjects',
             'upcomingTasks',
             'activePhasesCount',
             'overdueTasks',
