@@ -890,6 +890,10 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         })
         .then(data => {
             if (!data.success) throw new Error('Move failed');
+            moving.forEach(card => {
+                const status = data.statuses?.[card.dataset.taskId];
+                if (status) applyCardStatus(card, status);
+            });
         })
         .catch(() => {
             snapshots.forEach((cards, container) => {

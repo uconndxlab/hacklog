@@ -1126,6 +1126,21 @@ class ProjectController extends Controller
         $oldDueDate = $task->due_date?->format('Y-m-d');
         $oldAssignees = $fieldOnly ? [] : $task->users->pluck('id')->toArray();
 
+        // Keep task status aligned with the workflow column when a task is moved.
+        if (array_key_exists('column_id', $validated) && (int) $oldColumnId !== (int) $validated['column_id']) {
+            $column = $project->columns->firstWhere('id', (int) $validated['column_id']);
+            $statusByColumn = [
+                'backlog' => 'planned',
+                'in progress' => 'active',
+                'ready for testing' => 'awaiting_feedback',
+                'completed' => 'completed',
+            ];
+            $columnStatus = $column ? ($statusByColumn[strtolower(trim($column->name))] ?? null) : null;
+            if ($columnStatus !== null) {
+                $validated['status'] = $columnStatus;
+            }
+        }
+
         // Set updater
         $validated['updated_by'] = auth()->id();
 
@@ -1389,6 +1404,14 @@ class ProjectController extends Controller
                 abort_unless($tasks->has($id), 422);
                 return $tasks->get($id);
             });
+            $statusByColumn = [
+                'backlog' => 'planned',
+                'in progress' => 'active',
+                'ready for testing' => 'awaiting_feedback',
+                'completed' => 'completed',
+            ];
+            $destinationColumn = $columns->get($validated['column_id']);
+            $destinationStatus = $statusByColumn[strtolower(trim($destinationColumn->name))] ?? null;
             $remaining = $tasks->except($validated['task_ids']);
             $destination = $remaining->where('column_id', $validated['column_id'])->keys()->all();
             $before = $validated['before_task_id'] ?? null;
@@ -1401,6 +1424,21 @@ class ProjectController extends Controller
                 $oldColumnId = $task->column_id;
                 $task->column_id = $validated['column_id'];
                 $task->updated_by = $request->user()->id;
+                if ($destinationStatus !== null && $task->status !== $destinationStatus) {
+                    $oldStatus = $task->status;
+                    $task->status = $destinationStatus;
+                    $task->completed_at = $destinationStatus === 'completed' ? now() : null;
+                    if ($destinationStatus === 'completed') {
+                        \App\Models\TaskActivity::log($task->id, $request->user()->id, 'completed', null);
+                    } elseif ($oldStatus === 'completed') {
+                        \App\Models\TaskActivity::log($task->id, $request->user()->id, 'reopened', null);
+                    } else {
+                        \App\Models\TaskActivity::log($task->id, $request->user()->id, 'status_changed', [
+                            'from' => $oldStatus,
+                            'to' => $destinationStatus,
+                        ]);
+                    }
+                }
                 $task->save();
                 if ((int) $oldColumnId !== (int) $task->column_id) {
                     \App\Models\TaskActivity::log($task->id, $request->user()->id, 'column_changed', [
@@ -1427,7 +1465,10 @@ class ProjectController extends Controller
             app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
         }
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'statuses' => $movedTasks->mapWithKeys(fn ($task) => [$task->id => $task->status]),
+        ]);
     }
 
     /**
@@ -1601,6 +1642,28 @@ class ProjectController extends Controller
         $task->column_id = $validated['column_id'];
         $task->position = $validated['position'];
         $task->updated_by = auth()->id();
+        $statusByColumn = [
+            'backlog' => 'planned',
+            'in progress' => 'active',
+            'ready for testing' => 'awaiting_feedback',
+            'completed' => 'completed',
+        ];
+        $newStatus = $statusByColumn[strtolower(trim($column->name))] ?? null;
+        if ($newStatus !== null && $task->status !== $newStatus) {
+            $oldStatus = $task->status;
+            $task->status = $newStatus;
+            $task->completed_at = $newStatus === 'completed' ? now() : null;
+            if ($newStatus === 'completed') {
+                \App\Models\TaskActivity::log($task->id, auth()->id(), 'completed', null);
+            } elseif ($oldStatus === 'completed') {
+                \App\Models\TaskActivity::log($task->id, auth()->id(), 'reopened', null);
+            } else {
+                \App\Models\TaskActivity::log($task->id, auth()->id(), 'status_changed', [
+                    'from' => $oldStatus,
+                    'to' => $newStatus,
+                ]);
+            }
+        }
         $task->save();
 
         app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
