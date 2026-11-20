@@ -1632,6 +1632,33 @@ class ProjectController extends Controller
     }
 
     /**
+     * Assign the current user to a board task and return the updated card
+     */
+    public function assignTaskToMe(Request $request, Project $project, Task $task)
+    {
+        $user = $request->user();
+
+        abort_unless(Project::visibleTo($user)->whereKey($project->id)->exists(), 403);
+        abort_if($user->isClient() || $task->column->project_id !== $project->id, 403);
+
+        if ($task->users()->syncWithoutDetaching([$user->id])['attached']) {
+            $task->updated_by = $user->id;
+            $task->save();
+            \App\Models\TaskActivity::log($task->id, $user->id, 'assignees_changed', ['added' => [$user->id]]);
+            app(ProjectSlackNotificationService::class)->queueTaskUpdated($task);
+        }
+
+        return view('projects.partials.board-task-card', [
+            'project' => $project,
+            'task' => $this->constrainBoardTaskPayload(Task::query())->findOrFail($task->id),
+            'allColumns' => $project->columns,
+            'isProjectBoard' => true,
+            'filterPhaseId' => $request->input('phase'),
+            'filterAssigned' => $request->input('assigned'),
+        ]);
+    }
+
+    /**
      * Move a task to a new position and/or column via drag & drop
      */
     public function moveTask(Request $request, Project $project, \App\Models\Task $task)

@@ -378,6 +378,12 @@
                 'selectedUserIds' => $selectedUserIds,
                 'inputName' => 'assignees[]'
             ])
+            @if($users->contains('id', Auth::id()))
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2"
+                    onclick="const cb = this.closest('form').querySelector('input[name^=assignees][value=\'{{ Auth::id() }}\']'); cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true }));">
+                    Assign to me
+                </button>
+            @endif
             @error('assignees')
                 <div class="invalid-feedback d-block">{{ $message }}</div>
             @enderror

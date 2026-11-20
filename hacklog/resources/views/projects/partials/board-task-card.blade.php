@@ -25,6 +25,14 @@
                 {{ $assigneeNames !== '' ? $assigneeNames : 'Unassigned' }}
             </small>
         </div>
+        @if(!auth()->user()->isClient() && !in_array(auth()->id(), $assigneeIds))
+            <button type="button" class="btn btn-link btn-sm p-0 me-2 text-nowrap" style="font-size: 0.7rem;"
+                    hx-post="{{ route('projects.board.tasks.assign-me', [$project, $task]) }}"
+                    hx-target="[data-task-id='{{ $task->id }}']"
+                    hx-swap="outerHTML">
+                Assign to me
+            </button>
+        @endif
 
         {{-- Interactive status dropdown --}}
         <form
