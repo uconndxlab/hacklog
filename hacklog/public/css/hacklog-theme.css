@@ -1104,6 +1104,15 @@ small {
     font-weight: 600;
 }
 
+.trix-content blockquote,
+trix-editor blockquote {
+    margin: 0 0 0.75rem;
+    padding-left: 1rem;
+    border-left: 4px solid #dee2e6;
+    font-style: italic;
+    color: #6c757d;
+}
+
 /* --- Trix toolbar (Bold, Italic, etc.) --- */
 trix-toolbar .trix-button-group {
     border-color: #d1d5db;
@@ -1177,6 +1186,12 @@ body.theme-dark trix-toolbar .trix-button.trix-active {
 body.theme-dark trix-toolbar .trix-button:disabled::before {
     filter: invert(1) brightness(0.5);
     opacity: 0.4;
+}
+
+body.theme-dark .trix-content blockquote,
+body.theme-dark trix-editor blockquote {
+    border-left-color: #4b5563;
+    color: #aab2bd;
 }
 
 body.theme-dark trix-editor {
