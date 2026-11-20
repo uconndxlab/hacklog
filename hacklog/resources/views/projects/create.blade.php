@@ -73,22 +73,7 @@
                 @enderror
             </div>
 
-            <div class="mb-3">
-                <label for="slack_webhook_url" class="form-label">Slack Webhook URL (optional)</label>
-                <input
-                    type="url"
-                    class="form-control @error('slack_webhook_url') is-invalid @enderror"
-                    id="slack_webhook_url"
-                    name="slack_webhook_url"
-                    value="{{ old('slack_webhook_url') }}"
-                    placeholder="https://hooks.slack.com/services/...">
-                <div class="form-text">
-                    When set, task creations are sent as one summary message every 5 minutes for this project.
-                </div>
-                @error('slack_webhook_url')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-            </div>
+            @include('projects.partials.slack-fields', ['project' => null])
 
             @if(!auth()->user()->isClient())
                 @php
