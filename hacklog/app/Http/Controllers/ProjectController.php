@@ -890,6 +890,10 @@ class ProjectController extends Controller
             if ($phase->project_id !== $project->id) {
                 abort(403, 'Phase does not belong to this project.');
             }
+
+            // Use the phase dates as defaults while keeping any dates supplied for the task.
+            $validated['start_date'] = $validated['start_date'] ?? $phase->start_date?->format('Y-m-d');
+            $validated['due_date'] = $validated['due_date'] ?? $phase->end_date?->format('Y-m-d');
         }
 
         // Set position to top of column (position 0)
@@ -1001,6 +1005,10 @@ class ProjectController extends Controller
             if ($phase->project_id !== $project->id) {
                 abort(403, 'Phase does not belong to this project.');
             }
+
+            // Use the phase dates as defaults while keeping any dates supplied for the task.
+            $validated['start_date'] = $validated['start_date'] ?? $phase->start_date?->format('Y-m-d');
+            $validated['due_date'] = $validated['due_date'] ?? $phase->end_date?->format('Y-m-d');
         }
 
         // Set position to top of column (position 0)
@@ -1136,6 +1144,10 @@ class ProjectController extends Controller
             if ($phase->project_id !== $project->id) {
                 abort(403, 'Phase does not belong to this project.');
             }
+
+            // Fill only missing task dates from the selected phase.
+            $validated['start_date'] = ($validated['start_date'] ?? null) ?: ($task->start_date?->format('Y-m-d') ?: $phase->start_date?->format('Y-m-d'));
+            $validated['due_date'] = ($validated['due_date'] ?? null) ?: ($task->due_date?->format('Y-m-d') ?: $phase->end_date?->format('Y-m-d'));
         }
 
         $oldColumnId = $task->column_id;

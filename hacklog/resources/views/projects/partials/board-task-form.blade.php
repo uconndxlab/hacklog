@@ -211,6 +211,8 @@
                     <option value="{{ $phase->id }}"
                         data-start="{{ $phase->start_date?->format('M j, Y') }}"
                         data-end="{{ $phase->end_date?->format('M j, Y') }}"
+                        data-start-value="{{ $phase->start_date?->format('Y-m-d') }}"
+                        data-end-value="{{ $phase->end_date?->format('Y-m-d') }}"
                         {{ $currentPhaseId == $phase->id ? 'selected' : '' }}>
                         {{ $phase->name }}
                         @if($phase->status === 'active') • Active @endif
@@ -325,7 +327,7 @@
                     class="form-control @error('start_date') is-invalid @enderror"
                     id="start_date"
                     name="start_date"
-                    value="{{ old('start_date', $isEdit && $task->start_date ? $task->start_date->format('Y-m-d') : '') }}">
+                    value="{{ old('start_date', $isEdit && $task->start_date ? $task->start_date->format('Y-m-d') : ($currentPhase?->start_date?->format('Y-m-d') ?? '')) }}">
                 @error('start_date')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -339,7 +341,7 @@
                     class="form-control @error('due_date') is-invalid @enderror"
                     id="due_date"
                     name="due_date"
-                    value="{{ old('due_date', $isEdit && $task->due_date ? $task->due_date->format('Y-m-d') : '') }}">
+                    value="{{ old('due_date', $isEdit && $task->due_date ? $task->due_date->format('Y-m-d') : ($currentPhase?->end_date?->format('Y-m-d') ?? '')) }}">
                 @error('due_date')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -829,13 +831,25 @@ function deleteAttachment(deleteUrl, attachmentId) {
 (function() {
     const phaseSelect = document.getElementById('phase_id');
     const dateRangeDiv = document.getElementById('phaseDateRange');
+    const startDateInput = document.getElementById('start_date');
+    const dueDateInput = document.getElementById('due_date');
 
-    if (phaseSelect && dateRangeDiv) {
+    if (phaseSelect) {
         phaseSelect.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             const startDate = selectedOption.getAttribute('data-start');
             const endDate = selectedOption.getAttribute('data-end');
+            const startDateValue = selectedOption.getAttribute('data-start-value');
+            const endDateValue = selectedOption.getAttribute('data-end-value');
 
+            if (startDateInput && !startDateInput.value && startDateValue) {
+                startDateInput.value = startDateValue;
+            }
+            if (dueDateInput && !dueDateInput.value && endDateValue) {
+                dueDateInput.value = endDateValue;
+            }
+
+            if (!dateRangeDiv) return;
             if (startDate && endDate) {
                 dateRangeDiv.textContent = startDate + ' – ' + endDate;
                 dateRangeDiv.style.display = 'block';
