@@ -26,16 +26,21 @@
                         <a href="{{ route('projects.timeline', array_merge(['project' => $project], array_filter(['start' => $filterStart, 'end' => $filterEnd, 'show_completed' => '1']))) }}" class="btn btn-sm btn-outline-secondary">Show Completed</a>
                     @endif
                     <a href="{{ route('projects.timeline', $project) }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+                    <button type="button" class="btn btn-sm btn-primary"
+                            hx-get="{{ route('projects.phases.create', $project) }}"
+                            hx-target="#phaseCreateModalContent"
+                            hx-swap="innerHTML"
+                            onclick="bootstrap.Modal.getOrCreateInstance(document.getElementById('phaseCreateModal')).show()">
+                        Add Phase
+                    </button>
                 </form>
             </div>
         </div>
 
         @if($phases->isEmpty())
-            @include('partials.empty-state', [
-                'message' => 'No phases with dates yet. Create a phase and add start or end dates to visualize your project timeline.',
-                'actionUrl' => route('projects.phases.create', $project),
-                'actionText' => 'Create a phase'
-            ])
+            <div class="alert alert-light border">
+                <p class="mb-0 text-muted">No phases with dates yet. Add a phase with start or end dates to visualize your project timeline.</p>
+            </div>
         @else
             @if($tooWide)
                 <div class="alert alert-warning mb-3">

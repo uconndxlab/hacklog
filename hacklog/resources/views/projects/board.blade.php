@@ -33,7 +33,15 @@
                     </li>
                 @endforeach
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ route('projects.phases.create', $project) }}">+ Add a Phase</a></li>
+                <li>
+                    <button class="dropdown-item" type="button"
+                            hx-get="{{ route('projects.phases.create', $project) }}"
+                            hx-target="#phaseCreateModalContent"
+                            hx-swap="innerHTML"
+                            onclick="bootstrap.Modal.getOrCreateInstance(document.getElementById('phaseCreateModal')).show()">
+                        + Add a Phase
+                    </button>
+                </li>
             </ul>
         </div>
         <div class="dropdown">

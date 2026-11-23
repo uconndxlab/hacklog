@@ -22,6 +22,10 @@ class PhaseController extends Controller
      */
     public function create(Project $project)
     {
+        if (request()->header('HX-Request')) {
+            return view('phases.partials.create-form', compact('project'));
+        }
+
         return view('phases.create', compact('project'));
     }
 

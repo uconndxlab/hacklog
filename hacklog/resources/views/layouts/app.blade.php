@@ -226,6 +226,19 @@
         </div>
     </div>
 
+    {{-- Phase Creation Modal --}}
+    <div class="modal fade" id="phaseCreateModal" tabindex="-1" aria-labelledby="phaseCreateModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="phaseCreateModalLabel">Add Phase</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="phaseCreateModalContent"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
