@@ -2378,7 +2378,13 @@ class ProjectController extends Controller
             ->where(function ($query) {
                 $query->whereNotNull('start_date')
                     ->orWhereNotNull('end_date');
-            });
+            })
+            ->with(['tasks' => function ($query) use ($showCompleted) {
+                $query->when(! $showCompleted, fn ($tasks) => $tasks->where('status', '!=', 'completed'))
+                    ->orderByRaw('CASE WHEN start_date IS NULL THEN 1 ELSE 0 END')
+                    ->orderBy('start_date')
+                    ->orderBy('due_date');
+            }]);
 
         if (! $showCompleted) {
             $phasesQuery->where('status', '!=', 'completed');
@@ -2466,6 +2472,7 @@ class ProjectController extends Controller
         // Calculate number of weeks
         $weekCount = $timelineStart->diffInWeeks($timelineEnd) + 1;
         $tooWide = $weekCount > 26;
+        $timelineDayCount = min($weekCount, 26) * 7;
 
         // Generate weeks array (limit to 26 weeks if too wide)
         $weeks = [];
@@ -2487,62 +2494,15 @@ class ProjectController extends Controller
                 'start' => $weekStart,
                 'end' => $weekEnd,
                 'label' => $label,
-                'due_count' => 0, // Will be populated below
             ];
             $currentWeek->addWeek();
         }
 
-        // Aggregate due dates per week
-        // Count phase end_date and task due_date occurrences per week
-        // Tasks use "effective due date" - explicit due_date or phase end_date fallback
-        foreach ($weeks as $index => $week) {
-            $dueDateCount = 0;
-
-            // Count phase end dates in this week
-            foreach ($phases as $phase) {
-                if (
-                    $phase->end_date &&
-                    $phase->end_date->gte($week['start']) &&
-                    $phase->end_date->lte($week['end'])
-                ) {
-                    $dueDateCount++;
-                }
-            }
-
-            // Count task effective due dates in this week
-            // Includes tasks with explicit due_date OR tasks inheriting from phase end_date
-            $tasks = \App\Models\Task::with(['phase', 'column'])
-                ->whereHas('column', function ($q) use ($project) {
-                    $q->where('project_id', $project->id);
-                })
-                ->when(! $showCompleted, function ($q) {
-                    $q->where('status', '!=', 'completed');
-                })
-                ->get();
-
-            foreach ($tasks as $task) {
-                $effectiveDueDate = $task->getEffectiveDueDate();
-                if (
-                    $effectiveDueDate &&
-                    $effectiveDueDate->gte($week['start']) &&
-                    $effectiveDueDate->lte($week['end'])
-                ) {
-                    $dueDateCount++;
-                }
-            }
-
-            $weeks[$index]['due_count'] = $dueDateCount;
-        }
-
         // Add task counts to each phase
-        $phases = $phases->map(function ($phase) use ($showCompleted) {
-            $taskCounts = $phase->tasks()
-                ->when(! $showCompleted, function ($q) {
-                    $q->where('status', '!=', 'completed');
-                })
-                ->selectRaw('status, COUNT(*) as count')
+        $phases = $phases->map(function ($phase) {
+            $taskCounts = $phase->tasks
                 ->groupBy('status')
-                ->pluck('count', 'status')
+                ->map->count()
                 ->toArray();
 
             // Ensure all statuses are represented
@@ -2564,6 +2524,7 @@ class ProjectController extends Controller
             'timelineStart' => $timelineStart,
             'timelineEnd' => $timelineEnd,
             'tooWide' => $tooWide,
+            'timelineDayCount' => $timelineDayCount,
             'filterStart' => $filterStart ? $filterStart->format('Y-m-d') : null,
             'filterEnd' => $filterEnd ? $filterEnd->format('Y-m-d') : null,
             'showCompleted' => $showCompleted,

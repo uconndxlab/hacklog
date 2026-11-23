@@ -48,105 +48,88 @@
                 </div>
             @endif
 
+            @php
+                $visibleEnd = $timelineStart->copy()->addDays($timelineDayCount - 1);
+                $weekCountVisible = count($weeks);
+                $gridColumns = '240px minmax(850px, 1fr)';
+            @endphp
             <div class="card">
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table mb-0 timeline-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 150px;" class="timeline-header">Phase</th>
+                    <div class="gantt-scroll" style="overflow-x: auto;">
+                        <div class="gantt-chart">
+                            <div class="gantt-row gantt-header border-bottom" style="grid-template-columns: {{ $gridColumns }};">
+                                <div class="px-3 py-2 fw-semibold border-end">Phase / Task</div>
+                                <div class="gantt-scale" style="grid-template-columns: repeat({{ $weekCountVisible }}, minmax(0, 1fr));">
                                     @foreach($weeks as $week)
-                                        @php
-                                            // Determine heat level based on due date density
-                                            $dueCount = $week['due_count'];
-                                            $heatClass = '';
-                                            if ($dueCount >= 4) {
-                                                $heatClass = 'timeline-heat-high';
-                                            } elseif ($dueCount >= 2) {
-                                                $heatClass = 'timeline-heat-medium';
-                                            } elseif ($dueCount >= 1) {
-                                                $heatClass = 'timeline-heat-low';
-                                            }
-                                        @endphp
-                                        <th class="text-center timeline-header {{ $heatClass }}" style="width: 95px;" title="{{ $dueCount }} {{ Str::plural('due date', $dueCount) }} this week">
-                                            <small class="text-muted">{{ $week['label'] }}</small>
-                                            @if($dueCount > 0)
-                                                <br><span class="badge bg-secondary bg-opacity-50 rounded-pill" style="font-size: 0.7rem;">{{ $dueCount }}</span>
-                                            @endif
-                                        </th>
+                                        <div class="text-center py-2 border-end small text-muted">{{ $week['label'] }}</div>
                                     @endforeach
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($phases as $phase)
-                                    @php
-                                        // Calculate which weeks this phase spans
-                                        $phaseStart = $phase->start_date ?: $phase->end_date;
-                                        $phaseEnd = $phase->end_date ?: $phase->start_date;
-                                        
-                                        // Determine which week cells to fill
-                                        $cellStates = [];
-                                        foreach ($weeks as $index => $week) {
-                                            $weekEnd = $week['start']->copy()->endOfWeek();
-                                            
-                                            // Check if phase overlaps this week
-                                            if ($phaseStart->lte($weekEnd) && $phaseEnd->gte($week['start'])) {
-                                                $cellStates[$index] = 'filled';
-                                            } else {
-                                                $cellStates[$index] = 'empty';
-                                            }
-                                        }
-                                    @endphp
-                                    <tr class="timeline-row @if($phase->status === 'completed') opacity-75 @endif">
-                                        <td class="timeline-phase-label @if($phase->isOverdue()) timeline-phase-overdue @endif">
-                                            <div class="d-flex flex-column gap-1">
-                                                <a href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" 
-                                                   class="@if($phase->isOverdue()) timeline-phase-overdue-text @elseif($phase->status === 'completed') text-muted @else text-body @endif text-decoration-none" style="font-size: 0.875rem;">
-                                                    {{ $phase->name }}
-                                                </a>
-                                                <div class="d-flex flex-column gap-1">
-                                                    <div>
-                                                        <span class="badge bg-secondary bg-opacity-50 border-0" style="font-size: 0.7rem; font-weight: 400;">
-                                                            {{ ucfirst($phase->status) }}
-                                                        </span>
-                                                    </div>
-                                                    {{-- Task Status Breakdown --}}
-                                                    @if($phase->task_counts['planned'] > 0 || $phase->task_counts['active'] > 0 || $phase->task_counts['completed'] > 0)
-                                                        <div class="d-flex flex-wrap gap-1 mt-1">
-                                                            @if($phase->task_counts['planned'] > 0)
-                                                                <small class="badge bg-secondary" style="font-size: 0.65rem;">{{ $phase->task_counts['planned'] }} Planned</small>
-                                                            @endif
-                                                            @if($phase->task_counts['active'] > 0)
-                                                                <small class="badge bg-success" style="font-size: 0.65rem;">{{ $phase->task_counts['active'] }} Active</small>
-                                                            @endif
-                                                            @if($phase->task_counts['completed'] > 0)
-                                                                <small class="badge bg-light text-dark" style="font-size: 0.65rem;">{{ $phase->task_counts['completed'] }} Completed</small>
-                                                            @endif
-                                                        </div>
-                                                    @endif
-                                                    <div class="text-muted" style="font-size: 0.8125rem; line-height: 1.3;">
-                                                        @if($phase->start_date && $phase->end_date)
-                                                            {{ $phase->start_date->format('M j') }} – {{ $phase->end_date->format('M j, Y') }}
-                                                        @elseif($phase->start_date)
-                                                            Start: {{ $phase->start_date->format('M j, Y') }}
-                                                        @else
-                                                            End: {{ $phase->end_date->format('M j, Y') }}
-                                                        @endif
-                                                    </div>
-                                                </div>
+                                </div>
+                            </div>
+
+                            @foreach($phases as $phase)
+                                @php
+                                    $phaseStart = $phase->start_date ?? $phase->end_date;
+                                    $phaseEnd = $phase->end_date ?? $phase->start_date;
+                                    $phaseVisible = ! $phaseEnd->lt($timelineStart) && ! $phaseStart->gt($visibleEnd);
+                                    $clippedPhaseStart = $phaseStart->lt($timelineStart) ? $timelineStart : $phaseStart;
+                                    $clippedPhaseEnd = $phaseEnd->gt($visibleEnd) ? $visibleEnd : $phaseEnd;
+                                    $phaseStartOffset = $phaseVisible ? $timelineStart->diffInDays($clippedPhaseStart) : 0;
+                                    $phaseEndOffset = $phaseVisible ? $timelineStart->diffInDays($clippedPhaseEnd) : 0;
+                                    $phaseBarLeft = $timelineDayCount ? ($phaseStartOffset / $timelineDayCount * 100) : 0;
+                                    $phaseBarWidth = $timelineDayCount ? (($phaseEndOffset - $phaseStartOffset + 1) / $timelineDayCount * 100) : 0;
+                                    $phaseDateLabel = $phase->start_date && $phase->end_date
+                                        ? $phase->start_date->format('M j') . ' – ' . $phase->end_date->format('M j, Y')
+                                        : ($phase->start_date ? 'Starts ' . $phase->start_date->format('M j, Y') : 'Ends ' . $phase->end_date->format('M j, Y'));
+                                    $datedTasks = $phase->tasks->filter(function ($task) use ($timelineStart, $visibleEnd) {
+                                        if (! $task->start_date && ! $task->due_date) return false;
+                                        $taskStart = $task->start_date ?? $task->due_date;
+                                        $taskEnd = $task->due_date ?? $task->start_date;
+                                        return ! $taskEnd->lt($timelineStart) && ! $taskStart->gt($visibleEnd);
+                                    })->values();
+                                    $phaseRowHeight = 60 + ($datedTasks->count() * 23);
+                                @endphp
+                                <div class="gantt-row gantt-phase-row border-bottom" style="grid-template-columns: {{ $gridColumns }}; min-height: {{ $phaseRowHeight }}px;">
+                                    <div class="gantt-label px-3 py-2 border-end">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <a class="text-body text-decoration-none fw-semibold text-truncate" href="{{ route('projects.board', ['project' => $project, 'phase' => $phase->id]) }}" title="{{ $phase->name }}">{{ $phase->name }}</a>
+                                            <span class="badge gantt-status border-0 fw-normal flex-shrink-0">{{ ucfirst($phase->status) }}</span>
+                                        </div>
+                                        <small class="text-muted">{{ $phaseDateLabel }}</small>
+                                    </div>
+                                    <div class="gantt-track">
+                                        <div class="gantt-weeks" style="grid-template-columns: repeat({{ $weekCountVisible }}, minmax(0, 1fr));">
+                                            @foreach($weeks as $week)<div></div>@endforeach
+                                        </div>
+                                        @if($phaseVisible)
+                                            <div class="gantt-bar gantt-phase-bar @if($phase->isOverdue()) gantt-phase-overdue @elseif($phase->status === 'completed') gantt-phase-completed @else gantt-phase-active @endif" style="left: {{ $phaseBarLeft }}%; width: {{ $phaseBarWidth }}%; top: 10px;" title="{{ $phase->name }} · {{ $phaseDateLabel }}"></div>
+                                        @endif
+                                        @foreach($datedTasks as $task)
+                                            @php
+                                                $taskStart = $task->start_date ?? $task->due_date;
+                                                $taskEnd = $task->due_date ?? $task->start_date;
+                                                $clippedTaskStart = $taskStart->lt($timelineStart) ? $timelineStart : $taskStart;
+                                                $clippedTaskEnd = $taskEnd->gt($visibleEnd) ? $visibleEnd : $taskEnd;
+                                                $taskStartOffset = $timelineStart->diffInDays($clippedTaskStart);
+                                                $taskEndOffset = $timelineStart->diffInDays($clippedTaskEnd);
+                                                $taskBarLeft = $taskStartOffset / $timelineDayCount * 100;
+                                                $taskBarWidth = ($taskEndOffset - $taskStartOffset + 1) / $timelineDayCount * 100;
+                                                $taskDateLabel = $task->start_date && $task->due_date
+                                                    ? $task->start_date->format('M j') . ' – ' . $task->due_date->format('M j, Y')
+                                                    : ($task->start_date ? 'Starts ' . $task->start_date->format('M j, Y') : 'Due ' . $task->due_date->format('M j, Y'));
+                                                $taskBarClass = match ($task->status) {
+                                                    'completed' => 'gantt-task-completed',
+                                                    'active' => 'gantt-task-active',
+                                                    default => 'gantt-task-planned',
+                                                };
+                                            @endphp
+                                            <div class="gantt-bar gantt-task-bar {{ $taskBarClass }}" style="left: {{ $taskBarLeft }}%; width: {{ $taskBarWidth }}%; top: {{ 34 + ($loop->index * 23) }}px;" title="{{ $task->title }} · {{ $taskDateLabel }}">
+                                                <span>{{ $task->title }}</span>
                                             </div>
-                                        </td>
-                                        @foreach($cellStates as $state)
-                                            <td class="timeline-cell @if($state === 'filled') @if($phase->isOverdue()) timeline-bar-overdue @elseif($phase->status === 'completed') timeline-bar-completed @else timeline-bar-active @endif @endif" style="width: 95px;">
-                                                @if($state === 'filled')
-                                                    &nbsp;
-                                                @endif
-                                            </td>
                                         @endforeach
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             </div>
@@ -158,6 +141,12 @@
                         (first 26 weeks)
                     @endif
                 </small>
+                <div class="gantt-legend d-flex gap-3 mt-2 small flex-wrap">
+                    <span><span class="d-inline-block rounded-pill me-1 gantt-legend-phase"></span>Phase</span>
+                    <span><span class="d-inline-block rounded-pill me-1 gantt-legend-active"></span>Active task</span>
+                    <span><span class="d-inline-block rounded-pill me-1 gantt-legend-planned"></span>Planned task</span>
+                    <span><span class="d-inline-block rounded-pill me-1 gantt-legend-completed"></span>Completed task</span>
+                </div>
             </div>
         @endif
     </div>
